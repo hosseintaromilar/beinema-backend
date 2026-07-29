@@ -234,4 +234,40 @@ public class ChatRoomService {
                 .toList();
 
     }
+
+    public void deleteChatRoom(
+            Long chatRoomId,
+            String email
+    ) {
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        ChatRoom chatRoom =
+                chatRoomRepository.findById(chatRoomId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Chat room not found"));
+
+        boolean isOwner =
+                participantRepository.existsByChatRoomAndUserAndRole(
+                        chatRoom,
+                        user,
+                        ParticipantRole.OWNER
+                );
+
+        if (!isOwner) {
+
+            throw new RuntimeException(
+                    "Access denied"
+            );
+        }
+
+        participantRepository.deleteAllByChatRoom(chatRoom);
+
+        chatRoomAgentRepository.deleteAllByChatRoom(chatRoom);
+
+        chatRoomRepository.delete(chatRoom);
+    }
 }

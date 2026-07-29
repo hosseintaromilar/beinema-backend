@@ -60,4 +60,18 @@ public class ChatRoomController {
     }
 
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteChatRoom(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+
+        chatRoomService.deleteChatRoom(
+                id,
+                authentication.getName()
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
 }
