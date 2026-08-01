@@ -30,7 +30,6 @@ public class ChatRoom extends BaseEntity {
     /**
      * شناسه Conversation در سرویس AI Provider
      * مثل Metis / OpenAI / سایر LLM Providers
-     *
      * هر ChatRoom در سیستم ما
      * معادل یک Conversation مستقل در سرویس AI است.
      */

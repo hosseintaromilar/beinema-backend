@@ -5,18 +5,12 @@ import com.coupleai.coupleai.beinema.Entity.*;
 import com.coupleai.coupleai.beinema.Enum.AgentStatus;
 import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import com.coupleai.coupleai.beinema.Enum.ParticipantRole;
-import com.coupleai.coupleai.beinema.Exception.*;
 import com.coupleai.coupleai.beinema.Repository.*;
-
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.stereotype.Service;
-
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor

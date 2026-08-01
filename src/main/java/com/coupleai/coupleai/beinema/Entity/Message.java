@@ -4,7 +4,6 @@ import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.MessageStatus;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SQLDelete;
 
 @Entity
 @Table(
