@@ -34,6 +34,7 @@ public class ChatRoomService {
     private final AgentRepository agentRepository;
 
     private final UserRepository userRepository;
+    private final MessageRepository messageRepository;
 
 
     public ChatRoomResponse createChatRoom(
@@ -267,6 +268,8 @@ public class ChatRoomService {
         participantRepository.deleteAllByChatRoom(chatRoom);
 
         chatRoomAgentRepository.deleteAllByChatRoom(chatRoom);
+
+        messageRepository.deleteAllByChatRoom(chatRoom);
 
         chatRoomRepository.delete(chatRoom);
     }

@@ -5,7 +5,7 @@ import com.coupleai.coupleai.beinema.DTO.Auth.AuthResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.LoginRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.RegisterRequest;
 import com.coupleai.coupleai.beinema.Entity.User;
-import com.coupleai.coupleai.beinema.Entity.UserRole;
+import com.coupleai.coupleai.beinema.Enum.UserRole;
 import com.coupleai.coupleai.beinema.Enum.UserStatus;
 import com.coupleai.coupleai.beinema.Exception.EmailAlreadyExistsException;
 import com.coupleai.coupleai.beinema.Exception.InvalidCredentialsException;

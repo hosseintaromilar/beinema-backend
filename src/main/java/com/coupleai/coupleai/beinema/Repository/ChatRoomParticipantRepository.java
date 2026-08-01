@@ -18,4 +18,9 @@ public interface ChatRoomParticipantRepository
     );
 
     void deleteAllByChatRoom(ChatRoom chatRoom);
+
+    boolean existsByChatRoomAndUser(
+            ChatRoom chatRoom,
+            User user
+    );
 }

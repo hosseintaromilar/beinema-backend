@@ -1,6 +1,7 @@
 package com.coupleai.coupleai.beinema.Entity;
 
 
+import com.coupleai.coupleai.beinema.Enum.UserRole;
 import com.coupleai.coupleai.beinema.Enum.UserStatus;
 import jakarta.persistence.*;
 
