@@ -29,9 +29,222 @@ public class ChatRoomService {
 
     private final UserRepository userRepository;
     private final MessageRepository messageRepository;
+    private final MetisService metisService;
 
 
     public ChatRoomResponse createChatRoom(
+            String email,
+            CreateChatRoomRequest request
+    ) {
+
+        User user = userRepository
+
+                .findByEmail(email)
+
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found"
+                        )
+                );
+
+
+        Agent agent = agentRepository
+
+                .findById(request.getAgentId())
+
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Agent not found"
+                        )
+                );
+
+
+        if (
+                agent.getStatus() != AgentStatus.ACTIVE
+        ) {
+
+            throw new RuntimeException(
+                    "Agent is not active"
+            );
+
+        }
+
+
+        String title = request.getTitle();
+
+
+        if (
+                title == null ||
+                        title.isBlank()
+        ) {
+
+            title = "گفتگوی جدید";
+
+        }
+
+
+        /*
+         * =====================================================
+         * 1. ساخت Conversation در Metis
+         * =====================================================
+         *
+         * هنوز ChatRoom را save نکرده‌ایم.
+         *
+         * اگر Metis خطا بدهد، اصلاً ChatRoom ساخته نمی‌شود.
+         */
+
+        var metisConversation =
+
+                metisService.createConversation(
+                        agent.getAiBotId(),
+                        user
+                );
+
+
+        String aiConversationId =
+                metisConversation.getId();
+
+
+        /*
+         * =====================================================
+         * 2. ساخت ChatRoom
+         * =====================================================
+         */
+
+        ChatRoom chatRoom = ChatRoom.builder()
+
+                .title(title)
+
+                .status(
+                        ChatRoomStatus.ACTIVE
+                )
+
+                .aiConversationId(
+                        aiConversationId
+                )
+
+                .createdBy(
+                        user.getId()
+                )
+
+                .build();
+
+
+        chatRoomRepository.save(chatRoom);
+
+
+        /*
+         * =====================================================
+         * 3. اضافه کردن User به ChatRoom
+         * =====================================================
+         */
+
+        ChatRoomParticipant participant =
+
+                ChatRoomParticipant.builder()
+
+                        .chatRoom(chatRoom)
+
+                        .user(user)
+
+                        .role(
+                                ParticipantRole.OWNER
+                        )
+
+                        .build();
+
+
+        participantRepository.save(participant);
+
+
+        /*
+         * =====================================================
+         * 4. اضافه کردن Agent به ChatRoom
+         * =====================================================
+         */
+
+        ChatRoomAgent chatRoomAgent =
+
+                ChatRoomAgent.builder()
+
+                        .chatRoom(chatRoom)
+
+                        .agent(agent)
+
+                        .active(
+                                agent.getStatus()
+                                        == AgentStatus.ACTIVE
+                        )
+
+                        .addedAt(
+                                LocalDateTime.now()
+                        )
+
+                        .addedBy(
+                                user.getId()
+                        )
+
+                        .build();
+
+
+        chatRoomAgentRepository.save(
+                chatRoomAgent
+        );
+
+
+        /*
+         * =====================================================
+         * 5. Response
+         * =====================================================
+         */
+
+        return ChatRoomResponse.builder()
+
+                .id(
+                        chatRoom.getId()
+                )
+
+                .title(
+                        chatRoom.getTitle()
+                )
+
+                .status(
+                        chatRoom.getStatus()
+                )
+
+                .agents(
+
+                        List.of(
+
+                                AgentSummary.builder()
+
+                                        .id(
+                                                agent.getId()
+                                        )
+
+                                        .name(
+                                                agent.getName()
+                                        )
+
+                                        .type(
+                                                agent.getType().toString()
+                                        )
+
+                                        .avatar(
+                                                agent.getAvatar()
+                                        )
+
+                                        .build()
+
+                        )
+
+                )
+
+                .build();
+    }
+
+
+    /*public ChatRoomResponse createChatRoom(
 
 
             String email,
@@ -182,7 +395,7 @@ public class ChatRoomService {
 
                 .build();
 
-    }
+    }*/
 
     public List<ChatRoomResponse> getChatRooms(String email) {
 

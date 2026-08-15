@@ -37,24 +37,13 @@ public class JwtAuthenticationFilter
         final String authHeader =
                 request.getHeader("Authorization");
 
-        System.out.println(
-                "REQUEST: " + request.getMethod()
-                        + " "
-                        + request.getRequestURI()
-        );
 
-        System.out.println(
-                "AUTH HEADER: " + authHeader
-        );
 
         if (
                 authHeader == null ||
                         !authHeader.startsWith("Bearer ")
         ) {
 
-            System.out.println(
-                    "NO VALID BEARER TOKEN"
-            );
 
             filterChain.doFilter(request, response);
 
@@ -69,16 +58,11 @@ public class JwtAuthenticationFilter
 
             email = jwtService.extractUsername(token);
 
-            System.out.println(
-                    "TOKEN EMAIL: " + email
-            );
+
 
         } catch (Exception exception) {
 
-            System.out.println(
-                    "TOKEN PARSING FAILED: "
-                            + exception.getMessage()
-            );
+
 
             filterChain.doFilter(request, response);
 
@@ -99,9 +83,7 @@ public class JwtAuthenticationFilter
             boolean valid =
                     jwtService.isTokenValid(token);
 
-            System.out.println(
-                    "TOKEN VALID: " + valid
-            );
+
 
             if (valid) {
 
@@ -124,9 +106,7 @@ public class JwtAuthenticationFilter
                                 authentication
                         );
 
-                System.out.println(
-                        "AUTHENTICATION SET SUCCESSFULLY"
-                );
+
             }
         }
 

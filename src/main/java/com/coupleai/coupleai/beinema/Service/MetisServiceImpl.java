@@ -1,0 +1,112 @@
+package com.coupleai.coupleai.beinema.Service;
+
+import com.coupleai.coupleai.beinema.DTO.metis.CreateMetisConversationRequest;
+import com.coupleai.coupleai.beinema.DTO.metis.MetisConversationResponse;
+import com.coupleai.coupleai.beinema.DTO.metis.MetisUserRequest;
+import com.coupleai.coupleai.beinema.Entity.User;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+@Service
+@RequiredArgsConstructor
+public class MetisServiceImpl implements MetisService {
+
+    private final RestClient metisRestClient;
+
+
+    @Override
+    public MetisConversationResponse createConversation(
+            String botId,
+            User user
+    ) {
+
+        if (botId == null || botId.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "AI bot id is required"
+            );
+        }
+
+
+        CreateMetisConversationRequest request =
+                CreateMetisConversationRequest.builder()
+
+                        .botId(botId)
+
+                        .user(
+                                MetisUserRequest.builder()
+
+                                        .id(
+                                                String.valueOf(
+                                                        user.getId()
+                                                )
+                                        )
+
+                                        .name(
+                                                user.getName()
+                                        )
+
+                                        .build()
+                        )
+
+                        .build();
+
+
+        try {
+
+            MetisConversationResponse response =
+
+                    metisRestClient
+
+                            .post()
+
+                            .uri("/api/v1/chat/session")
+
+                            .body(request)
+
+                            .retrieve()
+
+                            .onStatus(
+                                    HttpStatusCode::isError,
+                                    (request1, response1) -> {
+
+                                        throw new RuntimeException(
+                                                "Metis conversation creation failed. HTTP status: "
+                                                        + response1.getStatusCode()
+                                        );
+
+                                    }
+                            )
+
+                            .body(
+                                    MetisConversationResponse.class
+                            );
+
+
+            if (
+                    response == null ||
+                            response.getId() == null ||
+                            response.getId().isBlank()
+            ) {
+
+                throw new RuntimeException(
+                        "Metis created conversation but returned no conversation id"
+                );
+
+            }
+
+
+            return response;
+
+        } catch (RestClientException exception) {
+
+            throw new RuntimeException(
+                    "Could not connect to Metis",
+                    exception
+            );
+        }
+    }
+}

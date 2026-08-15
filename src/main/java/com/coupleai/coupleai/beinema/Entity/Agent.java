@@ -35,6 +35,19 @@ public class Agent extends BaseEntity {
     private String avatar;
 
 
+    /**
+     * شناسه Bot در سرویس AI Provider
+     *
+     * در حال حاضر:
+     * Metis Bot ID
+     *
+     * این مقدار مربوط به خود Agent است،
+     * نه یک Conversation خاص.
+     */
+    @Column(name = "ai_bot_id", nullable = false)
+    private String aiBotId;
+
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
