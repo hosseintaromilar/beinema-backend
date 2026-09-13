@@ -5,7 +5,15 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "chat_room_participants")
+@Table(
+        name = "chat_room_participants",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_chat_room_user",
+                        columnNames = {"chat_room_id", "user_id"}
+                )
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,7 +39,7 @@ public class ChatRoomParticipant extends BaseEntity {
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "role", nullable = false, length = 32)
     @Builder.Default
     private ParticipantRole role = ParticipantRole.MEMBER;
 

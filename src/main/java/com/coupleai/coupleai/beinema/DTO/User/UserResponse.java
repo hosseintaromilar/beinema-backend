@@ -14,6 +14,8 @@ public class UserResponse {
 
     private String email;
 
+    private String phoneNumber;
+
     private String role;
 
     private String status;
@@ -30,6 +32,8 @@ public class UserResponse {
                 .name(user.getName())
 
                 .email(user.getEmail())
+
+                .phoneNumber(user.getPhoneNumber())
 
                 .role(user.getRole().name())
 

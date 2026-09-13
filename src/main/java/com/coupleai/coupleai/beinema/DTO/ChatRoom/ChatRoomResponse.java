@@ -4,7 +4,7 @@ import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+
 import java.util.List;
 
 @Getter
@@ -18,5 +18,7 @@ public class ChatRoomResponse {
     private ChatRoomStatus status;
 
     private List<AgentSummary> agents;
+
+    private List<ParticipantSummary> participants;
 
 }

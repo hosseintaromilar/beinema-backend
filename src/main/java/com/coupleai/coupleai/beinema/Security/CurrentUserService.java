@@ -26,6 +26,15 @@ public class CurrentUserService {
 
                         .getAuthentication();
 
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getName())) {
+
+            throw new IllegalArgumentException(
+                    "برای پذیرش دعوت باید وارد حساب شوید."
+            );
+        }
+
 
         String email =
 

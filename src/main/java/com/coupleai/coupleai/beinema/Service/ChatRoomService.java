@@ -240,6 +240,16 @@ public class ChatRoomService {
 
                 )
 
+                .participants(
+                        List.of(
+                                ParticipantSummary.builder()
+                                        .userId(user.getId())
+                                        .name(user.getName())
+                                        .role(ParticipantRole.OWNER)
+                                        .build()
+                        )
+                )
+
                 .build();
     }
 
@@ -435,6 +445,7 @@ public class ChatRoomService {
                             .title(chatRoom.getTitle())
                             .status(chatRoom.getStatus())
                             .agents(agents)
+                            .participants(toParticipantSummaries(chatRoom))
                             .build();
 
                 })
@@ -458,14 +469,15 @@ public class ChatRoomService {
                         .orElseThrow(() ->
                                 new RuntimeException("Chat room not found"));
 
-        boolean isOwner =
-                participantRepository.existsByChatRoomAndUserAndRole(
-                        chatRoom,
-                        user,
-                        ParticipantRole.OWNER
-                );
+        boolean canDelete =
+                chatRoom.getCreatedBy().equals(user.getId())
+                        || participantRepository.existsByChatRoomAndUserAndRole(
+                                chatRoom,
+                                user,
+                                ParticipantRole.OWNER
+                        );
 
-        if (!isOwner) {
+        if (!canDelete) {
 
             throw new RuntimeException(
                     "Access denied"
@@ -479,5 +491,56 @@ public class ChatRoomService {
         messageRepository.deleteAllByChatRoom(chatRoom);
 
         chatRoomRepository.delete(chatRoom);
+    }
+
+
+    public ChatRoomResponse getChatRoom(Long chatRoomId, String email) {
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+
+        if (!participantRepository.existsByChatRoomAndUser(chatRoom, user)) {
+            throw new RuntimeException("Access denied");
+        }
+
+        List<AgentSummary> agents =
+                chatRoomAgentRepository
+                        .findAllByChatRoom(chatRoom)
+                        .stream()
+                        .map(chatRoomAgent -> {
+                            Agent agent = chatRoomAgent.getAgent();
+                            return AgentSummary.builder()
+                                    .id(agent.getId())
+                                    .name(agent.getName())
+                                    .type(agent.getType().toString())
+                                    .avatar(agent.getAvatar())
+                                    .build();
+                        })
+                        .toList();
+
+        return ChatRoomResponse.builder()
+                .id(chatRoom.getId())
+                .title(chatRoom.getTitle())
+                .status(chatRoom.getStatus())
+                .agents(agents)
+                .participants(toParticipantSummaries(chatRoom))
+                .build();
+    }
+
+
+    private List<ParticipantSummary> toParticipantSummaries(ChatRoom chatRoom) {
+
+        return participantRepository.findAllByChatRoom(chatRoom)
+                .stream()
+                .map(item -> ParticipantSummary.builder()
+                        .userId(item.getUser().getId())
+                        .name(item.getUser().getName())
+                        .role(item.getRole())
+                        .build())
+                .toList();
     }
 }

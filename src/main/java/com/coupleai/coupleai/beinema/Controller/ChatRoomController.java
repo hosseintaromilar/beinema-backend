@@ -60,6 +60,21 @@ public class ChatRoomController {
     }
 
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ChatRoomResponse> getChatRoom(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+
+        return ResponseEntity.ok(
+                chatRoomService.getChatRoom(
+                        id,
+                        authentication.getName()
+                )
+        );
+    }
+
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteChatRoom(
             @PathVariable Long id,

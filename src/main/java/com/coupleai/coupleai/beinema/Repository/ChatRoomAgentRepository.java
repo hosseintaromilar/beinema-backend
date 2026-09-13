@@ -10,5 +10,8 @@ public interface ChatRoomAgentRepository
         extends JpaRepository<ChatRoomAgent, Long> {
 
     List<ChatRoomAgent> findAllByChatRoom(ChatRoom chatRoom);
+
+    List<ChatRoomAgent> findAllByChatRoom_Id(Long chatRoomId);
+
     void deleteAllByChatRoom(ChatRoom chatRoom);
 }

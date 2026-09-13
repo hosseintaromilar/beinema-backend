@@ -12,6 +12,7 @@ import com.coupleai.coupleai.beinema.Exception.InvalidCredentialsException;
 import com.coupleai.coupleai.beinema.Exception.UserNotActiveException;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.JwtService;
+import com.coupleai.coupleai.beinema.Util.PhoneNumbers;
 
 import lombok.RequiredArgsConstructor;
 
@@ -63,10 +64,25 @@ public class AuthService {
 
             throw new EmailAlreadyExistsException(
 
-                    "این ایمیل قبلاً ثبت‌نام کرده است"
+                    "این ایمیل قبلاً ثبت ‌نام کرده است"
 
             );
 
+        }
+
+
+        String phoneNumber = null;
+
+        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
+
+            phoneNumber = PhoneNumbers.normalize(request.getPhoneNumber());
+
+            if (userRepository.existsByPhoneNumber(phoneNumber)) {
+
+                throw new EmailAlreadyExistsException(
+                        "این شماره موبایل قبلاً ثبت‌نام کرده است"
+                );
+            }
         }
 
 
@@ -75,7 +91,9 @@ public class AuthService {
 
                 .name(request.getName())
 
-                .email(request.getEmail())
+                .email(email)
+
+                .phoneNumber(phoneNumber)
 
                 .password(
 

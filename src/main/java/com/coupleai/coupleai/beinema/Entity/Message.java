@@ -43,8 +43,7 @@ public class Message extends BaseEntity {
     private Long senderId;
 
 
-    @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String content;
 
 

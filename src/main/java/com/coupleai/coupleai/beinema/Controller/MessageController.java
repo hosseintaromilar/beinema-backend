@@ -1,47 +1,42 @@
-
 package com.coupleai.coupleai.beinema.Controller;
 
 import com.coupleai.coupleai.beinema.DTO.messages.MessageResponse;
 import com.coupleai.coupleai.beinema.DTO.messages.SendMessageRequest;
 import com.coupleai.coupleai.beinema.Service.MessageService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-        import java.util.List;
+import java.util.List;
 
 @RestController
-@RequestMapping("/api/chat-rooms/{chatRoomId}/messages")
+@RequestMapping("/api/chat-rooms")
 @RequiredArgsConstructor
 public class MessageController {
 
     private final MessageService messageService;
 
-    @GetMapping
+    @GetMapping("/{chatRoomId}/messages")
     public List<MessageResponse> getMessages(
             @PathVariable Long chatRoomId
     ) {
 
         return messageService.getMessages(chatRoomId);
-
     }
 
-    @PostMapping
-    public MessageResponse sendMessage(
-
+    @PostMapping(
+            value = "/{chatRoomId}/messages/stream",
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE
+    )
+    public SseEmitter sendMessage(
             @PathVariable Long chatRoomId,
-
-            @Valid
-            @RequestBody
-            SendMessageRequest request
-
+            @RequestBody SendMessageRequest request
     ) {
 
-        return messageService.sendMessage(
+        return messageService.sendMessageStream(
                 chatRoomId,
                 request
         );
-
     }
-
 }

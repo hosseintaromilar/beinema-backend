@@ -6,10 +6,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -25,6 +27,23 @@ public class JwtAuthenticationFilter
 
 
     private final UserDetailsService userDetailsService;
+
+
+    private final RequestAttributeSecurityContextRepository
+            securityContextRepository =
+            new RequestAttributeSecurityContextRepository();
+
+
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
+
+    @Override
+    protected boolean shouldNotFilterErrorDispatch() {
+        return false;
+    }
 
 
     @Override
@@ -100,11 +119,18 @@ public class JwtAuthenticationFilter
                                 .buildDetails(request)
                 );
 
-                SecurityContextHolder
-                        .getContext()
-                        .setAuthentication(
-                                authentication
-                        );
+                SecurityContext context =
+                        SecurityContextHolder.createEmptyContext();
+
+                context.setAuthentication(authentication);
+
+                SecurityContextHolder.setContext(context);
+
+                securityContextRepository.saveContext(
+                        context,
+                        request,
+                        response
+                );
 
 
             }

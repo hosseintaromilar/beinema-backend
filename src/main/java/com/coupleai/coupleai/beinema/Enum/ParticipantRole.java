@@ -4,6 +4,10 @@ public enum ParticipantRole {
 
     OWNER,
 
-    MEMBER
+    MEMBER,
+
+    PARTNER_A,
+
+    PARTNER_B
 
 }

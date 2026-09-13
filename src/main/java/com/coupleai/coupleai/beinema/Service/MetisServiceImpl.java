@@ -10,11 +10,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.util.function.Consumer;
+
 @Service
 @RequiredArgsConstructor
 public class MetisServiceImpl implements MetisService {
 
     private final RestClient metisRestClient;
+
+    private final MetisClient metisClient;
 
 
     @Override
@@ -63,7 +67,9 @@ public class MetisServiceImpl implements MetisService {
 
                             .post()
 
-                            .uri("/api/v1/chat/session")
+                            .uri(
+                                    "/api/v1/chat/session"
+                            )
 
                             .body(request)
 
@@ -87,15 +93,16 @@ public class MetisServiceImpl implements MetisService {
 
 
             if (
-                    response == null ||
-                            response.getId() == null ||
+                    response == null
+                            ||
+                            response.getId() == null
+                            ||
                             response.getId().isBlank()
             ) {
 
                 throw new RuntimeException(
                         "Metis created conversation but returned no conversation id"
                 );
-
             }
 
 
@@ -108,5 +115,42 @@ public class MetisServiceImpl implements MetisService {
                     exception
             );
         }
+    }
+
+
+    @Override
+    public void streamMessage(
+            String sessionId,
+            String content,
+            Consumer<String> chunkConsumer
+    ) {
+
+        if (sessionId == null || sessionId.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Metis session id is required"
+            );
+        }
+
+        if (content == null || content.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Message content is required"
+            );
+        }
+
+        if (chunkConsumer == null) {
+
+            throw new IllegalArgumentException(
+                    "Chunk consumer is required"
+            );
+        }
+
+
+        metisClient.streamMessage(
+                sessionId,
+                content,
+                chunkConsumer
+        );
     }
 }
