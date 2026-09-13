@@ -47,6 +47,19 @@ public class JwtAuthenticationFilter
 
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+
+        String path = request.getServletPath();
+        String method = request.getMethod();
+
+        return "GET".equalsIgnoreCase(method)
+                && path != null
+                && path.startsWith("/api/invitations/")
+                && !path.endsWith("/accept");
+    }
+
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,

@@ -29,6 +29,7 @@ public class ChatRoomService {
 
     private final UserRepository userRepository;
     private final MessageRepository messageRepository;
+    private final ChatRoomInvitationRepository invitationRepository;
     private final MetisService metisService;
 
 
@@ -483,6 +484,8 @@ public class ChatRoomService {
                     "Access denied"
             );
         }
+
+        invitationRepository.deleteAllByChatRoom(chatRoom);
 
         participantRepository.deleteAllByChatRoom(chatRoom);
 

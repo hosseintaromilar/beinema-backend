@@ -157,6 +157,17 @@ public class SecurityConfig {
 
                         .requestMatchers(
 
+                                org.springframework.http.HttpMethod.GET,
+
+                                "/api/invitations/**"
+
+                        )
+
+                        .permitAll()
+
+
+                        .requestMatchers(
+
                                 org.springframework.http.HttpMethod.OPTIONS,
 
                                 "/**"
@@ -179,7 +190,7 @@ public class SecurityConfig {
                             response.setCharacterEncoding("UTF-8");
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
-                                    "{\"message\":\"برای پیوستن به گفتگو باید وارد حساب شوید.\"}"
+                                    "{\"message\":\"برای ادامه باید وارد حساب شوید.\"}"
                             );
                         })
                 )
