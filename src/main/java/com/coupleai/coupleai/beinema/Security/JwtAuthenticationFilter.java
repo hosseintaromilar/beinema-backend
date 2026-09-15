@@ -29,6 +29,9 @@ public class JwtAuthenticationFilter
     private final UserDetailsService userDetailsService;
 
 
+    private final TokenBlacklistService tokenBlacklistService;
+
+
     private final RequestAttributeSecurityContextRepository
             securityContextRepository =
             new RequestAttributeSecurityContextRepository();
@@ -52,8 +55,17 @@ public class JwtAuthenticationFilter
         String path = request.getServletPath();
         String method = request.getMethod();
 
+        if (path == null) {
+            return false;
+        }
+
+        if ("POST".equalsIgnoreCase(method)
+                && ("/api/auth/login".equals(path)
+                || "/api/auth/register".equals(path))) {
+            return true;
+        }
+
         return "GET".equalsIgnoreCase(method)
-                && path != null
                 && path.startsWith("/api/invitations/")
                 && !path.endsWith("/accept");
     }
@@ -84,6 +96,13 @@ public class JwtAuthenticationFilter
 
         String token = authHeader.substring(7);
 
+        if (tokenBlacklistService.isRevoked(token)) {
+
+            filterChain.doFilter(request, response);
+
+            return;
+        }
+
         String email;
 
         try {
@@ -108,9 +127,20 @@ public class JwtAuthenticationFilter
                                 .getAuthentication() == null
         ) {
 
-            UserDetails userDetails =
-                    userDetailsService
-                            .loadUserByUsername(email);
+            UserDetails userDetails;
+
+            try {
+
+                userDetails =
+                        userDetailsService
+                                .loadUserByUsername(email);
+
+            } catch (Exception exception) {
+
+                filterChain.doFilter(request, response);
+
+                return;
+            }
 
             boolean valid =
                     jwtService.isTokenValid(token);

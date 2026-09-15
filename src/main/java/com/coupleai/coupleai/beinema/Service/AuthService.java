@@ -3,6 +3,7 @@ package com.coupleai.coupleai.beinema.Service;
 
 import com.coupleai.coupleai.beinema.DTO.Auth.AuthResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.LoginRequest;
+import com.coupleai.coupleai.beinema.DTO.Auth.LogoutResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.RegisterRequest;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Enum.UserRole;
@@ -12,6 +13,7 @@ import com.coupleai.coupleai.beinema.Exception.InvalidCredentialsException;
 import com.coupleai.coupleai.beinema.Exception.UserNotActiveException;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.JwtService;
+import com.coupleai.coupleai.beinema.Security.TokenBlacklistService;
 import com.coupleai.coupleai.beinema.Util.PhoneNumbers;
 
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,9 @@ public class AuthService {
 
 
     private final JwtService jwtService;
+
+
+    private final TokenBlacklistService tokenBlacklistService;
 
 
 
@@ -235,6 +240,46 @@ public class AuthService {
                 token
 
         );
+
+    }
+
+
+    public LogoutResponse logout(
+
+            String authorizationHeader
+
+    ) {
+
+        String token = extractBearerToken(authorizationHeader);
+
+        if (token == null) {
+            throw new InvalidCredentialsException(
+                    "برای خروج باید وارد حساب شده باشید"
+            );
+        }
+
+        tokenBlacklistService.revoke(token);
+
+        return new LogoutResponse(
+                "خروج با موفقیت انجام شد"
+        );
+
+    }
+
+
+    private static String extractBearerToken(
+
+            String authorizationHeader
+
+    ) {
+
+        if (authorizationHeader == null
+                || !authorizationHeader.startsWith("Bearer ")) {
+            return null;
+        }
+
+        String token = authorizationHeader.substring(7).trim();
+        return token.isEmpty() ? null : token;
 
     }
 

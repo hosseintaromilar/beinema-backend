@@ -21,4 +21,8 @@ public interface MessageService {
             Long chatRoomId,
             SendMessageRequest request
     );
+
+    SseEmitter subscribe(
+            Long chatRoomId
+    );
 }

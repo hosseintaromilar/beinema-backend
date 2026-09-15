@@ -46,6 +46,8 @@ public class MessageServiceImpl implements MessageService {
 
     private final ObjectMapper objectMapper;
 
+    private final ChatRoomEventHub chatRoomEventHub;
+
 
     @Override
     public MessageResponse sendMessage(
@@ -84,6 +86,18 @@ public class MessageServiceImpl implements MessageService {
                 .stream()
                 .map(message -> toMessageResponse(message, participantsByUserId))
                 .toList();
+    }
+
+
+    @Override
+    public SseEmitter subscribe(
+            Long chatRoomId
+    ) {
+
+        ChatRoom chatRoom =
+                getAuthorizedChatRoom(chatRoomId);
+
+        return chatRoomEventHub.subscribe(chatRoom.getId());
     }
 
 
@@ -170,6 +184,7 @@ public class MessageServiceImpl implements MessageService {
 
 
         messageRepository.save(userMessage);
+        publishRoomMessage(chatRoom, userMessage);
 
         String conversationId = chatRoom.getAiConversationId();
         Long chatRoomPk = chatRoom.getId();
@@ -349,6 +364,7 @@ public class MessageServiceImpl implements MessageService {
 
 
                 messageRepository.save(aiMessage);
+                publishRoomMessage(chatRoom, aiMessage);
 
 
                 /*
@@ -493,6 +509,27 @@ public class MessageServiceImpl implements MessageService {
 
 
         return chatRoom;
+    }
+
+
+    private void publishRoomMessage(
+            ChatRoom chatRoom,
+            Message message
+    ) {
+
+        chatRoomEventHub.publish(
+                chatRoom.getId(),
+                toMessageResponse(
+                        message,
+                        participantRepository.findAllByChatRoom(chatRoom)
+                                .stream()
+                                .collect(java.util.stream.Collectors.toMap(
+                                        item -> item.getUser().getId(),
+                                        item -> item,
+                                        (first, second) -> first
+                                ))
+                )
+        );
     }
 
 

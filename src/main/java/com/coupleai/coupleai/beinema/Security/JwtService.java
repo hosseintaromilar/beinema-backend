@@ -108,6 +108,19 @@ public class JwtService {
     }
 
 
+    public Date extractExpiration(
+
+            String token
+
+    ) {
+
+        return extractAllClaims(token)
+
+                .getExpiration();
+
+    }
+
+
     public boolean isTokenValid(
 
             String token
@@ -116,9 +129,7 @@ public class JwtService {
 
         try {
 
-            Claims claims = extractAllClaims(token);
-
-            return claims.getExpiration()
+            return extractExpiration(token)
 
                     .after(new Date());
 

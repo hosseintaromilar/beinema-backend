@@ -25,6 +25,17 @@ public class MessageController {
         return messageService.getMessages(chatRoomId);
     }
 
+    @GetMapping(
+            value = "/{chatRoomId}/events",
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE
+    )
+    public SseEmitter subscribe(
+            @PathVariable Long chatRoomId
+    ) {
+
+        return messageService.subscribe(chatRoomId);
+    }
+
     @PostMapping(
             value = "/{chatRoomId}/messages/stream",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE
