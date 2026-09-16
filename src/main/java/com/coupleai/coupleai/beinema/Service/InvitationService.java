@@ -6,18 +6,24 @@ import com.coupleai.coupleai.beinema.DTO.Invitation.InvitePartnerResponse;
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomInvitation;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
+import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Enum.InvitationStatus;
+import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
+import com.coupleai.coupleai.beinema.Enum.MessageStatus;
 import com.coupleai.coupleai.beinema.Enum.ParticipantRole;
 import com.coupleai.coupleai.beinema.Exception.SmsDeliveryException;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomInvitationRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
+import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.CurrentUserService;
 import com.coupleai.coupleai.beinema.Service.sms.SmsProvider;
 import com.coupleai.coupleai.beinema.Util.PhoneNumbers;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +36,8 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class InvitationService {
+
+    private static final Logger log = LoggerFactory.getLogger(InvitationService.class);
 
     private static final int MAX_HUMAN_PARTICIPANTS = 2;
 
@@ -44,6 +52,10 @@ public class InvitationService {
     private final ChatRoomInvitationRepository invitationRepository;
 
     private final UserRepository userRepository;
+
+    private final MessageRepository messageRepository;
+
+    private final ChatRealtimeService chatRealtimeService;
 
     private final SmsProvider smsProvider;
 
@@ -79,6 +91,48 @@ public class InvitationService {
             );
         }
 
+        User existingUser = userRepository.findByPhoneNumber(phone).orElse(null);
+        if (existingUser != null) {
+            addMember(chatRoom, existingUser);
+            ChatRoomInvitation invitation = invitationRepository
+                    .findFirstByChatRoomAndPhoneNumberAndStatus(
+                            chatRoom,
+                            phone,
+                            InvitationStatus.PENDING
+                    )
+                    .orElseGet(() -> invitationRepository.save(
+                            ChatRoomInvitation.builder()
+                                    .chatRoom(chatRoom)
+                                    .invitedBy(inviter)
+                                    .phoneNumber(phone)
+                                    .token(newToken())
+                                    .status(InvitationStatus.PENDING)
+                                    .expiresAt(LocalDateTime.now().plusHours(invitationExpiryHours))
+                                    .build()
+                    ));
+            markAccepted(invitation, existingUser);
+            announceJoin(chatRoom, existingUser);
+
+            String link = inviteLink(invitation.getToken());
+            try {
+                smsProvider.send(
+                        phone,
+                        inviter.getName()
+                                + " شما را به گفتگوی «"
+                                + chatRoom.getTitle()
+                                + "» در بین‌ما دعوت کرد.\n"
+                                + link
+                );
+            } catch (SmsDeliveryException exception) {
+                log.warn("SMS invite failed for {}: {}", phone, exception.getMessage());
+            }
+
+            return InvitePartnerResponse.builder()
+                    .chatRoomId(chatRoom.getId())
+                    .message("پارتنر به گفتگو اضافه شد")
+                    .build();
+        }
+
         ChatRoomInvitation invitation = invitationRepository
                 .findFirstByChatRoomAndPhoneNumberAndStatus(
                         chatRoom,
@@ -97,14 +151,14 @@ public class InvitationService {
                                 .build()
                 ));
 
-        String link = frontendUrl.replaceAll("/$", "")
-                + "/invite/"
-                + invitation.getToken();
+        String link = inviteLink(invitation.getToken());
 
         try {
             smsProvider.send(
                     phone,
-                    "دعوت به گفتگوی مشترک در بین‌ما:\n" + link
+                    inviter.getName()
+                            + " شما را به گفتگوی مشترک در بین‌ما دعوت کرد:\n"
+                            + link
             );
         } catch (SmsDeliveryException exception) {
             throw new IllegalArgumentException("ارسال پیامک ناموفق بود.");
@@ -163,13 +217,13 @@ public class InvitationService {
             throw new IllegalArgumentException("ظرفیت این گفتگو تکمیل شده است.");
         }
 
-       /* if (user.getPhoneNumber() != null
+        if (user.getPhoneNumber() != null
                 && !user.getPhoneNumber().isBlank()
                 && !user.getPhoneNumber().equals(invitation.getPhoneNumber())) {
             throw new IllegalArgumentException(
                     "این دعوت برای شماره دیگری است."
             );
-        }*/
+        }
 
         if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
             userRepository.findByPhoneNumber(invitation.getPhoneNumber())
@@ -184,20 +238,54 @@ public class InvitationService {
             userRepository.save(user);
         }
 
-        participantRepository.save(
-                ChatRoomParticipant.builder()
-                        .chatRoom(chatRoom)
-                        .user(user)
-                        .role(ParticipantRole.MEMBER)
-                        .build()
-        );
+        addMember(chatRoom, user);
         markAccepted(invitation, user);
+        announceJoin(chatRoom, user);
 
         return AcceptInvitationResponse.builder()
                 .chatRoomId(chatRoom.getId())
                 .chatRoomTitle(chatRoom.getTitle())
                 .message("با موفقیت به گفتگو اضافه شدید.")
                 .build();
+    }
+
+    private void addMember(ChatRoom chatRoom, User user) {
+        if (participantRepository.existsByChatRoomAndUser(chatRoom, user)) {
+            return;
+        }
+
+        participantRepository.saveAndFlush(
+                ChatRoomParticipant.builder()
+                        .chatRoom(chatRoom)
+                        .user(user)
+                        .role(ParticipantRole.MEMBER)
+                        .build()
+        );
+    }
+
+    private void announceJoin(ChatRoom chatRoom, User user) {
+        int nextSequence = messageRepository
+                .findMaxSequenceNumberByChatRoom(chatRoom)
+                .orElse(0)
+                + 1;
+
+        Message event = Message.builder()
+                .chatRoom(chatRoom)
+                .senderType(MessageSenderType.SYSTEM)
+                .senderId(user.getId())
+                .content(user.getName() + " با لینک دعوت به گفتگو اضافه شد")
+                .status(MessageStatus.SENT)
+                .sequenceNumber(nextSequence)
+                .build();
+
+        messageRepository.saveAndFlush(event);
+        chatRealtimeService.publish(chatRoom.getId(), event);
+    }
+
+    private String inviteLink(String token) {
+        return frontendUrl.replaceAll("/$", "")
+                + "/invite/"
+                + token;
     }
 
     private ChatRoom getAuthorizedChatRoom(Long chatRoomId, User user) {

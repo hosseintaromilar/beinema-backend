@@ -89,4 +89,19 @@ public class ChatRoomController {
         return ResponseEntity.noContent().build();
     }
 
+
+    @PostMapping("/{id}/leave")
+    public ResponseEntity<Void> leaveChatRoom(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+
+        chatRoomService.leaveChatRoom(
+                id,
+                authentication.getName()
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
 }

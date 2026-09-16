@@ -1,9 +1,11 @@
 package com.coupleai.coupleai.beinema.Controller;
 
 import com.coupleai.coupleai.beinema.DTO.Auth.AuthResponse;
+import com.coupleai.coupleai.beinema.DTO.Auth.ForgotPasswordRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LoginRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LogoutResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.RegisterRequest;
+import com.coupleai.coupleai.beinema.DTO.Auth.ResetPasswordRequest;
 import com.coupleai.coupleai.beinema.Service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +67,34 @@ public class AuthController {
 
                 )
 
+        );
+
+    }
+
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<LogoutResponse> forgotPassword(
+
+            @RequestBody ForgotPasswordRequest request
+
+    ) {
+
+        return ResponseEntity.ok(
+                authService.forgotPassword(request)
+        );
+
+    }
+
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<LogoutResponse> resetPassword(
+
+            @RequestBody ResetPasswordRequest request
+
+    ) {
+
+        return ResponseEntity.ok(
+                authService.resetPassword(request)
         );
 
     }

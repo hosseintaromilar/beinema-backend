@@ -4,6 +4,8 @@ public enum MessageSenderType {
 
     USER,
 
-    AGENT
+    AGENT,
+
+    SYSTEM
 
 }

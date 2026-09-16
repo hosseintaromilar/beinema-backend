@@ -44,8 +44,12 @@ public class ChatRoomRoleSchemaMigrator implements ApplicationRunner {
                             + "SET role = 'MEMBER' "
                             + "WHERE role = 'PARTNER_B'"
             );
+            statement.execute(
+                    "ALTER TABLE messages "
+                            + "MODIFY COLUMN sender_type VARCHAR(32) NOT NULL"
+            );
 
-            log.info("chat_room_participants.role is VARCHAR(32)");
+            log.info("chat_room_participants.role and messages.sender_type are VARCHAR(32)");
         } catch (Exception exception) {
             log.warn(
                     "Could not migrate chat_room_participants.role: {}",

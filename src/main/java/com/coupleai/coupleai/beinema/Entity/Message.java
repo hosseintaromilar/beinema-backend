@@ -35,7 +35,7 @@ public class Message extends BaseEntity {
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 32)
     private MessageSenderType senderType;
 
 

@@ -40,9 +40,7 @@ public class ChatRoom extends BaseEntity {
 
 
     @OneToMany(
-            mappedBy = "chatRoom",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
+            mappedBy = "chatRoom"
     )
     @Builder.Default
     private List<ChatRoomParticipant> participants =
@@ -50,9 +48,7 @@ public class ChatRoom extends BaseEntity {
 
 
     @OneToMany(
-            mappedBy = "chatRoom",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
+            mappedBy = "chatRoom"
     )
     @Builder.Default
     private List<ChatRoomAgent> agents =
@@ -60,9 +56,7 @@ public class ChatRoom extends BaseEntity {
 
 
     @OneToMany(
-            mappedBy = "chatRoom",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
+            mappedBy = "chatRoom"
     )
     @Builder.Default
     private List<Message> messages =

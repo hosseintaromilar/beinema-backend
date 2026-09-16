@@ -39,7 +39,7 @@ public class JwtAuthenticationFilter
 
     @Override
     protected boolean shouldNotFilterAsyncDispatch() {
-        return false;
+        return true;
     }
 
 
@@ -61,7 +61,9 @@ public class JwtAuthenticationFilter
 
         if ("POST".equalsIgnoreCase(method)
                 && ("/api/auth/login".equals(path)
-                || "/api/auth/register".equals(path))) {
+                || "/api/auth/register".equals(path)
+                || "/api/auth/forgot-password".equals(path)
+                || "/api/auth/reset-password".equals(path))) {
             return true;
         }
 

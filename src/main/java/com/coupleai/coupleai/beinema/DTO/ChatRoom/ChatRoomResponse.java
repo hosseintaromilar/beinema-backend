@@ -21,4 +21,6 @@ public class ChatRoomResponse {
 
     private List<ParticipantSummary> participants;
 
+    private Long lastActivityAt;
+
 }

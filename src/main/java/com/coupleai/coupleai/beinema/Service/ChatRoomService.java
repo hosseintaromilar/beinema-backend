@@ -4,13 +4,20 @@ import com.coupleai.coupleai.beinema.DTO.ChatRoom.*;
 import com.coupleai.coupleai.beinema.Entity.*;
 import com.coupleai.coupleai.beinema.Enum.AgentStatus;
 import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
+import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
+import com.coupleai.coupleai.beinema.Enum.MessageStatus;
 import com.coupleai.coupleai.beinema.Enum.ParticipantRole;
 import com.coupleai.coupleai.beinema.Repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +37,7 @@ public class ChatRoomService {
     private final UserRepository userRepository;
     private final MessageRepository messageRepository;
     private final ChatRoomInvitationRepository invitationRepository;
+    private final ChatRealtimeService chatRealtimeService;
     private final MetisService metisService;
 
 
@@ -415,44 +423,135 @@ public class ChatRoomService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         List<ChatRoomParticipant> participants =
-                participantRepository.findAllByUser(user);
+                participantRepository.findAllWithRoomByUserId(user.getId());
 
-        return participants.stream()
+        if (participants.isEmpty()) {
+            return List.of();
+        }
 
+        List<Long> roomIds = participants.stream()
                 .map(ChatRoomParticipant::getChatRoom)
-
-                .map(chatRoom -> {
-
-                    List<AgentSummary> agents =
-                            chatRoomAgentRepository
-                                    .findAllByChatRoom(chatRoom)
-                                    .stream()
-                                    .map(chatRoomAgent -> {
-
-                                        Agent agent = chatRoomAgent.getAgent();
-
-                                        return AgentSummary.builder()
-                                                .id(agent.getId())
-                                                .name(agent.getName())
-                                                .type(agent.getType().toString())
-                                                .avatar(agent.getAvatar())
-                                                .build();
-
-                                    })
-                                    .toList();
-
-                    return ChatRoomResponse.builder()
-                            .id(chatRoom.getId())
-                            .title(chatRoom.getTitle())
-                            .status(chatRoom.getStatus())
-                            .agents(agents)
-                            .participants(toParticipantSummaries(chatRoom))
-                            .build();
-
-                })
-
+                .filter(Objects::nonNull)
+                .map(ChatRoom::getId)
                 .toList();
 
+        Map<Long, LocalDateTime> lastUserMessageAt =
+                lastUserMessageAtByRoom(roomIds, user.getId());
+
+        return participants.stream()
+                .map(participant -> {
+                    ChatRoom chatRoom = participant.getChatRoom();
+                    if (chatRoom == null) {
+                        return null;
+                    }
+
+                    LocalDateTime activity = lastUserMessageAt.get(chatRoom.getId());
+                    if (activity == null) {
+                        activity = later(
+                                participant.getCreatedAt(),
+                                chatRoom.getCreatedAt()
+                        );
+                    }
+
+                    return toChatRoomResponseSafe(chatRoom, toEpochMillis(activity));
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(
+                        ChatRoomResponse::getLastActivityAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
+                .toList();
+
+    }
+
+    private Map<Long, LocalDateTime> lastUserMessageAtByRoom(
+            List<Long> roomIds,
+            Long userId
+    ) {
+        Map<Long, LocalDateTime> lastUserMessageAt = new HashMap<>();
+
+        if (roomIds.isEmpty()) {
+            return lastUserMessageAt;
+        }
+
+        for (Object[] row : messageRepository.findLastUserMessageAtByRoomIds(
+                roomIds,
+                userId,
+                MessageSenderType.USER
+        )) {
+            if (row == null || row[0] == null || row[1] == null) {
+                continue;
+            }
+
+            lastUserMessageAt.put(
+                    ((Number) row[0]).longValue(),
+                    toLocalDateTime(row[1])
+            );
+        }
+
+        return lastUserMessageAt;
+    }
+
+    private ChatRoomResponse toChatRoomResponseSafe(
+            ChatRoom chatRoom,
+            Long lastActivityAt
+    ) {
+        try {
+            List<AgentSummary> agents =
+                    chatRoomAgentRepository
+                            .findAllByChatRoom(chatRoom)
+                            .stream()
+                            .map(chatRoomAgent -> {
+                                Agent agent = chatRoomAgent.getAgent();
+                                return AgentSummary.builder()
+                                        .id(agent.getId())
+                                        .name(agent.getName())
+                                        .type(agent.getType().toString())
+                                        .avatar(agent.getAvatar())
+                                        .build();
+                            })
+                            .toList();
+
+            return ChatRoomResponse.builder()
+                    .id(chatRoom.getId())
+                    .title(chatRoom.getTitle())
+                    .status(chatRoom.getStatus())
+                    .agents(agents)
+                    .participants(toParticipantSummaries(chatRoom))
+                    .lastActivityAt(lastActivityAt)
+                    .build();
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+
+    private static LocalDateTime later(LocalDateTime first, LocalDateTime second) {
+        if (first == null) {
+            return second;
+        }
+        if (second == null || first.isAfter(second)) {
+            return first;
+        }
+        return second;
+    }
+
+    private static LocalDateTime toLocalDateTime(Object value) {
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        return null;
+    }
+
+    private static Long toEpochMillis(LocalDateTime time) {
+        if (time == null) {
+            return 0L;
+        }
+        return time.atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
     }
 
     public void deleteChatRoom(
@@ -494,6 +593,63 @@ public class ChatRoomService {
         messageRepository.deleteAllByChatRoom(chatRoom);
 
         chatRoomRepository.delete(chatRoom);
+    }
+
+
+    public void leaveChatRoom(
+            Long chatRoomId,
+            String email
+    ) {
+
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        ChatRoom chatRoom =
+                chatRoomRepository.findById(chatRoomId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Chat room not found"));
+
+        ChatRoomParticipant participant =
+                participantRepository.findByChatRoomAndUser(chatRoom, user)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "شما عضو این گفتگو نیستید."
+                                ));
+
+        boolean isOwner =
+                chatRoom.getCreatedBy().equals(user.getId())
+                        || participant.getRole() == ParticipantRole.OWNER
+                        || participant.getRole() == ParticipantRole.PARTNER_A;
+
+        if (isOwner) {
+            throw new IllegalArgumentException(
+                    "مالک نمی‌تواند از گفتگو خارج شود. در صورت نیاز گفتگو را حذف کنید."
+            );
+        }
+
+        announceLeave(chatRoom, user);
+        participantRepository.deleteByChatRoomAndUser(chatRoom, user);
+    }
+
+    private void announceLeave(ChatRoom chatRoom, User user) {
+        int nextSequence = messageRepository
+                .findMaxSequenceNumberByChatRoom(chatRoom)
+                .orElse(0)
+                + 1;
+
+        Message event = Message.builder()
+                .chatRoom(chatRoom)
+                .senderType(MessageSenderType.SYSTEM)
+                .senderId(user.getId())
+                .content(user.getName() + " از گفتگو خارج شد")
+                .status(MessageStatus.SENT)
+                .sequenceNumber(nextSequence)
+                .build();
+
+        messageRepository.saveAndFlush(event);
+        chatRealtimeService.publish(chatRoom.getId(), event);
     }
 
 

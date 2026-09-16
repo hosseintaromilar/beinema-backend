@@ -13,6 +13,7 @@ import com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
+import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -40,13 +41,18 @@ public class MessageServiceImpl implements MessageService {
 
     private final ChatRoomAgentRepository chatRoomAgentRepository;
 
+    private final UserRepository userRepository;
+
+    private final ChatRealtimeService chatRealtimeService;
+
+    private final ChatRoomEventHub chatRoomEventHub;
+
     private final CurrentUserService currentUserService;
 
     private final MetisService metisService;
 
     private final ObjectMapper objectMapper;
 
-    private final ChatRoomEventHub chatRoomEventHub;
 
 
     @Override
@@ -70,22 +76,10 @@ public class MessageServiceImpl implements MessageService {
         ChatRoom chatRoom =
                 getAuthorizedChatRoom(chatRoomId);
 
-        java.util.Map<Long, ChatRoomParticipant> participantsByUserId =
-                participantRepository.findAllByChatRoom(chatRoom)
-                        .stream()
-                        .collect(java.util.stream.Collectors.toMap(
-                                item -> item.getUser().getId(),
-                                item -> item,
-                                (first, second) -> first
-                        ));
-
-        return messageRepository
-                .findAllByChatRoomOrderBySequenceNumberAsc(
-                        chatRoom
-                )
-                .stream()
-                .map(message -> toMessageResponse(message, participantsByUserId))
-                .toList();
+        return chatRealtimeService.toResponses(
+                chatRoom,
+                messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom)
+        );
     }
 
 
@@ -183,8 +177,8 @@ public class MessageServiceImpl implements MessageService {
                         .build();
 
 
-        messageRepository.save(userMessage);
-        publishRoomMessage(chatRoom, userMessage);
+        messageRepository.saveAndFlush(userMessage);
+        chatRealtimeService.publish(chatRoom.getId(), userMessage);
 
         String conversationId = chatRoom.getAiConversationId();
         Long chatRoomPk = chatRoom.getId();
@@ -337,34 +331,11 @@ public class MessageServiceImpl implements MessageService {
                  * 9. Save complete AI response.
                  */
 
-                int aiSequence =
-                        messageRepository
-                                .findMaxSequenceNumberByChatRoom(chatRoom)
-                                .orElse(nextSequence)
-                                + 1;
-
-
-                Message aiMessage =
-                        Message.builder()
-                                .chatRoom(chatRoom)
-                                .senderType(
-                                        MessageSenderType.AGENT
-                                )
-                                .senderId(agentId)
-                                .content(
-                                        aiResponse.toString()
-                                )
-                                .status(
-                                        MessageStatus.SENT
-                                )
-                                .sequenceNumber(
-                                        aiSequence
-                                )
-                                .build();
-
-
-                messageRepository.save(aiMessage);
-                publishRoomMessage(chatRoom, aiMessage);
+                chatRealtimeService.saveAgentAndPublish(
+                        chatRoomPk,
+                        agentId,
+                        aiResponse.toString()
+                );
 
 
                 /*
@@ -512,34 +483,11 @@ public class MessageServiceImpl implements MessageService {
     }
 
 
-    private void publishRoomMessage(
-            ChatRoom chatRoom,
-            Message message
-    ) {
-
-        chatRoomEventHub.publish(
-                chatRoom.getId(),
-                toMessageResponse(
-                        message,
-                        participantRepository.findAllByChatRoom(chatRoom)
-                                .stream()
-                                .collect(java.util.stream.Collectors.toMap(
-                                        item -> item.getUser().getId(),
-                                        item -> item,
-                                        (first, second) -> first
-                                ))
-                )
-        );
-    }
-
-
     private Long resolveAgentId(Long chatRoomId) {
 
         return chatRoomAgentRepository
-                .findAllByChatRoom_Id(chatRoomId)
+                .findActiveAgentIds(chatRoomId)
                 .stream()
-                .filter(item -> Boolean.TRUE.equals(item.getActive()))
-                .map(item -> item.getAgent().getId())
                 .findFirst()
                 .orElse(0L);
     }
@@ -577,6 +525,10 @@ public class MessageServiceImpl implements MessageService {
 
     private String toStableRole(ParticipantRole role) {
 
+        if (role == null) {
+            return "MEMBER";
+        }
+
         if (role == ParticipantRole.OWNER || role == ParticipantRole.PARTNER_A) {
             return "OWNER";
         }
@@ -586,31 +538,5 @@ public class MessageServiceImpl implements MessageService {
         }
 
         return role.name();
-    }
-
-
-    private MessageResponse toMessageResponse(
-            Message message,
-            java.util.Map<Long, ChatRoomParticipant> participantsByUserId
-    ) {
-
-        MessageResponse response = MessageResponse.from(message);
-
-        if (message.getSenderType() != MessageSenderType.USER) {
-            return response;
-        }
-
-        ChatRoomParticipant participant =
-                participantsByUserId.get(message.getSenderId());
-
-        if (participant == null) {
-            return response;
-        }
-
-        response.setParticipantId(participant.getId());
-        response.setParticipantRole(toStableRole(participant.getRole()));
-        response.setDisplayName(participant.getUser().getName());
-
-        return response;
     }
 }

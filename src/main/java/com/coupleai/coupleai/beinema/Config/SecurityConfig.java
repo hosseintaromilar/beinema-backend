@@ -146,6 +146,10 @@ public class SecurityConfig {
 
                                 "/api/auth/login",
 
+                                "/api/auth/forgot-password",
+
+                                "/api/auth/reset-password",
+
                                 "/api/waitlist",
 
                                 "/api/agents"
