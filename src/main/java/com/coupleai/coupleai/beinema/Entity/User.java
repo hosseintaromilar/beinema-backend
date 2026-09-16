@@ -83,6 +83,16 @@ public class User extends BaseEntity {
 
     @Column(
 
+            length = 500
+
+    )
+
+    private String avatarUrl;
+
+
+
+    @Column(
+
             nullable = false
 
     )

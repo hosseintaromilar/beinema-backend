@@ -35,6 +35,22 @@ public class Agent extends BaseEntity {
     private String avatar;
 
 
+    @Column(length = 255)
+    private String headline;
+
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
+
+    @Column(length = 1000)
+    private String specialties;
+
+
+    @Column(length = 500)
+    private String photoUrl;
+
+
     /**
      * شناسه Bot در سرویس AI Provider
      *

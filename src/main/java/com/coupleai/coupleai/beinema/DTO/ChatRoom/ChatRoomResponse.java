@@ -23,4 +23,10 @@ public class ChatRoomResponse {
 
     private Long lastActivityAt;
 
+    private Long createdBy;
+
+    private Boolean hasActiveAgentAccess;
+
+    private Long agentAccessExpiresAt;
+
 }

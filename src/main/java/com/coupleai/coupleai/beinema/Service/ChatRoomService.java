@@ -39,6 +39,7 @@ public class ChatRoomService {
     private final ChatRoomInvitationRepository invitationRepository;
     private final ChatRealtimeService chatRealtimeService;
     private final MetisService metisService;
+    private final AgentAccessService agentAccessService;
 
 
     public ChatRoomResponse createChatRoom(
@@ -91,6 +92,9 @@ public class ChatRoomService {
 
         }
 
+        AgentPlan accessPlan = agentAccessService.requireDefaultPlan(agent);
+        agentAccessService.assertCanAfford(user, accessPlan);
+
 
         /*
          * =====================================================
@@ -100,6 +104,7 @@ public class ChatRoomService {
          * هنوز ChatRoom را save نکرده‌ایم.
          *
          * اگر Metis خطا بدهد، اصلاً ChatRoom ساخته نمی‌شود.
+         * موجودی قبل از این فراخوانی چک شده تا گفتگوی بی‌استفاده ساخته نشود.
          */
 
         var metisConversation =
@@ -200,6 +205,8 @@ public class ChatRoomService {
                 chatRoomAgent
         );
 
+        agentAccessService.grantForNewRoom(user, chatRoom, agent, accessPlan);
+
 
         /*
          * =====================================================
@@ -207,7 +214,8 @@ public class ChatRoomService {
          * =====================================================
          */
 
-        return ChatRoomResponse.builder()
+        return withAccessState(
+                ChatRoomResponse.builder()
 
                 .id(
                         chatRoom.getId()
@@ -259,7 +267,9 @@ public class ChatRoomService {
                         )
                 )
 
-                .build();
+                .createdBy(user.getId()),
+                chatRoom
+        );
     }
 
 
@@ -512,14 +522,17 @@ public class ChatRoomService {
                             })
                             .toList();
 
-            return ChatRoomResponse.builder()
-                    .id(chatRoom.getId())
-                    .title(chatRoom.getTitle())
-                    .status(chatRoom.getStatus())
-                    .agents(agents)
-                    .participants(toParticipantSummaries(chatRoom))
-                    .lastActivityAt(lastActivityAt)
-                    .build();
+            return withAccessState(
+                    ChatRoomResponse.builder()
+                            .id(chatRoom.getId())
+                            .title(chatRoom.getTitle())
+                            .status(chatRoom.getStatus())
+                            .agents(agents)
+                            .participants(toParticipantSummaries(chatRoom))
+                            .lastActivityAt(lastActivityAt)
+                            .createdBy(chatRoom.getCreatedBy()),
+                    chatRoom
+            );
         } catch (Exception exception) {
             return null;
         }
@@ -681,12 +694,42 @@ public class ChatRoomService {
                         })
                         .toList();
 
-        return ChatRoomResponse.builder()
-                .id(chatRoom.getId())
-                .title(chatRoom.getTitle())
-                .status(chatRoom.getStatus())
-                .agents(agents)
-                .participants(toParticipantSummaries(chatRoom))
+        return withAccessState(
+                ChatRoomResponse.builder()
+                        .id(chatRoom.getId())
+                        .title(chatRoom.getTitle())
+                        .status(chatRoom.getStatus())
+                        .agents(agents)
+                        .participants(toParticipantSummaries(chatRoom))
+                        .createdBy(chatRoom.getCreatedBy()),
+                chatRoom
+        );
+    }
+
+
+    private ChatRoomResponse withAccessState(
+            ChatRoomResponse.ChatRoomResponseBuilder builder,
+            ChatRoom chatRoom
+    ) {
+        Long agentId = chatRoomAgentRepository
+                .findActiveAgentIds(chatRoom.getId())
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        boolean hasAccess = agentAccessService.hasValidAccess(chatRoom.getId(), agentId);
+        Long expiresAt = agentAccessService.findActive(chatRoom.getId(), agentId)
+                .map(access -> access.getExpiresAt() == null
+                        ? null
+                        : access.getExpiresAt()
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toInstant()
+                        .toEpochMilli())
+                .orElse(null);
+
+        return builder
+                .hasActiveAgentAccess(hasAccess)
+                .agentAccessExpiresAt(expiresAt)
                 .build();
     }
 

@@ -150,9 +150,24 @@ public class SecurityConfig {
 
                                 "/api/auth/reset-password",
 
-                                "/api/waitlist",
+                                "/api/waitlist"
 
-                                "/api/agents"
+                        )
+
+                        .permitAll()
+
+
+                        .requestMatchers(
+
+                                org.springframework.http.HttpMethod.GET,
+
+                                "/api/agents",
+
+                                "/api/agents/*",
+
+                                "/api/agents/*/plans",
+
+                                "/uploads/**"
 
                         )
 

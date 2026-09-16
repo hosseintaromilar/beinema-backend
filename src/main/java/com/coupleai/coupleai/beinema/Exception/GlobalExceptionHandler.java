@@ -106,4 +106,34 @@ public class GlobalExceptionHandler {
 
     }
 
+
+    @ExceptionHandler(InsufficientWalletBalanceException.class)
+    public ResponseEntity<ErrorMessage> handleInsufficientBalance(
+            InsufficientWalletBalanceException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorMessage(exception.getMessage()));
+    }
+
+
+    @ExceptionHandler(AgentAccessExpiredException.class)
+    public ResponseEntity<ErrorMessage> handleExpiredAccess(
+            AgentAccessExpiredException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.PAYMENT_REQUIRED)
+                .body(new ErrorMessage(exception.getMessage()));
+    }
+
+
+    @ExceptionHandler(AgentPurchaseForbiddenException.class)
+    public ResponseEntity<ErrorMessage> handlePurchaseForbidden(
+            AgentPurchaseForbiddenException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(new ErrorMessage(exception.getMessage()));
+    }
+
 }

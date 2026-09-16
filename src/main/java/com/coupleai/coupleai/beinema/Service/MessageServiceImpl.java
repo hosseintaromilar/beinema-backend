@@ -53,6 +53,8 @@ public class MessageServiceImpl implements MessageService {
 
     private final ObjectMapper objectMapper;
 
+    private final AgentAccessService agentAccessService;
+
 
 
     @Override
@@ -149,6 +151,9 @@ public class MessageServiceImpl implements MessageService {
                     "AI conversation has not been initialized"
             );
         }
+
+        Long roomAgentId = resolveAgentId(chatRoom.getId());
+        agentAccessService.requireValidAccess(chatRoom.getId(), roomAgentId);
 
 
         /*

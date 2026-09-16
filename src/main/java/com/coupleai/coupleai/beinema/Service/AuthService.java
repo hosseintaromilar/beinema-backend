@@ -65,6 +65,8 @@ public class AuthService {
 
     private final SmsProvider smsProvider;
 
+    private final WalletService walletService;
+
 
 
     public AuthResponse register(
@@ -146,6 +148,8 @@ public class AuthService {
                 user
 
         );
+
+        walletService.getOrCreate(savedUser);
 
 
 
