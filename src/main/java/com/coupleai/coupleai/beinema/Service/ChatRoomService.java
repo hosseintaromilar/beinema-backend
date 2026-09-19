@@ -40,6 +40,7 @@ public class ChatRoomService {
     private final ChatRealtimeService chatRealtimeService;
     private final MetisService metisService;
     private final AgentAccessService agentAccessService;
+    private final RelationshipInsightRepository relationshipInsightRepository;
 
 
     public ChatRoomResponse createChatRoom(
@@ -598,6 +599,8 @@ public class ChatRoomService {
         }
 
         invitationRepository.deleteAllByChatRoom(chatRoom);
+
+        relationshipInsightRepository.deleteAllByChatRoom(chatRoom);
 
         participantRepository.deleteAllByChatRoom(chatRoom);
 

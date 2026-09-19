@@ -153,4 +153,26 @@ public class MetisServiceImpl implements MetisService {
                 chunkConsumer
         );
     }
+
+
+    @Override
+    public String sendMessage(
+            String sessionId,
+            String content
+    ) {
+
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new IllegalArgumentException("Metis session id is required");
+        }
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("Message content is required");
+        }
+
+        var response = metisClient.sendMessage(sessionId, content);
+        String reply = response == null ? null : response.extractContent();
+        if (reply == null || reply.isBlank()) {
+            throw new RuntimeException("Metis returned an empty analysis reply");
+        }
+        return reply;
+    }
 }

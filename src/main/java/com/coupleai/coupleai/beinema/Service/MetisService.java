@@ -18,4 +18,9 @@ public interface MetisService {
             String content,
             Consumer<String> chunkConsumer
     );
+
+    String sendMessage(
+            String sessionId,
+            String content
+    );
 }
