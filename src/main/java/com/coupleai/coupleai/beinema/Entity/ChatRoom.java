@@ -39,6 +39,14 @@ public class ChatRoom extends BaseEntity {
     private String aiConversationId;
 
 
+    /**
+     * شناسه Bot یا Workflow متیس که این جلسه با آن ساخته شده.
+     * اگر با ai_bot_id فعلی ایجنت فرق کند، جلسه متیس از نو ساخته می‌شود.
+     */
+    @Column(name = "ai_bot_id")
+    private String aiBotId;
+
+
     @OneToMany(
             mappedBy = "chatRoom"
     )

@@ -6,6 +6,8 @@ public enum ChatRoomStatus {
 
     ARCHIVED,
 
+    ENDED,
+
     DELETED
 
 }

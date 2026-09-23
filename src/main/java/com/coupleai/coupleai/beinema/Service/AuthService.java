@@ -5,16 +5,19 @@ import com.coupleai.coupleai.beinema.DTO.Auth.AuthResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.ForgotPasswordRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LoginRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LogoutResponse;
+import com.coupleai.coupleai.beinema.DTO.Auth.OtpPhoneRequest;
+import com.coupleai.coupleai.beinema.DTO.Auth.OtpRequestResponse;
+import com.coupleai.coupleai.beinema.DTO.Auth.OtpVerifyRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.RegisterRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.ResetPasswordRequest;
-import com.coupleai.coupleai.beinema.Entity.PasswordResetCode;
+import com.coupleai.coupleai.beinema.Entity.PhoneLoginCode;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Enum.UserRole;
 import com.coupleai.coupleai.beinema.Enum.UserStatus;
-import com.coupleai.coupleai.beinema.Exception.EmailAlreadyExistsException;
 import com.coupleai.coupleai.beinema.Exception.InvalidCredentialsException;
+import com.coupleai.coupleai.beinema.Exception.SmsDeliveryException;
 import com.coupleai.coupleai.beinema.Exception.UserNotActiveException;
-import com.coupleai.coupleai.beinema.Repository.PasswordResetCodeRepository;
+import com.coupleai.coupleai.beinema.Repository.PhoneLoginCodeRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.JwtService;
 import com.coupleai.coupleai.beinema.Security.TokenBlacklistService;
@@ -25,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -32,251 +36,200 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 
 @Service
-
 @RequiredArgsConstructor
-
 @Transactional
-
 public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
+    static final String PHONE_EMAIL_SUFFIX = "@users.beinema";
+
+    private static final String PHONE_ONLY =
+            "ثبت‌نام و ورود فقط با شماره موبایل انجام می‌شود.";
+
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    private static final String RESET_NOTICE =
-            "اگر این ایمیل در بین‌ما ثبت شده باشد، کد بازیابی برایتان ارسال می‌شود.";
+    private static final int OTP_TTL_MINUTES = 2;
 
+    private static final int RESEND_COOLDOWN_SECONDS = 60;
+
+    private static final int HOURLY_LIMIT = 5;
 
     private final UserRepository userRepository;
 
+    private final PhoneLoginCodeRepository phoneLoginCodeRepository;
 
     private final PasswordEncoder passwordEncoder;
 
-
     private final JwtService jwtService;
 
-
     private final TokenBlacklistService tokenBlacklistService;
-
-    private final PasswordResetCodeRepository passwordResetCodeRepository;
 
     private final SmsProvider smsProvider;
 
     private final WalletService walletService;
 
+    private final PhoneOtpLockService phoneOtpLockService;
+
+    @Value("${beinema.admin-phones:}")
+    private String adminPhones;
+
+    @Value("${beinema.otp-bypass-phones:}")
+    private String otpBypassPhones;
 
 
-    public AuthResponse register(
-
-            RegisterRequest request
-
-    ) {
+    public AuthResponse register(RegisterRequest request) {
+        throw new InvalidCredentialsException(PHONE_ONLY);
+    }
 
 
-        String email = normalizeEmail(
+    public AuthResponse login(LoginRequest request) {
+        throw new InvalidCredentialsException(PHONE_ONLY);
+    }
 
-                request.getEmail()
 
+    public LogoutResponse forgotPassword(ForgotPasswordRequest request) {
+        throw new InvalidCredentialsException(PHONE_ONLY);
+    }
+
+
+    public LogoutResponse resetPassword(ResetPasswordRequest request) {
+        throw new InvalidCredentialsException(PHONE_ONLY);
+    }
+
+
+    public OtpRequestResponse requestOtp(OtpPhoneRequest request) {
+        String phone = PhoneNumbers.normalize(
+                request == null ? null : request.getPhoneNumber()
         );
 
-
-
-        if (
-
-                userRepository.existsByEmail(email)
-
-        ) {
-
-            throw new EmailAlreadyExistsException(
-
-                    "این ایمیل قبلاً ثبت ‌نام کرده است"
-
+        if (isListedPhone(otpBypassPhones, phone)) {
+            AuthResponse session = openPhoneSession(phone);
+            log.info("OTP bypass login for ***{}", phone.substring(phone.length() - 4));
+            return new OtpRequestResponse(
+                    "ورود انجام شد",
+                    true,
+                    session.getToken(),
+                    session.isProfileComplete(),
+                    session.getRole()
             );
-
         }
 
+        LocalDateTime now = LocalDateTime.now();
+        phoneLoginCodeRepository
+                .findTopByPhoneNumberOrderByCreatedAtDesc(phone)
+                .filter(latest -> !latest.isUsed()
+                        && latest.getCreatedAt() != null
+                        && latest.getCreatedAt().isAfter(now.minusSeconds(RESEND_COOLDOWN_SECONDS)))
+                .ifPresent(latest -> {
+                    throw new IllegalArgumentException(
+                            "کد قبلی هنوز معتبر است. یک دقیقه دیگر دوباره تلاش کنید."
+                    );
+                });
 
-        String phoneNumber = null;
+        long sentRecently = phoneLoginCodeRepository.countByPhoneNumberAndCreatedAtAfter(
+                phone,
+                now.minusHours(1)
+        );
+        if (sentRecently >= HOURLY_LIMIT) {
+            throw new IllegalArgumentException(
+                    "تعداد درخواست کد بیش از حد مجاز است. کمی بعد دوباره تلاش کنید."
+            );
+        }
 
-        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
+        phoneLoginCodeRepository.findByPhoneNumberAndUsedFalse(phone)
+                .forEach(previous -> {
+                    previous.setUsed(true);
+                    phoneLoginCodeRepository.save(previous);
+                });
 
-            phoneNumber = PhoneNumbers.normalize(request.getPhoneNumber());
+        String code = String.format("%04d", RANDOM.nextInt(10_000));
+        phoneLoginCodeRepository.save(
+                PhoneLoginCode.builder()
+                        .phoneNumber(phone)
+                        .codeHash(passwordEncoder.encode(code))
+                        .expiresAt(now.plusMinutes(OTP_TTL_MINUTES))
+                        .attempts(0)
+                        .used(false)
+                        .build()
+        );
 
-            if (userRepository.existsByPhoneNumber(phoneNumber)) {
+        try {
+            smsProvider.send(
+                    phone,
+                    "کد ورود بین‌ما: " + code + "\nاین کد تا ۲ دقیقه معتبر است."
+            );
+        } catch (SmsDeliveryException exception) {
+            log.warn(
+                    "OTP sms failed for ***{}: {}",
+                    phone.substring(phone.length() - 4),
+                    exception.getMessage()
+            );
+            throw new SmsDeliveryException(
+                    "ارسال پیامک ناموفق بود. کمی بعد دوباره تلاش کنید.",
+                    exception
+            );
+        }
 
-                throw new EmailAlreadyExistsException(
-                        "این شماره موبایل قبلاً ثبت‌نام کرده است"
+        return new OtpRequestResponse(
+                "کد ۴ رقمی به شماره موبایل شما پیامک شد.",
+                false,
+                null,
+                false,
+                null
+        );
+    }
+
+
+    public AuthResponse verifyOtp(OtpVerifyRequest request) {
+        String phone = PhoneNumbers.normalize(
+                request == null ? null : request.getPhoneNumber()
+        );
+        String code = request == null || request.getCode() == null
+                ? ""
+                : request.getCode().trim();
+
+        if (!code.matches("\\d{4}")) {
+            throw new InvalidCredentialsException("کد ۴ رقمی پیامک‌شده را وارد کنید.");
+        }
+
+        PhoneLoginCode stored = phoneLoginCodeRepository
+                .findTopByPhoneNumberAndUsedFalseOrderByCreatedAtDesc(phone)
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "کد ورود پیدا نشد. دوباره درخواست کنید."
+                ));
+
+        if (stored.getExpiresAt() == null
+                || stored.getExpiresAt().isBefore(LocalDateTime.now())) {
+            stored.setUsed(true);
+            phoneLoginCodeRepository.save(stored);
+            throw new InvalidCredentialsException(
+                    "مهلت این کد تمام شده. دوباره کد بگیرید."
+            );
+        }
+
+        if (!passwordEncoder.matches(code, stored.getCodeHash())) {
+            int attempts = phoneOtpLockService.recordFailedAttempt(stored.getId());
+            if (attempts >= PhoneOtpLockService.MAX_ATTEMPTS) {
+                throw new InvalidCredentialsException(
+                        "تعداد تلاش‌ها بیش از حد مجاز است. کد جدید بگیرید."
                 );
             }
+            throw new InvalidCredentialsException("کد واردشده درست نیست.");
         }
 
-
-
-        User user = User.builder()
-
-                .name(request.getName())
-
-                .email(email)
-
-                .phoneNumber(phoneNumber)
-
-                .password(
-
-                        passwordEncoder.encode(
-
-                                request.getPassword()
-
-                        )
-
-                )
-
-                .status(UserStatus.ACTIVE)
-
-                .role(UserRole.USER)
-
-                .emailVerified(false)
-
-                .build();
-
-
-
-        User savedUser = userRepository.save(
-
-                user
-
-        );
-
-        walletService.getOrCreate(savedUser);
-
-
-
-        String token = jwtService.generateToken(
-
-                savedUser.getId(),
-
-                savedUser.getEmail()
-
-        );
-
-
-
-        return new AuthResponse(
-
-                "ثبت‌نام با موفقیت انجام شد",
-
-                token
-
-        );
-
+        stored.setUsed(true);
+        phoneLoginCodeRepository.save(stored);
+        return openPhoneSession(phone);
     }
 
 
-
-    public AuthResponse login(
-
-            LoginRequest request
-
-    ) {
-
-
-        String email = normalizeEmail(
-
-                request.getEmail()
-
-        );
-
-
-
-        User user = userRepository
-
-                .findByEmail(email)
-
-                .orElseThrow(() ->
-
-                        new InvalidCredentialsException(
-
-                                "کاربری بااین ایمیل پیدا نشد"
-
-                        )
-
-                );
-
-
-
-        if (
-
-                !user.isActive()
-
-        ) {
-
-            throw new UserNotActiveException(
-
-                    "حساب کاربری شما فعال نیست"
-
-            );
-
-        }
-
-
-
-        if (
-
-                !passwordEncoder.matches(
-
-                        request.getPassword(),
-
-                        user.getPassword()
-
-                )
-
-        ) {
-
-            throw new InvalidCredentialsException(
-
-                    "ایمیل یا رمز عبور اشتباه است"
-
-            );
-
-        }
-
-
-
-        user.updateLastLogin();
-
-
-
-        String token = jwtService.generateToken(
-
-                user.getId(),
-
-                user.getEmail()
-
-        );
-
-
-
-        return new AuthResponse(
-
-                "ورود با موفقیت انجام شد",
-
-                token
-
-        );
-
-    }
-
-
-    public LogoutResponse logout(
-
-            String authorizationHeader
-
-    ) {
-
+    public LogoutResponse logout(String authorizationHeader) {
         String token = extractBearerToken(authorizationHeader);
-
         if (token == null) {
             throw new InvalidCredentialsException(
                     "برای خروج باید وارد حساب شده باشید"
@@ -284,113 +237,78 @@ public class AuthService {
         }
 
         tokenBlacklistService.revoke(token);
-
-        return new LogoutResponse(
-                "خروج با موفقیت انجام شد"
-        );
-
+        return new LogoutResponse("خروج با موفقیت انجام شد");
     }
 
 
-    public LogoutResponse forgotPassword(ForgotPasswordRequest request) {
-
-        String email = request == null || request.getEmail() == null
-                ? ""
-                : normalizeEmail(request.getEmail());
-
-        if (email.isBlank()) {
-            throw new InvalidCredentialsException("لطفاً ایمیل خود را وارد کنید");
+    private User createPhoneUser(String phone) {
+        String email = phone + PHONE_EMAIL_SUFFIX;
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException(
+                    "ساخت حساب با این شماره ممکن نیست."
+            );
         }
 
-        userRepository.findByEmail(email).ifPresent(user -> {
-            if (!user.isActive() || user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
-                return;
-            }
+        User user = User.builder()
+                .name("")
+                .email(email)
+                .phoneNumber(phone)
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .status(UserStatus.ACTIVE)
+                .role(UserRole.USER)
+                .emailVerified(false)
+                .build();
 
-            String code = String.format("%06d", RANDOM.nextInt(1_000_000));
-
-            passwordResetCodeRepository.save(
-                    PasswordResetCode.builder()
-                            .email(email)
-                            .codeHash(passwordEncoder.encode(code))
-                            .expiresAt(LocalDateTime.now().plusMinutes(15))
-                            .used(false)
-                            .build()
-            );
-
-            try {
-                smsProvider.send(
-                        user.getPhoneNumber(),
-                        "کد بازیابی رمز بین‌ما: " + code
-                );
-            } catch (Exception exception) {
-                log.warn("Could not send password reset SMS: {}", exception.getMessage());
-            }
-        });
-
-        return new LogoutResponse(RESET_NOTICE);
+        User saved = userRepository.save(user);
+        walletService.getOrCreate(saved);
+        return saved;
     }
 
 
-    public LogoutResponse resetPassword(ResetPasswordRequest request) {
+    private AuthResponse openPhoneSession(String phone) {
+        User user = userRepository.findByPhoneNumber(phone)
+                .map(existing -> {
+                    if (!existing.isActive()) {
+                        throw new UserNotActiveException("حساب کاربری شما فعال نیست");
+                    }
+                    return existing;
+                })
+                .orElseGet(() -> createPhoneUser(phone));
 
-        if (request == null
-                || request.getEmail() == null
-                || request.getEmail().isBlank()
-                || request.getCode() == null
-                || request.getCode().isBlank()
-                || request.getNewPassword() == null
-                || request.getNewPassword().isBlank()) {
-            throw new InvalidCredentialsException(
-                    "ایمیل، کد بازیابی و رمز جدید را وارد کنید"
-            );
+        if (isListedPhone(adminPhones, phone)) {
+            user.setRole(UserRole.ADMIN);
         }
-
-        if (request.getNewPassword().length() < 6) {
-            throw new InvalidCredentialsException(
-                    "رمز جدید باید حداقل ۶ کاراکتر باشد"
-            );
-        }
-
-        String email = normalizeEmail(request.getEmail());
-        String code = request.getCode().trim();
-
-        PasswordResetCode stored = passwordResetCodeRepository
-                .findTopByEmailAndUsedFalseOrderByCreatedAtDesc(email)
-                .orElseThrow(() ->
-                        new InvalidCredentialsException("کد بازیابی نامعتبر است")
-                );
-
-        if (stored.getExpiresAt() == null
-                || stored.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new InvalidCredentialsException("مهلت کد بازیابی به پایان رسیده است");
-        }
-
-        if (!passwordEncoder.matches(code, stored.getCodeHash())) {
-            throw new InvalidCredentialsException("کد بازیابی نامعتبر است");
-        }
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new InvalidCredentialsException("کد بازیابی نامعتبر است")
-                );
-
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.updateLastLogin();
         userRepository.save(user);
 
-        stored.setUsed(true);
-        passwordResetCodeRepository.save(stored);
-
-        return new LogoutResponse("رمز عبور با موفقیت تغییر کرد. اکنون وارد شوید.");
+        String token = jwtService.generateToken(user.getId(), user.getEmail());
+        return new AuthResponse(
+                "ورود با موفقیت انجام شد",
+                token,
+                user.hasRegisteredName(),
+                user.getRole().name()
+        );
     }
 
 
-    private static String extractBearerToken(
+    private boolean isListedPhone(String list, String phone) {
+        if (list == null || list.isBlank() || phone == null) {
+            return false;
+        }
+        for (String item : list.split(",")) {
+            String candidate = item.trim();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            if (phone.equals(PhoneNumbers.normalize(candidate))) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-            String authorizationHeader
 
-    ) {
-
+    private static String extractBearerToken(String authorizationHeader) {
         if (authorizationHeader == null
                 || !authorizationHeader.startsWith("Bearer ")) {
             return null;
@@ -398,24 +316,6 @@ public class AuthService {
 
         String token = authorizationHeader.substring(7).trim();
         return token.isEmpty() ? null : token;
-
-    }
-
-
-
-    private String normalizeEmail(
-
-            String email
-
-    ) {
-
-
-        return email
-
-                .trim()
-
-                .toLowerCase();
-
     }
 
 }

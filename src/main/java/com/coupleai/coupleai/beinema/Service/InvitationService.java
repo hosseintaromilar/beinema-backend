@@ -21,6 +21,7 @@ import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.CurrentUserService;
 import com.coupleai.coupleai.beinema.Service.sms.SmsProvider;
 import com.coupleai.coupleai.beinema.Util.PhoneNumbers;
+import com.coupleai.coupleai.beinema.governance.ParticipationPauseService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +58,8 @@ public class InvitationService {
 
     private final ChatRealtimeService chatRealtimeService;
 
+    private final ParticipationPauseService participationPauseService;
+
     private final SmsProvider smsProvider;
 
     @Value("${app.frontend-url:${app.frontend-base-url:http://localhost:3000}}")
@@ -64,6 +67,9 @@ public class InvitationService {
 
     @Value("${app.invitation-expiry-hours:72}")
     private long invitationExpiryHours;
+
+    @Value("${beinema.otp-bypass-phones:}")
+    private String directAddPhones;
 
     @Transactional
     public InvitePartnerResponse invitePartner(Long chatRoomId, String rawPhone) {
@@ -112,19 +118,22 @@ public class InvitationService {
                     ));
             markAccepted(invitation, existingUser);
             announceJoin(chatRoom, existingUser);
+            participationPauseService.startConsentGate(chatRoom, existingUser);
 
-            String link = inviteLink(invitation.getToken());
-            try {
-                smsProvider.send(
-                        phone,
-                        inviter.getName()
-                                + " شما را به گفتگوی «"
-                                + chatRoom.getTitle()
-                                + "» در بین‌ما دعوت کرد.\n"
-                                + link
-                );
-            } catch (SmsDeliveryException exception) {
-                log.warn("SMS invite failed for {}: {}", phone, exception.getMessage());
+            if (!bothCanJoinWithoutSms(inviter.getPhoneNumber(), phone)) {
+                String link = inviteLink(invitation.getToken());
+                try {
+                    smsProvider.send(
+                            phone,
+                            inviter.visibleName()
+                                    + " شما را به گفتگوی «"
+                                    + chatRoom.getTitle()
+                                    + "» در بین‌ما دعوت کرد.\n"
+                                    + link
+                    );
+                } catch (SmsDeliveryException exception) {
+                    log.warn("SMS invite failed for {}: {}", phone, exception.getMessage());
+                }
             }
 
             return InvitePartnerResponse.builder()
@@ -156,7 +165,7 @@ public class InvitationService {
         try {
             smsProvider.send(
                     phone,
-                    inviter.getName()
+                    inviter.visibleName()
                             + " شما را به گفتگوی مشترک در بین‌ما دعوت کرد:\n"
                             + link
             );
@@ -178,7 +187,7 @@ public class InvitationService {
                 .token(invitation.getToken())
                 .chatRoomId(invitation.getChatRoom().getId())
                 .chatRoomTitle(invitation.getChatRoom().getTitle())
-                .inviterName(invitation.getInvitedBy().getName())
+                .inviterName(invitation.getInvitedBy().visibleName())
                 .status(effectiveStatus(invitation).name())
                 .build();
     }
@@ -186,6 +195,11 @@ public class InvitationService {
     @Transactional
     public AcceptInvitationResponse accept(String token) {
         User user = currentUserService.getCurrentUser();
+        if (!user.hasRegisteredName()) {
+            throw new IllegalArgumentException(
+                    "قبل از ادامه، نام و نام خانوادگی خود را ثبت کنید."
+            );
+        }
         ChatRoomInvitation invitation = loadInvitation(token);
         ChatRoom chatRoom = invitation.getChatRoom();
 
@@ -241,6 +255,7 @@ public class InvitationService {
         addMember(chatRoom, user);
         markAccepted(invitation, user);
         announceJoin(chatRoom, user);
+        participationPauseService.startConsentGate(chatRoom, user);
 
         return AcceptInvitationResponse.builder()
                 .chatRoomId(chatRoom.getId())
@@ -259,6 +274,8 @@ public class InvitationService {
                         .chatRoom(chatRoom)
                         .user(user)
                         .role(ParticipantRole.MEMBER)
+                        .sessionConsented(false)
+                        .consentOffered(false)
                         .build()
         );
     }
@@ -273,13 +290,43 @@ public class InvitationService {
                 .chatRoom(chatRoom)
                 .senderType(MessageSenderType.SYSTEM)
                 .senderId(user.getId())
-                .content(user.getName() + " با لینک دعوت به گفتگو اضافه شد")
+                .content(user.visibleName() + " با لینک دعوت به گفتگو اضافه شد")
                 .status(MessageStatus.SENT)
                 .sequenceNumber(nextSequence)
                 .build();
 
         messageRepository.saveAndFlush(event);
         chatRealtimeService.publish(chatRoom.getId(), event);
+    }
+
+    private boolean bothCanJoinWithoutSms(String inviterPhone, String inviteePhone) {
+        return isDirectAddPhone(inviterPhone) && isDirectAddPhone(inviteePhone);
+    }
+
+    private boolean isDirectAddPhone(String phone) {
+        if (directAddPhones == null || directAddPhones.isBlank() || phone == null) {
+            return false;
+        }
+        String normalized;
+        try {
+            normalized = PhoneNumbers.normalize(phone);
+        } catch (RuntimeException exception) {
+            return false;
+        }
+        for (String item : directAddPhones.split(",")) {
+            String candidate = item.trim();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            try {
+                if (normalized.equals(PhoneNumbers.normalize(candidate))) {
+                    return true;
+                }
+            } catch (RuntimeException ignored) {
+                /* شمارهٔ تنظیمات نامعتبر نادیده گرفته می‌شود */
+            }
+        }
+        return false;
     }
 
     private String inviteLink(String token) {

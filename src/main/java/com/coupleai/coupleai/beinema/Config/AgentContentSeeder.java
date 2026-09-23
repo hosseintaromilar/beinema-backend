@@ -1,9 +1,11 @@
 package com.coupleai.coupleai.beinema.Config;
 
 import com.coupleai.coupleai.beinema.Entity.Agent;
+import com.coupleai.coupleai.beinema.Enum.AgentType;
 import com.coupleai.coupleai.beinema.Repository.AgentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
@@ -12,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+import static com.coupleai.coupleai.beinema.Enum.AgentType.MENTAL_HEALTH;
+
 @Component
 @Order(25)
 public class AgentContentSeeder implements ApplicationRunner {
@@ -19,9 +23,14 @@ public class AgentContentSeeder implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(AgentContentSeeder.class);
 
     private final AgentRepository agentRepository;
+    private final String coupleWorkflowId;
 
-    public AgentContentSeeder(AgentRepository agentRepository) {
+    public AgentContentSeeder(
+            AgentRepository agentRepository,
+            @Value("${metis.couple-workflow-id}") String coupleWorkflowId
+    ) {
         this.agentRepository = agentRepository;
+        this.coupleWorkflowId = coupleWorkflowId;
     }
 
     @Override
@@ -29,8 +38,14 @@ public class AgentContentSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         List<Agent> agents = agentRepository.findAll();
         for (Agent agent : agents) {
+            if (isCoupleAgent(agent) && coupleWorkflowId != null && !coupleWorkflowId.isBlank()) {
+                agent.setAiBotId(coupleWorkflowId);
+            }
             Profile profile = profileFor(agent);
             if (profile == null) {
+                if (isCoupleAgent(agent)) {
+                    agentRepository.save(agent);
+                }
                 continue;
             }
             agent.setHeadline(profile.headline);
@@ -91,6 +106,11 @@ public class AgentContentSeeder implements ApplicationRunner {
             };
         }
         return null;
+    }
+
+    private boolean isCoupleAgent(Agent agent) {
+        String name = agent.getName() == null ? "" : agent.getName();
+        return name.contains("زوج") || agent.getType() == AgentType.RELATIONSHIP;
     }
 
     private Profile profileForName(String token) {

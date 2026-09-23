@@ -25,4 +25,14 @@ public interface MessageService {
     SseEmitter subscribe(
             Long chatRoomId
     );
+
+    void submitReentryCommitment(
+            Long chatRoomId,
+            boolean accepted
+    );
+
+    void submitSessionConsent(
+            Long chatRoomId,
+            boolean accepted
+    );
 }

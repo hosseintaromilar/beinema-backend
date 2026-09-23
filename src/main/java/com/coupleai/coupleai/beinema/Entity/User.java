@@ -80,6 +80,14 @@ public class User extends BaseEntity {
     private String phoneNumber;
 
 
+    @Column(length = 50)
+    private String firstName;
+
+
+    @Column(length = 50)
+    private String lastName;
+
+
 
     @Column(
 
@@ -159,6 +167,19 @@ public class User extends BaseEntity {
 
     private boolean deleted = false;
 
+
+
+    public boolean hasRegisteredName() {
+        return name != null && !name.isBlank();
+    }
+
+
+    public String visibleName() {
+        if (hasRegisteredName()) {
+            return name.trim();
+        }
+        return "کاربر";
+    }
 
 
     public void updateLastLogin() {

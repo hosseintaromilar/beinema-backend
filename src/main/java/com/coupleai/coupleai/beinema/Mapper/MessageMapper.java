@@ -42,7 +42,7 @@ public class MessageMapper {
                 .senderId(message.getSenderId())
                 .senderName(
                         user != null
-                                ? user.getName()
+                                ? user.visibleName()
                                 : agent.getName()
                 )
                 .senderAvatar(

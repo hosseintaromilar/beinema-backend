@@ -50,4 +50,22 @@ public class MessageController {
                 request
         );
     }
+
+    @PostMapping("/{chatRoomId}/reentry-commitment")
+    public void submitReentryCommitment(
+            @PathVariable Long chatRoomId,
+            @RequestBody com.coupleai.coupleai.beinema.DTO.messages.ReentryCommitmentRequest request
+    ) {
+        boolean accepted = request != null && Boolean.TRUE.equals(request.getAccepted());
+        messageService.submitReentryCommitment(chatRoomId, accepted);
+    }
+
+    @PostMapping("/{chatRoomId}/session-consent")
+    public void submitSessionConsent(
+            @PathVariable Long chatRoomId,
+            @RequestBody com.coupleai.coupleai.beinema.DTO.messages.ReentryCommitmentRequest request
+    ) {
+        boolean accepted = request != null && Boolean.TRUE.equals(request.getAccepted());
+        messageService.submitSessionConsent(chatRoomId, accepted);
+    }
 }

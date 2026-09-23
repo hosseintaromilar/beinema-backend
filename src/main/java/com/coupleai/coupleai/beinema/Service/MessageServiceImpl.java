@@ -15,6 +15,11 @@ import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.CurrentUserService;
+import com.coupleai.coupleai.beinema.governance.ConsentReplay;
+import com.coupleai.coupleai.beinema.governance.GovernanceDecision;
+import com.coupleai.coupleai.beinema.governance.GovernancePacketParser;
+import com.coupleai.coupleai.beinema.governance.GovStreamBuffer;
+import com.coupleai.coupleai.beinema.governance.ParticipationPauseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContext;
@@ -51,9 +56,13 @@ public class MessageServiceImpl implements MessageService {
 
     private final MetisService metisService;
 
+    private final CounselorSessionService counselorSessionService;
+
     private final ObjectMapper objectMapper;
 
     private final AgentAccessService agentAccessService;
+
+    private final ParticipationPauseService participationPauseService;
 
 
 
@@ -98,6 +107,38 @@ public class MessageServiceImpl implements MessageService {
 
 
     @Override
+    @Transactional
+    public void submitReentryCommitment(
+            Long chatRoomId,
+            boolean accepted
+    ) {
+        ChatRoom chatRoom = getAuthorizedChatRoom(chatRoomId);
+        User user = currentUserService.getCurrentUser();
+        if (accepted) {
+            participationPauseService.acceptReentry(chatRoom, user);
+            return;
+        }
+        participationPauseService.declineReentry(chatRoom, user);
+    }
+
+
+    @Override
+    @Transactional
+    public void submitSessionConsent(
+            Long chatRoomId,
+            boolean accepted
+    ) {
+        ChatRoom chatRoom = getAuthorizedChatRoom(chatRoomId);
+        User user = currentUserService.getCurrentUser();
+        if (accepted) {
+            participationPauseService.acceptSessionConsent(chatRoom, user);
+            return;
+        }
+        participationPauseService.declineSessionConsent(chatRoom, user);
+    }
+
+
+    @Override
     public SseEmitter sendMessageStream(
             Long chatRoomId,
             SendMessageRequest request
@@ -137,10 +178,9 @@ public class MessageServiceImpl implements MessageService {
         }
 
 
-        /*
-         * 4. Make sure Metis conversation exists.
-         */
-
+        Long roomAgentId = resolveAgentId(chatRoom.getId());
+        agentAccessService.requireValidAccess(chatRoom.getId(), roomAgentId);
+        chatRoom = counselorSessionService.ensureBound(chatRoom, user);
         if (
                 chatRoom.getAiConversationId() == null
                         ||
@@ -152,8 +192,8 @@ public class MessageServiceImpl implements MessageService {
             );
         }
 
-        Long roomAgentId = resolveAgentId(chatRoom.getId());
-        agentAccessService.requireValidAccess(chatRoom.getId(), roomAgentId);
+        ParticipationPauseService.ResumeHint resumeHint =
+                participationPauseService.requireCanSend(chatRoom, user);
 
 
         /*
@@ -185,9 +225,10 @@ public class MessageServiceImpl implements MessageService {
         messageRepository.saveAndFlush(userMessage);
         chatRealtimeService.publish(chatRoom.getId(), userMessage);
 
+        chatRoom = counselorSessionService.ensureBound(chatRoom, user);
         String conversationId = chatRoom.getAiConversationId();
         Long chatRoomPk = chatRoom.getId();
-        String userContent = labeledUserContent(chatRoom, user, request.getContent());
+        String userContent = labeledUserContent(chatRoom, user, request.getContent(), resumeHint);
         Long agentId = resolveAgentId(chatRoomPk);
 
 
@@ -253,94 +294,161 @@ public class MessageServiceImpl implements MessageService {
 
             StringBuilder aiResponse =
                     new StringBuilder();
+            GovStreamBuffer streamBuffer =
+                    new GovStreamBuffer();
 
 
             try {
 
-                metisService.streamMessage(
+                try {
 
-                        conversationId,
+                    metisService.streamMessage(
 
-                        userContent,
+                            conversationId,
 
-                        chunk -> {
+                            userContent,
 
-                            /*
-                             * Ignore null/empty chunks.
-                             */
+                            chunk -> {
 
-                            if (
-                                    chunk == null
-                                            ||
-                                            chunk.isEmpty()
-                            ) {
+                                String visibleChunk =
+                                        streamBuffer.accept(chunk);
 
-                                return;
+                                if (
+                                        visibleChunk == null
+                                                ||
+                                                visibleChunk.isEmpty()
+                                ) {
+
+                                    return;
+                                }
+
+                                aiResponse.append(visibleChunk);
+
+                                if (emitterClosed.get()) {
+                                    return;
+                                }
+
+                                try {
+
+                                    emitter.send(
+                                            SseEmitter.event()
+                                                    .name("message")
+                                                    .data(
+                                                            objectMapper.writeValueAsString(visibleChunk),
+                                                            MediaType.TEXT_PLAIN
+                                                    )
+                                    );
+
+                                } catch (
+                                        IOException
+                                        |
+                                        IllegalStateException e
+                                ) {
+
+                                    emitterClosed.set(true);
+
+                                }
                             }
+                    );
 
+                } catch (Exception streamError) {
 
-                            /*
-                             * ALWAYS preserve the exact chunk.
-                             */
-
-                            aiResponse.append(chunk);
-
-
-                            /*
-                             * If browser disconnected,
-                             * don't try to send anymore.
-                             */
-
-                            if (
-                                    emitterClosed.get()
-                            ) {
-
-                                return;
-                            }
-
-
-                            try {
-
-                                /*
-                                 * Send EXACTLY the chunk
-                                 * received from Metis.
-                                 */
-
-                                emitter.send(
-                                        SseEmitter.event()
-                                                .name("message")
-                                                .data(
-                                                        objectMapper.writeValueAsString(chunk),
-                                                        MediaType.TEXT_PLAIN
-                                                )
-                                );
-
-                            } catch (
-                                    IOException
-                                    |
-                                    IllegalStateException e
-                            ) {
-
-                                /*
-                                 * SSE connection is no longer usable.
-                                 */
-
-                                emitterClosed.set(true);
-
+                    if (aiResponse.length() == 0) {
+                        String fallback = metisService.sendMessageAllowBlank(
+                                conversationId,
+                                userContent
+                        );
+                        String visibleFallback = streamBuffer.accept(
+                                fallback == null ? "" : fallback
+                        );
+                        if (visibleFallback != null && !visibleFallback.isEmpty()) {
+                            aiResponse.append(visibleFallback);
+                            if (!emitterClosed.get()) {
+                                try {
+                                    emitter.send(
+                                            SseEmitter.event()
+                                                    .name("message")
+                                                    .data(
+                                                            objectMapper.writeValueAsString(visibleFallback),
+                                                            MediaType.TEXT_PLAIN
+                                                    )
+                                    );
+                                } catch (
+                                        IOException
+                                        |
+                                        IllegalStateException e
+                                ) {
+                                    emitterClosed.set(true);
+                                }
                             }
                         }
-                );
+                    } else {
+
+                        /*
+                         * Metis broke after sending part of the
+                         * answer. Keep what already arrived so the
+                         * governance decision inside it is still
+                         * enforced instead of being lost.
+                         */
+
+                        streamError.printStackTrace();
+                    }
+                }
 
 
-                /*
-                 * 9. Save complete AI response.
-                 */
+                GovernanceDecision decision = streamBuffer.finish();
+                try {
+                    ChatRoom liveRoom = chatRoomRepository.findById(chatRoomPk).orElse(null);
+                    if (liveRoom != null) {
+                        ParticipationPauseService.ApplyResult applied =
+                                participationPauseService.apply(liveRoom, decision);
+                        if (applied.pauseEnforced()) {
+                            sendCalmDownFollowUp(
+                                    liveRoom,
+                                    conversationId,
+                                    agentId,
+                                    applied
+                            );
+                        }
+                    }
+                } catch (Exception governanceError) {
+                    governanceError.printStackTrace();
+                }
 
-                chatRealtimeService.saveAgentAndPublish(
-                        chatRoomPk,
-                        agentId,
-                        aiResponse.toString()
-                );
+                String counselorReply = decision.visibleText();
+                if (ConsentReplay.asksAgain(counselorReply)) {
+                    counselorReply = repairConsentReplay(
+                            conversationId,
+                            request.getContent()
+                    );
+                }
+                if (decision.governanceAction() != null
+                        && decision.governanceAction().changesParticipation()
+                        && CounselorSessionService.isSilentWait(counselorReply)) {
+                    counselorReply = "برای آرام شدن فضای گفتگو، ارسال پیام برای مدت کوتاهی متوقف شد.";
+                    if (aiResponse.length() == 0 && !emitterClosed.get()) {
+                        try {
+                            emitter.send(
+                                    SseEmitter.event()
+                                            .name("message")
+                                            .data(
+                                                    objectMapper.writeValueAsString(counselorReply),
+                                                    MediaType.TEXT_PLAIN
+                                            )
+                            );
+                        } catch (IOException | IllegalStateException ignored) {
+                            emitterClosed.set(true);
+                        }
+                    }
+                }
+
+                if (!CounselorSessionService.isSilentWait(counselorReply)) {
+                    chatRealtimeService.saveAgentAndPublish(
+                            chatRoomPk,
+                            agentId,
+                            counselorReply
+                    );
+                }
 
 
                 /*
@@ -501,7 +609,8 @@ public class MessageServiceImpl implements MessageService {
     private String labeledUserContent(
             ChatRoom chatRoom,
             User user,
-            String content
+            String content,
+            ParticipationPauseService.ResumeHint resumeHint
     ) {
 
         ChatRoomParticipant participant =
@@ -518,13 +627,102 @@ public class MessageServiceImpl implements MessageService {
                 .stream()
                 .map(item -> toStableRole(item.getRole())
                         + "="
-                        + item.getUser().getName())
+                        + item.getUser().visibleName())
                 .reduce((left, right) -> left + "; " + right)
-                .orElse(role + "=" + user.getName());
+                .orElse(role + "=" + user.visibleName());
 
-        return "[PARTICIPANTS: " + roster + "]\n"
-                + "[" + role + " | " + user.getName() + "]\n"
+        boolean speakerConsented = participant != null
+                && Boolean.TRUE.equals(participant.getSessionConsented());
+        long people = participantRepository.countByChatRoom(chatRoom);
+
+        String labeled = "[PARTICIPANTS: " + roster + "]\n"
+                + "[" + role + " | " + user.visibleName() + "]\n"
                 + content;
+        String sessionNote = "";
+        if (speakerConsented) {
+            sessionNote = "[SYSTEM | SESSION]\n"
+                    + "CONSENT_RECORDED for " + role + ".\n"
+                    + "موافقت این نفر قبلاً با دکمهٔ اپلیکیشن ثبت شده است. "
+                    + "دیگر از او موافقت، پذیرش قوانین، یا چارچوب مشاوره نخواه. "
+                    + "متن قوانین را تکرار نکن.\n"
+                    + (people < 2
+                    ? "نفر دوم هنوز در گفتگو نیست. از او هم موافقت نخواه. فقط به همین پیام جواب بده.\n"
+                    : "فقط به همین پیام جواب بده.\n");
+        }
+        if (resumeHint != null && resumeHint.handshake()) {
+            sessionNote = sessionNote
+                    + "[SYSTEM | SESSION]\nREENTRY_COMMITTED for " + role + "\nPAUSE_EXPIRED for " + role + "\n";
+        }
+        return sessionNote + labeled;
+    }
+
+
+    private String repairConsentReplay(String conversationId, String userText) {
+        String fallback = "موافقتت قبلاً ثبت شده و لازم نیست دوباره تأیید کنی. حرفی که زدی را شنیدم؛ هر وقت خواستی ادامه بده.";
+        if (conversationId == null || conversationId.isBlank()) {
+            return fallback;
+        }
+        String prompt = "[SYSTEM | SESSION]\n"
+                + "CONSENT_ALREADY_RECORDED\n"
+                + "جواب قبلی رد شد چون دوباره موافقت می‌خواست.\n"
+                + "به پیام کاربر در یک تا سه جملهٔ فارسی جواب بده.\n"
+                + "کلمات موافقت، قوانین و چارچوب را به کار نبر و از نفر غایب تأیید نخواه.\n"
+                + "USER:\n"
+                + (userText == null ? "" : userText);
+        try {
+            String raw = metisService.sendMessageAllowBlank(conversationId, prompt);
+            String visible = new GovernancePacketParser().strip(raw == null ? "" : raw);
+            if (visible != null && !visible.isBlank() && !ConsentReplay.asksAgain(visible)) {
+                return visible.trim();
+            }
+        } catch (Exception ignored) {
+            return fallback;
+        }
+        return fallback;
+    }
+
+
+    private void sendCalmDownFollowUp(
+            ChatRoom chatRoom,
+            String conversationId,
+            Long agentId,
+            ParticipationPauseService.ApplyResult applied
+    ) {
+        if (chatRoom == null || conversationId == null || conversationId.isBlank() || applied == null) {
+            return;
+        }
+        String who = applied.bothPaused()
+                ? "هر دو نفر الان نمی‌توانند پیام بفرستند."
+                : "حداقل یک نفر الان نمی‌تواند پیام بفرستد.";
+        String prompt = "[SYSTEM | SESSION]\n"
+                + "GOVERNANCE_ENFORCED\n"
+                + "GOV=" + applied.action() + "\n"
+                + "CALM_DOWN\n"
+                + who + "\n"
+                + "ACTION باید INTERVENE باشد. GOV=NONE و TARGET=NONE و DURATION=0.\n"
+                + "دو تا چهار جمله فارسی آرام بگو تا بدن و هیجان پایین بیاید. سرزنش نکن. "
+                + "اگر هر دو محدودند روی نفس، مکث، و امنیت جلسه تمرکز کن. "
+                + "بگو بعد از آرام شدن، برای برگشتن باید تعهد احترام به جلسه را بپذیرند.";
+        try {
+            String raw = metisService.sendMessageAllowBlank(conversationId, prompt);
+            String visible = new GovernancePacketParser().strip(raw == null ? "" : raw);
+            if (visible != null && !visible.isBlank()) {
+                chatRealtimeService.saveAgentAndPublish(
+                        chatRoom.getId(),
+                        agentId,
+                        visible
+                );
+            }
+        } catch (Exception exception) {
+            String fallback = applied.bothPaused()
+                    ? "هر دو نفرتان الان پیام نمی‌فرستید تا فضا آرام شود. چند نفس عمیق بکشید. وقتی آماده شدید، برای برگشتن به گفتگو یک تعهد ساده از شما می‌خواهم: احترام به جلسه و پرهیز از حمله شخصی."
+                    : "این مکث برای آرام شدن است، نه تنبیه. چند نفس بکش. وقتی آماده شدی، برای برگشتن به گفتگو ازت می‌خواهم به فرایند جلسه احترام بگذاری.";
+            chatRealtimeService.saveAgentAndPublish(
+                    chatRoom.getId(),
+                    agentId,
+                    fallback
+            );
+        }
     }
 
 

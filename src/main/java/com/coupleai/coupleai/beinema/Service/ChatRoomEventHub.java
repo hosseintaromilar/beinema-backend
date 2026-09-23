@@ -55,25 +55,30 @@ public class ChatRoomEventHub {
     }
 
     public void publish(Long chatRoomId, MessageResponse message) {
+        publishNamed(chatRoomId, "message", message);
+    }
+
+    public void publishNamed(Long chatRoomId, String eventName, Object payload) {
         List<SseEmitter> roomEmitters = emitters.get(chatRoomId);
-        if (roomEmitters == null || roomEmitters.isEmpty() || message == null) {
+        if (roomEmitters == null || roomEmitters.isEmpty() || payload == null) {
             return;
         }
 
-        String payload;
+        String json;
         try {
-            payload = objectMapper.writeValueAsString(message);
+            json = objectMapper.writeValueAsString(payload);
         } catch (IOException exception) {
-            log.warn("Could not serialize chat event for room {}", chatRoomId, exception);
+            log.warn("Could not serialize {} event for room {}", eventName, chatRoomId, exception);
             return;
         }
 
+        String name = (eventName == null || eventName.isBlank()) ? "message" : eventName;
         for (SseEmitter emitter : roomEmitters) {
             try {
                 emitter.send(
                         SseEmitter.event()
-                                .name("message")
-                                .data(payload, MediaType.TEXT_PLAIN)
+                                .name(name)
+                                .data(json, MediaType.TEXT_PLAIN)
                 );
             } catch (IOException | IllegalStateException exception) {
                 remove(chatRoomId, emitter);

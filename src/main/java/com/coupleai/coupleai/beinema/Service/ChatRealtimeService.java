@@ -55,6 +55,20 @@ public class ChatRealtimeService {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found"));
 
+        String cleaned = content == null ? "" : content.trim();
+        if (cleaned.isEmpty()) {
+            return null;
+        }
+        Message previous = messageRepository
+                .findFirstByChatRoomAndDeletedFalseOrderBySequenceNumberDesc(chatRoom)
+                .orElse(null);
+        if (previous != null
+                && previous.getSenderType() == MessageSenderType.AGENT
+                && cleaned.equals(previous.getContent() == null ? "" : previous.getContent().trim())) {
+            chatRoomEventHub.publish(chatRoomId, toResponse(chatRoom, previous));
+            return previous;
+        }
+
         int nextSequence = messageRepository
                 .findMaxSequenceNumberByChatRoom(chatRoom)
                 .orElse(0)
@@ -64,7 +78,7 @@ public class ChatRealtimeService {
                 .chatRoom(chatRoom)
                 .senderType(MessageSenderType.AGENT)
                 .senderId(agentId == null ? 0L : agentId)
-                .content(content == null ? "" : content)
+                .content(cleaned)
                 .status(MessageStatus.SENT)
                 .sequenceNumber(nextSequence)
                 .build();
@@ -72,6 +86,30 @@ public class ChatRealtimeService {
         messageRepository.saveAndFlush(aiMessage);
         chatRoomEventHub.publish(chatRoomId, toResponse(chatRoom, aiMessage));
         return aiMessage;
+    }
+
+    @Transactional
+    public Message saveSystemAndPublish(Long chatRoomId, String content) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+
+        int nextSequence = messageRepository
+                .findMaxSequenceNumberByChatRoom(chatRoom)
+                .orElse(0)
+                + 1;
+
+        Message systemMessage = Message.builder()
+                .chatRoom(chatRoom)
+                .senderType(MessageSenderType.SYSTEM)
+                .senderId(0L)
+                .content(content == null ? "" : content)
+                .status(MessageStatus.SENT)
+                .sequenceNumber(nextSequence)
+                .build();
+
+        messageRepository.saveAndFlush(systemMessage);
+        chatRoomEventHub.publish(chatRoomId, toResponse(chatRoom, systemMessage));
+        return systemMessage;
     }
 
     private MessageResponse toResponse(ChatRoom chatRoom, Message message) {
@@ -134,8 +172,8 @@ public class ChatRealtimeService {
             response.setParticipantRole(toStableRole(participant.getRole()));
         }
 
-        response.setDisplayName(sender.getName());
-        response.setSenderName(sender.getName());
+        response.setDisplayName(sender.visibleName());
+        response.setSenderName(sender.visibleName());
         return response;
     }
 

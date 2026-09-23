@@ -23,4 +23,9 @@ public interface MetisService {
             String sessionId,
             String content
     );
+
+    String sendMessageAllowBlank(
+            String sessionId,
+            String content
+    );
 }

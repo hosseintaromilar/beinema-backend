@@ -4,7 +4,9 @@ import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Enum.ParticipantRole;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -35,6 +37,22 @@ public interface ChatRoomParticipantRepository
             ChatRoom chatRoom,
             User user
     );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select participant from ChatRoomParticipant participant "
+            + "where participant.chatRoom.id = :chatRoomId and participant.user.id = :userId")
+    java.util.Optional<ChatRoomParticipant> findByChatRoomIdAndUserIdForUpdate(
+            @Param("chatRoomId") Long chatRoomId,
+            @Param("userId") Long userId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select distinct participant from ChatRoomParticipant participant "
+            + "join fetch participant.user "
+            + "where participant.chatRoom.id = :chatRoomId")
+    List<ChatRoomParticipant> findAllByChatRoomIdForUpdate(
+            @Param("chatRoomId") Long chatRoomId
+    );
     boolean existsByChatRoomAndUserAndRole(
             ChatRoom chatRoom,
             User user,
@@ -48,5 +66,11 @@ public interface ChatRoomParticipantRepository
     boolean existsByChatRoomAndUser(
             ChatRoom chatRoom,
             User user
+    );
+
+    @Query("select distinct participant.chatRoom.id from ChatRoomParticipant participant "
+            + "where participant.pausedUntil is not null and participant.pausedUntil <= :now")
+    java.util.List<Long> findRoomIdsWithExpiredPause(
+            @Param("now") java.time.Instant now
     );
 }

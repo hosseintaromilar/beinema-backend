@@ -13,4 +13,12 @@ public class ParticipantSummary {
     private String name;
 
     private ParticipantRole role;
+
+    private Boolean paused;
+
+    private Long pausedUntil;
+
+    private Boolean reentryPending;
+
+    private Boolean sessionConsented;
 }

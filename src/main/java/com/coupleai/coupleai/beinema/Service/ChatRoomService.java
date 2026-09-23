@@ -8,6 +8,10 @@ import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.MessageStatus;
 import com.coupleai.coupleai.beinema.Enum.ParticipantRole;
 import com.coupleai.coupleai.beinema.Repository.*;
+import com.coupleai.coupleai.beinema.governance.ConsentReplay;
+import com.coupleai.coupleai.beinema.governance.ParticipationPauseService;
+import com.coupleai.coupleai.beinema.governance.ReentryCommitment;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,8 +43,13 @@ public class ChatRoomService {
     private final ChatRoomInvitationRepository invitationRepository;
     private final ChatRealtimeService chatRealtimeService;
     private final MetisService metisService;
+    private final CounselorSessionService counselorSessionService;
     private final AgentAccessService agentAccessService;
     private final RelationshipInsightRepository relationshipInsightRepository;
+    private final ParticipationPauseService participationPauseService;
+    private final AgentAccessRepository agentAccessRepository;
+    private final GovernanceLogRepository governanceLogRepository;
+    private final EntityManager entityManager;
 
 
     public ChatRoomResponse createChatRoom(
@@ -138,6 +147,10 @@ public class ChatRoomService {
                         aiConversationId
                 )
 
+                .aiBotId(
+                        agent.getAiBotId()
+                )
+
                 .createdBy(
                         user.getId()
                 )
@@ -165,6 +178,10 @@ public class ChatRoomService {
                         .role(
                                 ParticipantRole.OWNER
                         )
+
+                        .sessionConsented(false)
+
+                        .consentOffered(false)
 
                         .build();
 
@@ -207,6 +224,18 @@ public class ChatRoomService {
         );
 
         agentAccessService.grantForNewRoom(user, chatRoom, agent, accessPlan);
+
+        String welcome = counselorSessionService.requestOpening(aiConversationId);
+        if (CounselorSessionService.isSilentWait(welcome)
+                || ConsentReplay.asksAgain(welcome)) {
+            welcome = ReentryCommitment.FALLBACK_OPENING;
+        }
+        chatRealtimeService.saveAgentAndPublish(
+                chatRoom.getId(),
+                agent.getId(),
+                welcome
+        );
+        participationPauseService.startConsentGate(chatRoom, user);
 
 
         /*
@@ -262,8 +291,9 @@ public class ChatRoomService {
                         List.of(
                                 ParticipantSummary.builder()
                                         .userId(user.getId())
-                                        .name(user.getName())
+                                        .name(user.visibleName())
                                         .role(ParticipantRole.OWNER)
+                                        .sessionConsented(false)
                                         .build()
                         )
                 )
@@ -584,31 +614,36 @@ public class ChatRoomService {
                                 new RuntimeException("Chat room not found"));
 
         boolean canDelete =
-                chatRoom.getCreatedBy().equals(user.getId())
+                Objects.equals(chatRoom.getCreatedBy(), user.getId())
                         || participantRepository.existsByChatRoomAndUserAndRole(
                                 chatRoom,
                                 user,
                                 ParticipantRole.OWNER
+                        )
+                        || participantRepository.existsByChatRoomAndUserAndRole(
+                                chatRoom,
+                                user,
+                                ParticipantRole.PARTNER_A
                         );
 
         if (!canDelete) {
 
             throw new RuntimeException(
-                    "Access denied"
+                    "فقط سازنده گفتگو می‌تواند آن را حذف کند"
             );
         }
 
         invitationRepository.deleteAllByChatRoom(chatRoom);
-
         relationshipInsightRepository.deleteAllByChatRoom(chatRoom);
-
+        agentAccessRepository.deleteByChatRoomId(chatRoomId);
+        governanceLogRepository.deleteByChatRoomId(chatRoomId);
         participantRepository.deleteAllByChatRoom(chatRoom);
-
         chatRoomAgentRepository.deleteAllByChatRoom(chatRoom);
-
         messageRepository.deleteAllByChatRoom(chatRoom);
 
-        chatRoomRepository.delete(chatRoom);
+        entityManager.flush();
+        entityManager.clear();
+        chatRoomRepository.deleteById(chatRoomId);
     }
 
 
@@ -659,7 +694,7 @@ public class ChatRoomService {
                 .chatRoom(chatRoom)
                 .senderType(MessageSenderType.SYSTEM)
                 .senderId(user.getId())
-                .content(user.getName() + " از گفتگو خارج شد")
+                .content(user.visibleName() + " از گفتگو خارج شد")
                 .status(MessageStatus.SENT)
                 .sequenceNumber(nextSequence)
                 .build();
@@ -720,6 +755,7 @@ public class ChatRoomService {
                 .findFirst()
                 .orElse(null);
 
+        participationPauseService.expireStale(chatRoom);
         boolean hasAccess = agentAccessService.hasValidAccess(chatRoom.getId(), agentId);
         Long expiresAt = agentAccessService.findActive(chatRoom.getId(), agentId)
                 .map(access -> access.getExpiresAt() == null
@@ -733,6 +769,7 @@ public class ChatRoomService {
         return builder
                 .hasActiveAgentAccess(hasAccess)
                 .agentAccessExpiresAt(expiresAt)
+                .sessionEnded(chatRoom.getStatus() != ChatRoomStatus.ACTIVE)
                 .build();
     }
 
@@ -741,11 +778,18 @@ public class ChatRoomService {
 
         return participantRepository.findAllByChatRoom(chatRoom)
                 .stream()
-                .map(item -> ParticipantSummary.builder()
-                        .userId(item.getUser().getId())
-                        .name(item.getUser().getName())
-                        .role(item.getRole())
-                        .build())
+                .map(item -> {
+                    java.time.Instant until = participationPauseService.pausedUntil(item);
+                    return ParticipantSummary.builder()
+                            .userId(item.getUser().getId())
+                            .name(item.getUser().visibleName())
+                            .role(item.getRole())
+                            .paused(until != null)
+                            .pausedUntil(until == null ? null : until.toEpochMilli())
+                            .reentryPending(Boolean.TRUE.equals(item.getReentryPending()))
+                            .sessionConsented(item.getSessionConsented())
+                            .build();
+                })
                 .toList();
     }
 }

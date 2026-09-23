@@ -150,6 +150,10 @@ public class SecurityConfig {
 
                                 "/api/auth/reset-password",
 
+                                "/api/auth/otp/request",
+
+                                "/api/auth/otp/verify",
+
                                 "/api/waitlist"
 
                         )
@@ -196,6 +200,17 @@ public class SecurityConfig {
                         .permitAll()
 
 
+                        .requestMatchers("/api/admin/**")
+                        .hasRole("ADMIN")
+
+
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.POST,
+                                "/api/agents"
+                        )
+                        .hasRole("ADMIN")
+
+
                         .anyRequest()
 
                         .authenticated()
@@ -210,6 +225,14 @@ public class SecurityConfig {
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
                                     "{\"message\":\"برای ادامه باید وارد حساب شوید.\"}"
+                            );
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(403);
+                            response.setCharacterEncoding("UTF-8");
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write(
+                                    "{\"message\":\"این بخش فقط برای ادمین است.\"}"
                             );
                         })
                 )

@@ -3,6 +3,8 @@ package com.coupleai.coupleai.beinema.DTO.messages;
 import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.MessageStatus;
+import com.coupleai.coupleai.beinema.governance.GovernancePacketParser;
+import com.coupleai.coupleai.beinema.governance.ReentryCommitment;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,6 +40,12 @@ public class MessageResponse {
 
     private LocalDateTime createdAt;
 
+    private Long commitmentUserId;
+
+    private String commitmentStatus;
+
+    private String agreementKind;
+
 
     /**
      * Convert Message entity to MessageResponse DTO.
@@ -72,7 +80,7 @@ public class MessageResponse {
                 )
 
                 .content(
-                        message.getContent()
+                        visibleContent(message.getContent())
                 )
 
                 .status(
@@ -87,6 +95,24 @@ public class MessageResponse {
                         message.getCreatedAt()
                 )
 
+                .commitmentUserId(
+                        ReentryCommitment.userId(message.getContent())
+                )
+
+                .commitmentStatus(
+                        ReentryCommitment.status(message.getContent())
+                )
+
+                .agreementKind(
+                        ReentryCommitment.kind(message.getContent())
+                )
+
                 .build();
+    }
+
+    private static String visibleContent(String content) {
+        return new GovernancePacketParser().strip(
+                ReentryCommitment.visible(content)
+        );
     }
 }

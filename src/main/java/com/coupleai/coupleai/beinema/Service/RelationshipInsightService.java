@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,9 @@ public class RelationshipInsightService {
     private static final int MAX_MESSAGES = 80;
     private static final int MAX_MESSAGE_CHARS = 420;
     private static final int MIN_USER_MESSAGES = 2;
+
+    @Value("${metis.insight-bot-id}")
+    private String insightBotId;
 
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
@@ -103,7 +107,7 @@ public class RelationshipInsightService {
 
         try {
             MetisConversationResponse session = metisService.createConversation(
-                    roomAgent.getAgent().getAiBotId(),
+                    insightBotId,
                     user
             );
             String raw = metisService.sendMessage(session.getId(), prompt);
@@ -169,7 +173,7 @@ public class RelationshipInsightService {
                 .stream()
                 .collect(Collectors.toMap(
                         participant -> participant.getUser().getId(),
-                        participant -> participant.getUser().getName(),
+                        participant -> participant.getUser().visibleName(),
                         (left, right) -> left
                 ));
 

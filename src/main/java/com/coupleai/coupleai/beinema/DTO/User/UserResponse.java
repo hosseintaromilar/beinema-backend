@@ -12,9 +12,15 @@ public class UserResponse {
 
     private String name;
 
+    private String firstName;
+
+    private String lastName;
+
     private String email;
 
     private String phoneNumber;
+
+    private boolean profileComplete;
 
     private String avatarUrl;
 
@@ -31,11 +37,17 @@ public class UserResponse {
 
                 .id(user.getId())
 
-                .name(user.getName())
+                .name(user.hasRegisteredName() ? user.getName().trim() : null)
 
-                .email(user.getEmail())
+                .firstName(user.getFirstName())
+
+                .lastName(user.getLastName())
+
+                .email(hiddenPhoneEmail(user.getEmail()) ? null : user.getEmail())
 
                 .phoneNumber(user.getPhoneNumber())
+
+                .profileComplete(user.hasRegisteredName())
 
                 .avatarUrl(user.getAvatarUrl())
 
@@ -47,6 +59,11 @@ public class UserResponse {
 
                 .build();
 
+    }
+
+
+    private static boolean hiddenPhoneEmail(String email) {
+        return email != null && email.endsWith("@users.beinema");
     }
 
 }

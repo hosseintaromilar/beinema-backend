@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.time.Instant;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -45,6 +46,54 @@ public class GlobalExceptionHandler {
         return ResponseEntity
 
                 .status(HttpStatus.CONFLICT)
+
+                .body(
+
+                        new ErrorMessage(
+
+                                exception.getMessage()
+
+                        )
+
+                );
+
+    }
+
+
+    @ExceptionHandler(UserNotActiveException.class)
+    public ResponseEntity<ErrorMessage> handleInactiveUser(
+
+            UserNotActiveException exception
+
+    ) {
+
+        return ResponseEntity
+
+                .status(HttpStatus.FORBIDDEN)
+
+                .body(
+
+                        new ErrorMessage(
+
+                                exception.getMessage()
+
+                        )
+
+                );
+
+    }
+
+
+    @ExceptionHandler(SmsDeliveryException.class)
+    public ResponseEntity<ErrorMessage> handleSmsDelivery(
+
+            SmsDeliveryException exception
+
+    ) {
+
+        return ResponseEntity
+
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
 
                 .body(
 
@@ -134,6 +183,48 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(new ErrorMessage(exception.getMessage()));
+    }
+
+
+    @ExceptionHandler(ParticipationPausedException.class)
+    public ResponseEntity<Map<String, Object>> handlePaused(
+            ParticipationPausedException exception
+    ) {
+        Instant until = exception.getPausedUntil();
+        return ResponseEntity
+                .status(HttpStatus.LOCKED)
+                .body(Map.of(
+                        "code", "PARTICIPATION_PAUSED",
+                        "message", exception.getMessage(),
+                        "pausedUntil", until == null ? 0L : until.toEpochMilli(),
+                        "remainingSeconds", exception.getRemainingSeconds()
+                ));
+    }
+
+
+    @ExceptionHandler(CommitmentRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleCommitment(
+            CommitmentRequiredException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.LOCKED)
+                .body(Map.of(
+                        "code", exception.getCode(),
+                        "message", exception.getMessage()
+                ));
+    }
+
+
+    @ExceptionHandler(SessionEndedException.class)
+    public ResponseEntity<Map<String, Object>> handleSessionEnded(
+            SessionEndedException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of(
+                        "code", "SESSION_ENDED",
+                        "message", exception.getMessage()
+                ));
     }
 
 }

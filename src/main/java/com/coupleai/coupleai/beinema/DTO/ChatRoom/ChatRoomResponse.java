@@ -29,4 +29,6 @@ public class ChatRoomResponse {
 
     private Long agentAccessExpiresAt;
 
+    private Boolean sessionEnded;
+
 }

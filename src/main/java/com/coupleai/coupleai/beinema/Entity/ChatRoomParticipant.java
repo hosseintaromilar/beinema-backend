@@ -43,4 +43,38 @@ public class ChatRoomParticipant extends BaseEntity {
     @Builder.Default
     private ParticipantRole role = ParticipantRole.MEMBER;
 
+    /**
+     * Temporary session participation pause. Null or past = timer finished.
+     * This is not an account ban.
+     */
+    @Column(name = "paused_until")
+    private java.time.Instant pausedUntil;
+
+    /**
+     * After pause expires, the participant must accept a re-entry commitment
+     * before sending again.
+     */
+    @Column(name = "reentry_pending")
+    @Builder.Default
+    private Boolean reentryPending = false;
+
+    @Column(name = "commitment_offered")
+    @Builder.Default
+    private Boolean commitmentOffered = false;
+
+    @Column(name = "reentry_handshake")
+    @Builder.Default
+    private Boolean reentryHandshake = false;
+
+    /**
+     * False = must accept session rules before sending.
+     * Null = legacy participant, already allowed.
+     */
+    @Column(name = "session_consented")
+    private Boolean sessionConsented;
+
+    @Column(name = "consent_offered")
+    @Builder.Default
+    private Boolean consentOffered = false;
+
 }

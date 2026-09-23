@@ -4,6 +4,9 @@ import com.coupleai.coupleai.beinema.DTO.Auth.AuthResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.ForgotPasswordRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LoginRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LogoutResponse;
+import com.coupleai.coupleai.beinema.DTO.Auth.OtpPhoneRequest;
+import com.coupleai.coupleai.beinema.DTO.Auth.OtpRequestResponse;
+import com.coupleai.coupleai.beinema.DTO.Auth.OtpVerifyRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.RegisterRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.ResetPasswordRequest;
 import com.coupleai.coupleai.beinema.Service.AuthService;
@@ -47,6 +50,34 @@ public class AuthController {
 
                 authService.login(request)
 
+        );
+
+    }
+
+
+    @PostMapping("/otp/request")
+    public ResponseEntity<OtpRequestResponse> requestOtp(
+
+            @RequestBody OtpPhoneRequest request
+
+    ) {
+
+        return ResponseEntity.ok(
+                authService.requestOtp(request)
+        );
+
+    }
+
+
+    @PostMapping("/otp/verify")
+    public ResponseEntity<AuthResponse> verifyOtp(
+
+            @RequestBody OtpVerifyRequest request
+
+    ) {
+
+        return ResponseEntity.ok(
+                authService.verifyOtp(request)
         );
 
     }

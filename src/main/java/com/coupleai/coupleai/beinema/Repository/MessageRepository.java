@@ -41,6 +41,10 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             ChatRoom chatRoom
     );
 
+    Optional<Message> findFirstByChatRoomAndDeletedFalseOrderBySequenceNumberDesc(
+            ChatRoom chatRoom
+    );
+
     @Query("""
             select m.chatRoom.id, max(m.createdAt)
             from Message m

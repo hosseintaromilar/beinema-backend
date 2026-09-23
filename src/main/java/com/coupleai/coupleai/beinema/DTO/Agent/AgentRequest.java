@@ -19,5 +19,17 @@ public class AgentRequest {
 
     private String avatar;
 
+    private String headline;
+
+    private String bio;
+
+    private String specialties;
+
+    private String photoUrl;
+
+    private String aiBotId;
+
+    private Long price;
+
     private AgentStatus status;
 }

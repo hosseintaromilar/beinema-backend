@@ -50,7 +50,7 @@ public class MetisServiceImpl implements MetisService {
                                         )
 
                                         .name(
-                                                user.getName()
+                                                user.visibleName()
                                         )
 
                                         .build()
@@ -161,6 +161,20 @@ public class MetisServiceImpl implements MetisService {
             String content
     ) {
 
+        String reply = sendMessageAllowBlank(sessionId, content);
+        if (reply.isBlank()) {
+            throw new RuntimeException("Metis returned an empty analysis reply");
+        }
+        return reply;
+    }
+
+
+    @Override
+    public String sendMessageAllowBlank(
+            String sessionId,
+            String content
+    ) {
+
         if (sessionId == null || sessionId.isBlank()) {
             throw new IllegalArgumentException("Metis session id is required");
         }
@@ -170,9 +184,6 @@ public class MetisServiceImpl implements MetisService {
 
         var response = metisClient.sendMessage(sessionId, content);
         String reply = response == null ? null : response.extractContent();
-        if (reply == null || reply.isBlank()) {
-            throw new RuntimeException("Metis returned an empty analysis reply");
-        }
-        return reply;
+        return reply == null ? "" : reply;
     }
 }
