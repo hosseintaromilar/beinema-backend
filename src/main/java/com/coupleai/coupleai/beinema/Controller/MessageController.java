@@ -68,4 +68,9 @@ public class MessageController {
         boolean accepted = request != null && Boolean.TRUE.equals(request.getAccepted());
         messageService.submitSessionConsent(chatRoomId, accepted);
     }
+
+    @PostMapping("/{chatRoomId}/entry")
+    public void announceEntry(@PathVariable Long chatRoomId) {
+        messageService.announceEntry(chatRoomId);
+    }
 }

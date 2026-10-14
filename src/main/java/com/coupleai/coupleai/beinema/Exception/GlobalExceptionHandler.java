@@ -1,6 +1,7 @@
 package com.coupleai.coupleai.beinema.Exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -193,6 +194,7 @@ public class GlobalExceptionHandler {
         Instant until = exception.getPausedUntil();
         return ResponseEntity
                 .status(HttpStatus.LOCKED)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of(
                         "code", "PARTICIPATION_PAUSED",
                         "message", exception.getMessage(),
@@ -208,6 +210,7 @@ public class GlobalExceptionHandler {
     ) {
         return ResponseEntity
                 .status(HttpStatus.LOCKED)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of(
                         "code", exception.getCode(),
                         "message", exception.getMessage()
@@ -221,6 +224,7 @@ public class GlobalExceptionHandler {
     ) {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of(
                         "code", "SESSION_ENDED",
                         "message", exception.getMessage()

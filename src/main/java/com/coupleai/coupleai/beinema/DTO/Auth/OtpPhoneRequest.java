@@ -8,4 +8,6 @@ import lombok.Setter;
 public class OtpPhoneRequest {
 
     private String phoneNumber;
+
+    private String referralCode;
 }

@@ -5,7 +5,9 @@ import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
+import com.coupleai.coupleai.beinema.governance.EntryGreeting;
 import com.coupleai.coupleai.beinema.governance.GovernancePacketParser;
+import com.coupleai.coupleai.beinema.governance.ReplySegments;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +25,7 @@ public class CounselorSessionService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomAgentRepository chatRoomAgentRepository;
     private final MetisService metisService;
+    private final RoomTurnLock roomTurnLock;
 
     public Agent requireActiveAgent(ChatRoom chatRoom) {
         return chatRoomAgentRepository.findAllByChatRoom(chatRoom)
@@ -48,20 +51,26 @@ public class CounselorSessionService {
 
     public String requestOpening(String conversationId) {
         try {
-            String raw = metisService.sendMessageAllowBlank(
+            String raw = roomTurnLock.locked(conversationId, () -> metisService.sendMessageAllowBlank(
                     conversationId,
-                    SESSION_CREATED
-                            + "\nOPENING_REQUIRED\n"
-                            + "به فارسی و در دو یا سه جمله بگو این جلسه مشاوره زوج است: گوش می‌دهی، "
-                            + "در زمان مناسب مداخله می‌کنی، و اگر فضا توهین‌آمیز شد ارسال پیام را موقتاً متوقف می‌کنی. "
-                            + "این مکث تنبیه نیست.\n"
-                            + "اصلاً از کاربر نخواه موافقت کند، قوانین را بپذیرد، یا منتظر نفر دوم بماند. "
-                            + "کارت موافقت را اپلیکیشن جدا نشان می‌دهد. سؤال نپرس و دکمه نساز.\n"
-                            + "هیچ کد انگلیسی و هیچ برچسب [[GOV]] در جواب ننویس."
-            );
+                    SESSION_CREATED + "\n" + EntryGreeting.sessionReady("")
+            ));
             return new GovernancePacketParser().strip(raw == null ? "" : raw);
         } catch (Exception exception) {
             log.warn("Could not send SESSION_CREATED to Metis: {}", exception.getMessage());
+            return "";
+        }
+    }
+
+    public String requestEntry(String conversationId, String instruction) {
+        try {
+            String raw = roomTurnLock.locked(conversationId, () -> metisService.sendMessageAllowBlank(
+                    conversationId,
+                    instruction == null ? "" : instruction
+            ));
+            return new GovernancePacketParser().strip(raw == null ? "" : raw);
+        } catch (Exception exception) {
+            log.warn("Could not greet a participant on entry: {}", exception.getMessage());
             return "";
         }
     }
@@ -70,7 +79,8 @@ public class CounselorSessionService {
         if (content == null || content.isBlank()) {
             return true;
         }
-        return new GovernancePacketParser().parse(content).visibleText().isBlank();
+        String visible = new GovernancePacketParser().parse(content).visibleText();
+        return ReplySegments.plain(visible).isBlank();
     }
 
     private static boolean needsNewSession(ChatRoom chatRoom, Agent agent) {

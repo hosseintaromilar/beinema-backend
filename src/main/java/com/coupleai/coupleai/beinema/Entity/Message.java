@@ -62,4 +62,12 @@ public class Message extends BaseEntity {
     @Builder.Default
     private Boolean deleted = false;
 
+    /** Emoji the counselor put under this message instead of speaking (nullable). */
+    @Column(name = "agent_reaction", length = 16)
+    private String agentReaction;
+
+    /** Message this one replies to (used by counselor stickers). */
+    @Column(name = "reply_to_message_id")
+    private Long replyToMessageId;
+
 }

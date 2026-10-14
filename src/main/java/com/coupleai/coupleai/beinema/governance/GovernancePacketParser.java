@@ -17,10 +17,7 @@ public class GovernancePacketParser {
             Pattern.CASE_INSENSITIVE
     );
 
-    private static final Set<String> SESSION_ACTIONS = Set.of(
-            "ASK", "REFLECT", "CLARIFY", "INTERVENE", "REDIRECT",
-            "SUMMARIZE", "SAFETY", "LISTENING", "WAIT", "END_SESSION"
-    );
+    private static final Set<String> SESSION_ACTIONS = SessionPacketParser.ACTIONS;
 
     public GovernanceDecision parse(String rawReply) {
         if (rawReply == null || rawReply.isBlank()) {
@@ -82,7 +79,7 @@ public class GovernancePacketParser {
         GovernanceTarget target = GovernanceTarget.fromToken(first(fields, "TARGET"));
         Integer duration = parseDuration(first(fields, "DURATION", "DURATIONSECONDS"));
         String reason = first(fields, "REASON", "BRIEF");
-        visible = stripDirectorLeak(visible);
+        visible = SessionPacketParser.strip(stripDirectorLeak(visible));
 
         return new GovernanceDecision(
                 sessionAction,

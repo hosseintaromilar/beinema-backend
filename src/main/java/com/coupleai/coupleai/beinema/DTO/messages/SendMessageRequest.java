@@ -13,4 +13,7 @@ public class SendMessageRequest {
     @Size(max = 10000, message = "متن پیام بیش از حد طولانی است.")
     private String content;
 
+    /** Optional: the message this one replies to (must belong to the same room). */
+    private Long replyToMessageId;
+
 }

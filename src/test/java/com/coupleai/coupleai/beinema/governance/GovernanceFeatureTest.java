@@ -72,6 +72,31 @@ class GovernanceFeatureTest {
         }
 
         @Test
+        void entryGreetingNamesThePersonWhoArrived() {
+            String prompt = EntryGreeting.instruction(
+                    "حسین",
+                    "",
+                    false,
+                    false,
+                    true,
+                    false,
+                    false,
+                    "مراجع: دیروز دعوا داشتیم"
+            );
+            assertTrue(prompt.contains("حسین"));
+            assertTrue(prompt.contains("دیروز دعوا داشتیم"));
+            assertTrue(prompt.contains("EVENT=PARTICIPANT_ENTERED"));
+            assertFalse(prompt.contains("[[GOV"));
+            String joined = EntryGreeting.participantJoined("افسانه", false, "مشاور: از خودت بگو");
+            assertTrue(joined.contains("EVENT=PARTICIPANT_JOINED"));
+            assertTrue(joined.contains("PRESERVE_STAGE=true"));
+            assertTrue(joined.contains("PRESERVE_TARGET=true"));
+            String consented = EntryGreeting.participantConsented("افسانه");
+            assertTrue(consented.contains("EVENT=PARTICIPANT_CONSENTED"));
+            assertFalse(consented.contains("EVENT=SESSION_READY"));
+        }
+
+        @Test
         void listeningTextIsVisibleWithoutPause() {
             GovernanceDecision decision = parser.parse("ادامه بده، دارم گوش می‌دم.");
             assertEquals(GovernanceAction.NONE, decision.governanceAction());

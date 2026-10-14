@@ -9,16 +9,24 @@ import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import com.coupleai.coupleai.beinema.Exception.CommitmentRequiredException;
 import com.coupleai.coupleai.beinema.Exception.ParticipationPausedException;
 import com.coupleai.coupleai.beinema.Exception.SessionEndedException;
+import com.coupleai.coupleai.beinema.Entity.Message;
+import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.GovernanceLogRepository;
+import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.Service.ChatRealtimeService;
 import com.coupleai.coupleai.beinema.Service.ChatRoomEventHub;
+import com.coupleai.coupleai.beinema.Service.CounselorSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -34,6 +42,9 @@ public class ParticipationPauseService {
     private final GovernanceLogRepository governanceLogRepository;
     private final ChatRoomEventHub chatRoomEventHub;
     private final ChatRealtimeService chatRealtimeService;
+    private final CounselorSessionService counselorSessionService;
+    private final MessageRepository messageRepository;
+    private final ParticipationPauseService self;
     private final GovernancePolicy policy;
 
     public ParticipationPauseService(
@@ -42,13 +53,19 @@ public class ParticipationPauseService {
             GovernanceLogRepository governanceLogRepository,
             ChatRoomEventHub chatRoomEventHub,
             ChatRealtimeService chatRealtimeService,
-            GovernanceProperties properties
+            GovernanceProperties properties,
+            CounselorSessionService counselorSessionService,
+            MessageRepository messageRepository,
+            @Lazy ParticipationPauseService self
     ) {
         this.chatRoomRepository = chatRoomRepository;
         this.participantRepository = participantRepository;
         this.governanceLogRepository = governanceLogRepository;
         this.chatRoomEventHub = chatRoomEventHub;
         this.chatRealtimeService = chatRealtimeService;
+        this.counselorSessionService = counselorSessionService;
+        this.messageRepository = messageRepository;
+        this.self = self;
         this.policy = new GovernancePolicy(properties);
     }
 
@@ -78,12 +95,6 @@ public class ParticipationPauseService {
             throw new CommitmentRequiredException(
                     CommitmentRequiredException.SESSION_CONSENT,
                     "قبل از شروع گفتگو، لطفاً با قوانین گروه و چارچوب جلسه موافقت کن."
-            );
-        }
-        if (!allParticipantsConsented(chatRoom)) {
-            throw new CommitmentRequiredException(
-                    CommitmentRequiredException.SESSION_CONSENT_WAITING,
-                    "منتظر موافقت طرف مقابل با قوانین گروه و چارچوب جلسه هستیم."
             );
         }
         if (policy.isActive(participant.getPausedUntil())) {
@@ -425,7 +436,7 @@ public class ParticipationPauseService {
                         .message("با چارچوب جلسه موافقت شد.")
                         .build()
         );
-        maybeAnnounceSessionReady(chatRoom);
+        maybeAnnounceSessionReady(chatRoom, user);
     }
 
     @Transactional
@@ -509,28 +520,96 @@ public class ParticipationPauseService {
         }
         participant.setConsentOffered(true);
         participantRepository.save(participant);
-        if (chatRealtimeService != null) {
-            chatRealtimeService.saveSystemAndPublish(
-                    chatRoom.getId(),
-                    ReentryCommitment.consentContent(participant.getUser().getId())
-            );
-        }
         return true;
     }
 
-    private void maybeAnnounceSessionReady(ChatRoom chatRoom) {
-        if (!allParticipantsConsented(chatRoom) || chatRealtimeService == null) {
+    private void maybeAnnounceSessionReady(ChatRoom chatRoom, User user) {
+        if (!allParticipantsConsented(chatRoom) || chatRealtimeService == null || user == null) {
             return;
         }
-        long people = participantRepository.countByChatRoom(chatRoom);
-        String text = people > 1
-                ? "هر دو موافقت کردید. حالا می‌توانیم گفتگو را شروع کنیم."
-                : "ممنون. موافقتت ثبت شد. از اینجا به بعد حرف بزن؛ اگر شریکت بیاید، او هم یک بار کارت را می‌بیند.";
-        chatRealtimeService.saveAgentAndPublish(chatRoom.getId(), resolveAnyAgentId(chatRoom), text);
+        Long roomId = chatRoom.getId();
+        Long userId = user.getId();
+        if (!TransactionSynchronizationManager.isSynchronizationActive() || self == null) {
+            publishSessionOpening(roomId, userId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                self.openSessionAfterCommit(roomId, userId);
+            }
+        });
     }
 
-    private Long resolveAnyAgentId(ChatRoom chatRoom) {
-        return 0L;
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void openSessionAfterCommit(Long roomId, Long userId) {
+        publishSessionOpening(roomId, userId);
+    }
+
+    private void publishSessionOpening(Long roomId, Long userId) {
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElse(null);
+        if (chatRoom == null || chatRealtimeService == null) {
+            return;
+        }
+        List<ChatRoomParticipant> members = participantRepository.findAllByChatRoom(chatRoom);
+        String names = members.stream()
+                .map(item -> item.getUser() == null ? "" : item.getUser().visibleName())
+                .filter(name -> name != null && !name.isBlank())
+                .reduce((left, right) -> left + " و " + right)
+                .orElse("");
+        User speaker = members.stream()
+                .map(ChatRoomParticipant::getUser)
+                .filter(item -> item != null && userId.equals(item.getId()))
+                .findFirst()
+                .orElse(null);
+        String spoken = askCounselorToOpen(chatRoom, speaker, names);
+        Long agentId = 0L;
+        if (counselorSessionService != null) {
+            try {
+                agentId = counselorSessionService.requireActiveAgent(chatRoom).getId();
+            } catch (RuntimeException exception) {
+                log.warn("No active counselor for room {}: {}", roomId, exception.getMessage());
+            }
+        }
+        chatRealtimeService.saveAgentAndPublish(chatRoom.getId(), agentId, spoken);
+    }
+
+    private String askCounselorToOpen(ChatRoom chatRoom, User user, String names) {
+        if (counselorSessionService == null || user == null) {
+            return "";
+        }
+        try {
+            ChatRoom bound = counselorSessionService.ensureBound(chatRoom, user);
+            if (bound.getAiConversationId() == null || bound.getAiConversationId().isBlank()) {
+                return "";
+            }
+            return counselorSessionService.requestEntry(
+                    bound.getAiConversationId(),
+                    activationCue(chatRoom, user, names)
+            );
+        } catch (RuntimeException exception) {
+            log.warn("Could not open the session after consent: {}", exception.getMessage());
+            return "";
+        }
+    }
+
+    private String activationCue(ChatRoom chatRoom, User user, String names) {
+        if (sessionAlreadyOpen(chatRoom)) {
+            String arrived = user == null || user.visibleName() == null ? "" : user.visibleName();
+            return EntryGreeting.participantConsented(arrived);
+        }
+        return EntryGreeting.sessionReady(names);
+    }
+
+    private boolean sessionAlreadyOpen(ChatRoom chatRoom) {
+        if (messageRepository == null || chatRoom == null) {
+            return false;
+        }
+        List<Message> messages = messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom);
+        // Entry greetings are counselor turns too, so only a partner's own message
+        // proves the session has really started.
+        return messages.stream()
+                .anyMatch(message -> message.getSenderType() == MessageSenderType.USER);
     }
 
     private boolean expireIfNeeded(ChatRoomParticipant participant) {

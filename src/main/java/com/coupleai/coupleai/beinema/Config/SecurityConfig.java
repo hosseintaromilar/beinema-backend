@@ -190,6 +190,13 @@ public class SecurityConfig {
 
 
                         .requestMatchers(
+                                org.springframework.http.HttpMethod.GET,
+                                "/api/referrals/preview/**"
+                        )
+                        .permitAll()
+
+
+                        .requestMatchers(
 
                                 org.springframework.http.HttpMethod.OPTIONS,
 

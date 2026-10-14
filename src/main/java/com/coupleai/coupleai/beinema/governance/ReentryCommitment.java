@@ -46,10 +46,13 @@ public final class ReentryCommitment {
         return "[[COMMIT|USER=" + id + "|STATUS=" + STATUS_PENDING + "]]\n" + QUESTION;
     }
 
-    public static String consentContent(Long userId) {
+    public static String consentMarker(Long userId) {
         long id = userId == null ? 0L : userId;
-        return "[[AGREE|KIND=" + KIND_CONSENT + "|USER=" + id + "|STATUS=" + STATUS_PENDING + "]]\n"
-                + CONSENT_QUESTION;
+        return "[[AGREE|KIND=" + KIND_CONSENT + "|USER=" + id + "|STATUS=" + STATUS_PENDING + "]]";
+    }
+
+    public static String consentContent(Long userId) {
+        return consentMarker(userId) + "\n" + CONSENT_QUESTION;
     }
 
     public static String kind(String content) {

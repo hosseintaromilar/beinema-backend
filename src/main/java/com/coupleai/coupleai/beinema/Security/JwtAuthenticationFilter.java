@@ -70,8 +70,9 @@ public class JwtAuthenticationFilter
         }
 
         return "GET".equalsIgnoreCase(method)
-                && path.startsWith("/api/invitations/")
-                && !path.endsWith("/accept");
+                && ((path.startsWith("/api/invitations/")
+                && !path.endsWith("/accept"))
+                || path.startsWith("/api/referrals/preview/"));
     }
 
 

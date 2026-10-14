@@ -12,16 +12,16 @@ public class GovStreamBuffer {
             return "";
         }
         pending.append(chunk);
-        String visible = parser.strip(pending.toString());
+        String raw = pending.toString();
+        int openMarker = unclosedMarker(raw);
+        String stable = openMarker < 0 ? raw : raw.substring(0, openMarker);
+        String visible = parser.strip(stable);
         if (!headerResolved) {
-            String raw = pending.toString();
-            boolean markerOpen = raw.contains(GovernancePacketParser.MARKER_PREFIX)
-                    && !raw.contains(GovernancePacketParser.MARKER_SUFFIX);
             boolean directorOpen = raw.trim().startsWith("ACTION=")
                     && raw.contains("|")
                     && !raw.contains("\n")
-                    && raw.length() < 400;
-            if (markerOpen || directorOpen) {
+                    && raw.length() < 500;
+            if (openMarker >= 0 || directorOpen) {
                 return "";
             }
             headerResolved = true;
@@ -40,5 +40,17 @@ public class GovStreamBuffer {
 
     public GovernanceDecision finish() {
         return parser.parse(pending.toString());
+    }
+
+    public String raw() {
+        return pending.toString();
+    }
+
+    private static int unclosedMarker(String raw) {
+        int start = raw.lastIndexOf("[[");
+        if (start < 0) {
+            return -1;
+        }
+        return raw.indexOf("]]", start) < 0 ? start : -1;
     }
 }

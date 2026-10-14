@@ -154,6 +154,33 @@ public class WalletService {
         );
     }
 
+    @Transactional
+    public void credit(
+            User user,
+            long amount,
+            WalletTransactionType type,
+            String description,
+            String reference
+    ) {
+        if (user == null || amount <= 0) {
+            return;
+        }
+        Wallet wallet = lockByUserId(user.getId());
+        wallet.setBalance(wallet.getBalance() + amount);
+        walletRepository.save(wallet);
+        walletTransactionRepository.save(
+                WalletTransaction.builder()
+                        .user(user)
+                        .wallet(wallet)
+                        .type(type)
+                        .status(WalletTransactionStatus.SUCCESS)
+                        .amount(amount)
+                        .reference(reference)
+                        .description(description)
+                        .build()
+        );
+    }
+
     private Wallet createWallet(User user) {
         try {
             return walletRepository.save(

@@ -8,9 +8,7 @@ import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.MessageStatus;
 import com.coupleai.coupleai.beinema.Enum.ParticipantRole;
 import com.coupleai.coupleai.beinema.Repository.*;
-import com.coupleai.coupleai.beinema.governance.ConsentReplay;
 import com.coupleai.coupleai.beinema.governance.ParticipationPauseService;
-import com.coupleai.coupleai.beinema.governance.ReentryCommitment;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -43,7 +41,6 @@ public class ChatRoomService {
     private final ChatRoomInvitationRepository invitationRepository;
     private final ChatRealtimeService chatRealtimeService;
     private final MetisService metisService;
-    private final CounselorSessionService counselorSessionService;
     private final AgentAccessService agentAccessService;
     private final RelationshipInsightRepository relationshipInsightRepository;
     private final ParticipationPauseService participationPauseService;
@@ -224,17 +221,6 @@ public class ChatRoomService {
         );
 
         agentAccessService.grantForNewRoom(user, chatRoom, agent, accessPlan);
-
-        String welcome = counselorSessionService.requestOpening(aiConversationId);
-        if (CounselorSessionService.isSilentWait(welcome)
-                || ConsentReplay.asksAgain(welcome)) {
-            welcome = ReentryCommitment.FALLBACK_OPENING;
-        }
-        chatRealtimeService.saveAgentAndPublish(
-                chatRoom.getId(),
-                agent.getId(),
-                welcome
-        );
         participationPauseService.startConsentGate(chatRoom, user);
 
 

@@ -76,7 +76,10 @@ class ParticipationPauseServiceTest {
                 governanceLogRepository,
                 chatRoomEventHub,
                 chatRealtimeService,
-                properties
+                properties,
+                null,
+                null,
+                null
         );
         room = ChatRoom.builder().status(ChatRoomStatus.ACTIVE).createdBy(1L).title("s").build();
         room.setId(44L);
@@ -140,7 +143,8 @@ class ParticipationPauseServiceTest {
                 () -> service.requireCanSend(room, sara)
         );
         assertEquals(CommitmentRequiredException.SESSION_CONSENT, exception.getCode());
-        verify(chatRealtimeService).saveSystemAndPublish(eq(44L), any());
+        assertTrue(Boolean.TRUE.equals(owner.getConsentOffered()));
+        verify(chatRealtimeService, never()).saveSystemAndPublish(any(), any());
     }
 
     @Test
@@ -151,7 +155,7 @@ class ParticipationPauseServiceTest {
     }
 
     @Test
-    void acceptingSessionConsentAllowsSendIndependently() {
+    void anAgreedPartnerIsNotLockedByThePendingOne() {
         owner.setSessionConsented(false);
         owner.setConsentOffered(true);
         member.setSessionConsented(false);
@@ -162,11 +166,8 @@ class ParticipationPauseServiceTest {
         service.acceptSessionConsent(room, sara);
         assertTrue(Boolean.TRUE.equals(owner.getSessionConsented()));
         assertTrue(Boolean.FALSE.equals(member.getSessionConsented()));
-        CommitmentRequiredException waiting = assertThrows(
-                CommitmentRequiredException.class,
-                () -> service.requireCanSend(room, sara)
-        );
-        assertEquals(CommitmentRequiredException.SESSION_CONSENT_WAITING, waiting.getCode());
+        // The partner who already agreed is never locked by the other one's pending consent.
+        service.requireCanSend(room, sara);
         when(participantRepository.findByChatRoomIdAndUserIdForUpdate(44L, 2L)).thenReturn(Optional.of(member));
         CommitmentRequiredException blocked = assertThrows(
                 CommitmentRequiredException.class,

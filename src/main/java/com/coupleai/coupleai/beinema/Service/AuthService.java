@@ -75,6 +75,8 @@ public class AuthService {
 
     private final PhoneOtpLockService phoneOtpLockService;
 
+    private final ReferralService referralService;
+
     @Value("${beinema.admin-phones:}")
     private String adminPhones;
 
@@ -108,7 +110,10 @@ public class AuthService {
         );
 
         if (isListedPhone(otpBypassPhones, phone)) {
-            AuthResponse session = openPhoneSession(phone);
+            AuthResponse session = openPhoneSession(
+                    phone,
+                    request == null ? null : request.getReferralCode()
+            );
             log.info("OTP bypass login for ***{}", phone.substring(phone.length() - 4));
             return new OtpRequestResponse(
                     "ورود انجام شد",
@@ -224,7 +229,10 @@ public class AuthService {
 
         stored.setUsed(true);
         phoneLoginCodeRepository.save(stored);
-        return openPhoneSession(phone);
+        return openPhoneSession(
+                phone,
+                request == null ? null : request.getReferralCode()
+        );
     }
 
 
@@ -265,7 +273,8 @@ public class AuthService {
     }
 
 
-    private AuthResponse openPhoneSession(String phone) {
+    private AuthResponse openPhoneSession(String phone, String referralCode) {
+        boolean[] created = {false};
         User user = userRepository.findByPhoneNumber(phone)
                 .map(existing -> {
                     if (!existing.isActive()) {
@@ -273,7 +282,14 @@ public class AuthService {
                     }
                     return existing;
                 })
-                .orElseGet(() -> createPhoneUser(phone));
+                .orElseGet(() -> {
+                    created[0] = true;
+                    return createPhoneUser(phone);
+                });
+
+        if (created[0]) {
+            referralService.rewardNewUser(user, referralCode);
+        }
 
         if (isListedPhone(adminPhones, phone)) {
             user.setRole(UserRole.ADMIN);

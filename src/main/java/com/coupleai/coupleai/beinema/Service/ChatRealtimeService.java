@@ -13,6 +13,8 @@ import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
+import com.coupleai.coupleai.beinema.governance.CounselorSignal;
+import com.coupleai.coupleai.beinema.governance.ReplySegments;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,10 +54,16 @@ public class ChatRealtimeService {
 
     @Transactional
     public Message saveAgentAndPublish(Long chatRoomId, Long agentId, String content) {
+        return saveAgentAndPublish(chatRoomId, agentId, content, null);
+    }
+
+    @Transactional
+    public Message saveAgentAndPublish(Long chatRoomId, Long agentId, String content, Long replyToMessageId) {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found"));
 
-        String cleaned = content == null ? "" : content.trim();
+        // A reply that still carries BREAK markers is joined into one readable message.
+        String cleaned = ReplySegments.plain(content == null ? "" : content).trim();
         if (cleaned.isEmpty()) {
             return null;
         }
@@ -81,11 +89,80 @@ public class ChatRealtimeService {
                 .content(cleaned)
                 .status(MessageStatus.SENT)
                 .sequenceNumber(nextSequence)
+                .replyToMessageId(replyToMessageId)
                 .build();
 
         messageRepository.saveAndFlush(aiMessage);
         chatRoomEventHub.publish(chatRoomId, toResponse(chatRoom, aiMessage));
         return aiMessage;
+    }
+
+    /**
+     * Tells every open client that the counselor is typing the next part of a
+     * multi-message reply. Purely a presentation hint; it carries no decision.
+     */
+    public void publishAgentTyping(Long chatRoomId, long durationMillis) {
+        chatRoomEventHub.publishNamed(
+                chatRoomId,
+                "agent_typing",
+                java.util.Map.of("durationMs", Math.max(500L, durationMillis))
+        );
+    }
+
+    /**
+     * Puts a small emoji under a partner's message: the counselor's silent
+     * answer. The brain picks the meaning; this only stores and announces it.
+     */
+    @Transactional
+    public void reactAndPublish(Long chatRoomId, Long messageId, String token) {
+        if (chatRoomId == null || messageId == null || token == null || token.isBlank()) {
+            return;
+        }
+        Message target = messageRepository.findById(messageId).orElse(null);
+        if (target == null
+                || target.getChatRoom() == null
+                || !chatRoomId.equals(target.getChatRoom().getId())
+                || target.getSenderType() != MessageSenderType.USER) {
+            return;
+        }
+        target.setAgentReaction(token);
+        messageRepository.saveAndFlush(target);
+        chatRoomEventHub.publishNamed(
+                chatRoomId,
+                "message_reaction",
+                java.util.Map.of(
+                        "messageId", messageId,
+                        "token", token,
+                        "emoji", String.valueOf(CounselorSignal.emojiFor(token))
+                )
+        );
+    }
+
+    /** Sends a counselor sticker as a reply to a partner's message. */
+    @Transactional
+    public Message saveStickerAndPublish(Long chatRoomId, Long agentId, String token, Long replyToMessageId) {
+        String normalized = CounselorSignal.normalize(token);
+        if (normalized == null) {
+            return null;
+        }
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+        int nextSequence = messageRepository
+                .findMaxSequenceNumberByChatRoom(chatRoom)
+                .orElse(0)
+                + 1;
+        Message sticker = Message.builder()
+                .chatRoom(chatRoom)
+                .senderType(MessageSenderType.AGENT)
+                .senderId(agentId == null ? 0L : agentId)
+                .content(CounselorSignal.stickerContent(normalized))
+                .status(MessageStatus.SENT)
+                .sequenceNumber(nextSequence)
+                .replyToMessageId(replyToMessageId)
+                .build();
+        messageRepository.saveAndFlush(sticker);
+        chatRoomEventHub.publish(chatRoomId, toResponse(chatRoom, sticker));
+        return sticker;
     }
 
     @Transactional
@@ -144,6 +221,22 @@ public class ChatRealtimeService {
             String agentName
     ) {
         MessageResponse response = MessageResponse.from(message);
+        if (message.getReplyToMessageId() != null) {
+            messageRepository.findById(message.getReplyToMessageId()).ifPresent(original -> {
+                String text = CounselorSignal.stripSticker(original.getContent());
+                response.setReplyExcerpt(text.length() > 70 ? text.substring(0, 70) + "..." : text);
+                if (original.getSenderType() == MessageSenderType.AGENT) {
+                    response.setReplyToSender(
+                            agentName == null || agentName.isBlank() ? "مشاور" : agentName
+                    );
+                } else {
+                    ChatRoomParticipant quoted = participantsByUserId.get(original.getSenderId());
+                    if (quoted != null && quoted.getUser() != null) {
+                        response.setReplyToSender(quoted.getUser().visibleName());
+                    }
+                }
+            });
+        }
 
         if (message.getSenderType() == MessageSenderType.AGENT) {
             String name = agentName == null || agentName.isBlank() ? "دستیار" : agentName;

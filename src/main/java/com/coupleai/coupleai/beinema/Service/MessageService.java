@@ -35,4 +35,6 @@ public interface MessageService {
             Long chatRoomId,
             boolean accepted
     );
+
+    void announceEntry(Long chatRoomId);
 }

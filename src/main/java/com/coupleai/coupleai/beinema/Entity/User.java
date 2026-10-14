@@ -164,10 +164,10 @@ public class User extends BaseEntity {
     )
 
     @Builder.Default
-
     private boolean deleted = false;
 
-
+    @Column(name = "referral_code", unique = true, length = 12)
+    private String referralCode;
 
     public boolean hasRegisteredName() {
         return name != null && !name.isBlank();

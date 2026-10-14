@@ -6,6 +6,7 @@ import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Entity.User;
+import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.MessageStatus;
 import com.coupleai.coupleai.beinema.Enum.ParticipantRole;
@@ -15,11 +16,14 @@ import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.CurrentUserService;
-import com.coupleai.coupleai.beinema.governance.ConsentReplay;
+import com.coupleai.coupleai.beinema.governance.EntryGreeting;
 import com.coupleai.coupleai.beinema.governance.GovernanceDecision;
 import com.coupleai.coupleai.beinema.governance.GovernancePacketParser;
 import com.coupleai.coupleai.beinema.governance.GovStreamBuffer;
 import com.coupleai.coupleai.beinema.governance.ParticipationPauseService;
+import com.coupleai.coupleai.beinema.governance.CounselorSignal;
+import com.coupleai.coupleai.beinema.governance.ReplySegments;
+import com.coupleai.coupleai.beinema.governance.ReentryCommitment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContext;
@@ -31,7 +35,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
@@ -64,6 +70,12 @@ public class MessageServiceImpl implements MessageService {
 
     private final ParticipationPauseService participationPauseService;
 
+    private final SessionMemoryService sessionMemoryService;
+
+    private final RoomTurnLock roomTurnLock;
+
+    private final ConcurrentHashMap<String, Long> entryGreetedAt = new ConcurrentHashMap<>();
+
 
 
     @Override
@@ -91,6 +103,114 @@ public class MessageServiceImpl implements MessageService {
                 chatRoom,
                 messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom)
         );
+    }
+
+
+    @Override
+    public void announceEntry(Long chatRoomId) {
+        ChatRoom chatRoom = getAuthorizedChatRoom(chatRoomId);
+        User user = currentUserService.getCurrentUser();
+        Long agentId = resolveAgentId(chatRoom.getId());
+        if (!agentAccessService.hasValidAccess(chatRoom.getId(), agentId)) {
+            return;
+        }
+
+        List<ChatRoomParticipant> members = participantRepository.findAllByChatRoom(chatRoom);
+        ChatRoomParticipant me = members.stream()
+                .filter(item -> item.getUser() != null && item.getUser().getId().equals(user.getId()))
+                .findFirst()
+                .orElse(null);
+        List<Message> history = messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom);
+        boolean fresh = history.stream().noneMatch(message ->
+                message.getSenderType() == MessageSenderType.USER
+                        || message.getSenderType() == MessageSenderType.AGENT
+        );
+        boolean ended = chatRoom.getStatus() == ChatRoomStatus.ENDED
+                || chatRoom.getStatus() == ChatRoomStatus.ARCHIVED
+                || chatRoom.getStatus() == ChatRoomStatus.DELETED;
+        boolean consented = me == null || !Boolean.FALSE.equals(me.getSessionConsented());
+        boolean partnerPending = members.stream().anyMatch(item ->
+                item.getUser() != null
+                        && !item.getUser().getId().equals(user.getId())
+                        && Boolean.FALSE.equals(item.getSessionConsented())
+        );
+        boolean held = me != null && (
+                Boolean.TRUE.equals(me.getReentryPending())
+                        || (me.getPausedUntil() != null && me.getPausedUntil().isAfter(Instant.now()))
+        );
+        boolean bothReady = members.size() >= 2 && members.stream()
+                .allMatch(item -> !Boolean.FALSE.equals(item.getSessionConsented()));
+
+        String claimKey = chatRoom.getId() + ":" + user.getId();
+        long now = System.currentTimeMillis();
+        Long previousClaim = entryGreetedAt.put(claimKey, now);
+        if (previousClaim != null && now - previousClaim < EntryGreeting.REPEAT_WINDOW_MILLIS) {
+            return;
+        }
+
+        String others = members.stream()
+                .filter(item -> item.getUser() != null && !item.getUser().getId().equals(user.getId()))
+                .map(item -> item.getUser().visibleName())
+                .reduce((left, right) -> left + "، " + right)
+                .orElse("");
+        String names = members.stream()
+                .map(item -> item.getUser() == null ? "" : item.getUser().visibleName())
+                .filter(name -> name != null && !name.isBlank())
+                .reduce((left, right) -> left + " و " + right)
+                .orElse("");
+
+        chatRoom = counselorSessionService.ensureBound(chatRoom, user);
+        boolean thisPersonHasSpoken = history.stream().anyMatch(message ->
+                message.getSenderType() == MessageSenderType.USER
+                        && user.getId().equals(message.getSenderId())
+        );
+        long agentTurns = history.stream()
+                .filter(message -> message.getSenderType() == MessageSenderType.AGENT)
+                .count();
+        boolean sessionAlreadyOpen = history.stream()
+                .anyMatch(message -> message.getSenderType() == MessageSenderType.USER)
+                || agentTurns >= 2;
+        String cue;
+        if (!fresh && sessionAlreadyOpen && !thisPersonHasSpoken) {
+            cue = EntryGreeting.participantJoined(
+                    user.visibleName(),
+                    consented,
+                    recentTranscript(history)
+            );
+        } else if (bothReady && fresh) {
+            cue = EntryGreeting.sessionReady(names);
+        } else {
+            cue = EntryGreeting.instruction(
+                    user.visibleName(),
+                    others,
+                    fresh,
+                    ended,
+                    consented,
+                    partnerPending,
+                    held,
+                    recentTranscript(history)
+            );
+        }
+        String spoken = counselorSessionService.requestEntry(
+                chatRoom.getAiConversationId(),
+                cue
+        );
+        if (spoken == null) {
+            spoken = "";
+        }
+        boolean needsConsent = me != null
+                && me.getUser() != null
+                && Boolean.FALSE.equals(me.getSessionConsented());
+        boolean consentAlreadyOffered = history.stream().anyMatch(message ->
+                ReentryCommitment.KIND_CONSENT.equals(ReentryCommitment.kind(message.getContent()))
+                        && user.getId().equals(ReentryCommitment.userId(message.getContent()))
+        );
+        if (needsConsent && !consentAlreadyOffered) {
+            spoken = ReentryCommitment.consentMarker(user.getId()) + "\n" + spoken;
+        }
+        if (!CounselorSessionService.isSilentWait(spoken)) {
+            chatRealtimeService.saveAgentAndPublish(chatRoom.getId(), agentId, spoken);
+        }
     }
 
 
@@ -211,12 +331,15 @@ public class MessageServiceImpl implements MessageService {
          * 6. Save USER message.
          */
 
+        Message replyTarget = resolveReplyTarget(chatRoom, request.getReplyToMessageId());
+
         Message userMessage =
                 Message.builder()
                         .chatRoom(chatRoom)
                         .senderType(MessageSenderType.USER)
                         .senderId(user.getId())
                         .content(request.getContent())
+                        .replyToMessageId(replyTarget == null ? null : replyTarget.getId())
                         .status(MessageStatus.SENT)
                         .sequenceNumber(nextSequence)
                         .build();
@@ -228,7 +351,7 @@ public class MessageServiceImpl implements MessageService {
         chatRoom = counselorSessionService.ensureBound(chatRoom, user);
         String conversationId = chatRoom.getAiConversationId();
         Long chatRoomPk = chatRoom.getId();
-        String userContent = labeledUserContent(chatRoom, user, request.getContent(), resumeHint);
+        String userContent = labeledUserContent(chatRoom, user, request.getContent(), resumeHint, replyTarget);
         Long agentId = resolveAgentId(chatRoomPk);
 
 
@@ -297,6 +420,12 @@ public class MessageServiceImpl implements MessageService {
             GovStreamBuffer streamBuffer =
                     new GovStreamBuffer();
 
+            /*
+             * One Metis turn per room at a time. Messages are already saved;
+             * only their processing waits in line.
+             */
+            roomTurnLock.lock(conversationId);
+
 
             try {
 
@@ -322,32 +451,12 @@ public class MessageServiceImpl implements MessageService {
                                     return;
                                 }
 
+                                /*
+                                 * The reply is delivered as one or more
+                                 * separate messages after the whole turn is
+                                 * known, so chunks are not streamed raw.
+                                 */
                                 aiResponse.append(visibleChunk);
-
-                                if (emitterClosed.get()) {
-                                    return;
-                                }
-
-                                try {
-
-                                    emitter.send(
-                                            SseEmitter.event()
-                                                    .name("message")
-                                                    .data(
-                                                            objectMapper.writeValueAsString(visibleChunk),
-                                                            MediaType.TEXT_PLAIN
-                                                    )
-                                    );
-
-                                } catch (
-                                        IOException
-                                        |
-                                        IllegalStateException e
-                                ) {
-
-                                    emitterClosed.set(true);
-
-                                }
                             }
                     );
 
@@ -363,24 +472,6 @@ public class MessageServiceImpl implements MessageService {
                         );
                         if (visibleFallback != null && !visibleFallback.isEmpty()) {
                             aiResponse.append(visibleFallback);
-                            if (!emitterClosed.get()) {
-                                try {
-                                    emitter.send(
-                                            SseEmitter.event()
-                                                    .name("message")
-                                                    .data(
-                                                            objectMapper.writeValueAsString(visibleFallback),
-                                                            MediaType.TEXT_PLAIN
-                                                    )
-                                    );
-                                } catch (
-                                        IOException
-                                        |
-                                        IllegalStateException e
-                                ) {
-                                    emitterClosed.set(true);
-                                }
-                            }
                         }
                     } else {
 
@@ -400,54 +491,55 @@ public class MessageServiceImpl implements MessageService {
                 try {
                     ChatRoom liveRoom = chatRoomRepository.findById(chatRoomPk).orElse(null);
                     if (liveRoom != null) {
-                        ParticipationPauseService.ApplyResult applied =
-                                participationPauseService.apply(liveRoom, decision);
-                        if (applied.pauseEnforced()) {
-                            sendCalmDownFollowUp(
-                                    liveRoom,
-                                    conversationId,
-                                    agentId,
-                                    applied
-                            );
-                        }
+                        participationPauseService.apply(liveRoom, decision);
                     }
                 } catch (Exception governanceError) {
                     governanceError.printStackTrace();
                 }
 
                 String counselorReply = decision.visibleText();
-                if (ConsentReplay.asksAgain(counselorReply)) {
-                    counselorReply = repairConsentReplay(
-                            conversationId,
-                            request.getContent()
-                    );
-                }
-                if (decision.governanceAction() != null
-                        && decision.governanceAction().changesParticipation()
-                        && CounselorSessionService.isSilentWait(counselorReply)) {
-                    counselorReply = "برای آرام شدن فضای گفتگو، ارسال پیام برای مدت کوتاهی متوقف شد.";
-                    if (aiResponse.length() == 0 && !emitterClosed.get()) {
-                        try {
-                            emitter.send(
-                                    SseEmitter.event()
-                                            .name("message")
-                                            .data(
-                                                    objectMapper.writeValueAsString(counselorReply),
-                                                    MediaType.TEXT_PLAIN
-                                            )
-                            );
-                        } catch (IOException | IllegalStateException ignored) {
-                            emitterClosed.set(true);
-                        }
-                    }
+                try {
+                    sessionMemoryService.store(chatRoomPk, streamBuffer.raw());
+                } catch (Exception ignored) {
+                    // Persistence must not block delivery.
                 }
 
-                if (!CounselorSessionService.isSilentWait(counselorReply)) {
-                    chatRealtimeService.saveAgentAndPublish(
-                            chatRoomPk,
-                            agentId,
-                            counselorReply
-                    );
+                ReplySegments.Parsed parsed =
+                        CounselorSessionService.isSilentWait(counselorReply)
+                                ? new ReplySegments.Parsed(List.of(), false)
+                                : ReplySegments.parse(counselorReply);
+                List<ReplySegments.Segment> segments = parsed.segments();
+                final Long triggerId = userMessage.getId();
+                final boolean replyFirst = parsed.replyToTrigger();
+
+                /*
+                 * The first message goes out at once. The rest, if the
+                 * counselor chose to speak in several messages, follow below
+                 * with natural typing pauses once the sender is released.
+                 */
+                if (!segments.isEmpty()) {
+                    deliver(chatRoomPk, agentId, segments.get(0), triggerId, replyFirst);
+                } else {
+                    /*
+                     * The counselor chose silence. If the brain attached a
+                     * signal to that silence (a reaction or a sticker), only
+                     * execute it; the meaning was decided in Metis.
+                     */
+                    CounselorSignal signal = CounselorSignal.read(streamBuffer.raw());
+                    if (signal.reactionToken() != null) {
+                        chatRealtimeService.reactAndPublish(
+                                chatRoomPk,
+                                userMessage.getId(),
+                                signal.reactionToken()
+                        );
+                    } else if (signal.stickerToken() != null) {
+                        chatRealtimeService.saveStickerAndPublish(
+                                chatRoomPk,
+                                agentId,
+                                signal.stickerToken(),
+                                userMessage.getId()
+                        );
+                    }
                 }
 
 
@@ -491,6 +583,23 @@ public class MessageServiceImpl implements MessageService {
                 ) {
 
                     emitter.complete();
+                }
+
+
+                /*
+                 * 12. Remaining messages of the same counselor turn.
+                 * The sender is already released, so everyone can keep
+                 * typing; the counselor simply keeps talking.
+                 */
+
+                for (int index = 1; index < segments.size(); index++) {
+
+                    ReplySegments.Segment segment = segments.get(index);
+                    long typingMillis = pacingMillis(segment);
+
+                    chatRealtimeService.publishAgentTyping(chatRoomPk, typingMillis);
+                    sleepQuietly(typingMillis);
+                    deliver(chatRoomPk, agentId, segment, triggerId, false);
                 }
 
 
@@ -544,6 +653,7 @@ public class MessageServiceImpl implements MessageService {
                     emitter.complete();
                 }
             } finally {
+                roomTurnLock.unlock(conversationId);
                 SecurityContextHolder.clearContext();
             }
 
@@ -606,11 +716,50 @@ public class MessageServiceImpl implements MessageService {
     }
 
 
+    /** A reply target must exist, be visible, and belong to this room. */
+    private Message resolveReplyTarget(ChatRoom chatRoom, Long replyToMessageId) {
+        if (replyToMessageId == null) {
+            return null;
+        }
+        return messageRepository.findById(replyToMessageId)
+                .filter(candidate -> candidate.getChatRoom() != null
+                        && chatRoom.getId().equals(candidate.getChatRoom().getId())
+                        && !Boolean.TRUE.equals(candidate.getDeleted())
+                        && candidate.getSenderType() != MessageSenderType.SYSTEM)
+                .orElse(null);
+    }
+
+    /** Sends one segment of the counselor's turn: a text message or a sticker. */
+    private void deliver(
+            Long chatRoomId,
+            Long agentId,
+            ReplySegments.Segment segment,
+            Long triggerMessageId,
+            boolean replyToTrigger
+    ) {
+        if (segment.isSticker()) {
+            chatRealtimeService.saveStickerAndPublish(
+                    chatRoomId,
+                    agentId,
+                    segment.stickerToken(),
+                    triggerMessageId
+            );
+            return;
+        }
+        chatRealtimeService.saveAgentAndPublish(
+                chatRoomId,
+                agentId,
+                segment.text(),
+                replyToTrigger ? triggerMessageId : null
+        );
+    }
+
     private String labeledUserContent(
             ChatRoom chatRoom,
             User user,
             String content,
-            ParticipationPauseService.ResumeHint resumeHint
+            ParticipationPauseService.ResumeHint resumeHint,
+            Message replyTarget
     ) {
 
         ChatRoomParticipant participant =
@@ -633,21 +782,30 @@ public class MessageServiceImpl implements MessageService {
 
         boolean speakerConsented = participant != null
                 && Boolean.TRUE.equals(participant.getSessionConsented());
-        long people = participantRepository.countByChatRoom(chatRoom);
 
+        String quoted = "";
+        if (replyTarget != null) {
+            String who = replyTarget.getSenderType() == MessageSenderType.AGENT
+                    ? "COUNSELOR"
+                    : userRepository.findById(replyTarget.getSenderId())
+                            .map(User::visibleName)
+                            .orElse("PARTICIPANT");
+            String excerpt = CounselorSignal.isSticker(replyTarget.getContent())
+                    ? "(sticker)"
+                    : CounselorSignal.stripSticker(replyTarget.getContent());
+            if (excerpt.length() > 200) {
+                excerpt = excerpt.substring(0, 200) + "...";
+            }
+            quoted = "[REPLYING TO | " + who + "]\n" + excerpt.replace('\n', ' ') + "\n";
+        }
         String labeled = "[PARTICIPANTS: " + roster + "]\n"
                 + "[" + role + " | " + user.visibleName() + "]\n"
+                + quoted
                 + content;
         String sessionNote = "";
         if (speakerConsented) {
             sessionNote = "[SYSTEM | SESSION]\n"
-                    + "CONSENT_RECORDED for " + role + ".\n"
-                    + "موافقت این نفر قبلاً با دکمهٔ اپلیکیشن ثبت شده است. "
-                    + "دیگر از او موافقت، پذیرش قوانین، یا چارچوب مشاوره نخواه. "
-                    + "متن قوانین را تکرار نکن.\n"
-                    + (people < 2
-                    ? "نفر دوم هنوز در گفتگو نیست. از او هم موافقت نخواه. فقط به همین پیام جواب بده.\n"
-                    : "فقط به همین پیام جواب بده.\n");
+                    + "CONSENT_RECORDED for " + role + ".\n";
         }
         if (resumeHint != null && resumeHint.handshake()) {
             sessionNote = sessionNote
@@ -657,72 +815,54 @@ public class MessageServiceImpl implements MessageService {
     }
 
 
-    private String repairConsentReplay(String conversationId, String userText) {
-        String fallback = "موافقتت قبلاً ثبت شده و لازم نیست دوباره تأیید کنی. حرفی که زدی را شنیدم؛ هر وقت خواستی ادامه بده.";
-        if (conversationId == null || conversationId.isBlank()) {
-            return fallback;
-        }
-        String prompt = "[SYSTEM | SESSION]\n"
-                + "CONSENT_ALREADY_RECORDED\n"
-                + "جواب قبلی رد شد چون دوباره موافقت می‌خواست.\n"
-                + "به پیام کاربر در یک تا سه جملهٔ فارسی جواب بده.\n"
-                + "کلمات موافقت، قوانین و چارچوب را به کار نبر و از نفر غایب تأیید نخواه.\n"
-                + "USER:\n"
-                + (userText == null ? "" : userText);
+    /**
+     * Typing time before a follow-up message: proportional to its length with a
+     * little irregularity, plus the pause hint the counselor wrote. The text and
+     * the rhythm come from the counselor; this only turns them into milliseconds.
+     */
+    static long pacingMillis(ReplySegments.Segment segment) {
+        int length = segment.isSticker() ? 12 : segment.text().length();
+        long typing = 500L + length * 38L;
+        typing = Math.min(5200L, Math.max(1200L, typing));
+        double jitter = 0.8 + java.util.concurrent.ThreadLocalRandom.current().nextDouble() * 0.5;
+        long total = Math.round(typing * jitter) + segment.pauseSeconds() * 700L;
+        return Math.min(7000L, total);
+    }
+
+    private static void sleepQuietly(long millis) {
         try {
-            String raw = metisService.sendMessageAllowBlank(conversationId, prompt);
-            String visible = new GovernancePacketParser().strip(raw == null ? "" : raw);
-            if (visible != null && !visible.isBlank() && !ConsentReplay.asksAgain(visible)) {
-                return visible.trim();
-            }
-        } catch (Exception ignored) {
-            return fallback;
+            Thread.sleep(millis);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
         }
-        return fallback;
     }
 
 
-    private void sendCalmDownFollowUp(
-            ChatRoom chatRoom,
-            String conversationId,
-            Long agentId,
-            ParticipationPauseService.ApplyResult applied
-    ) {
-        if (chatRoom == null || conversationId == null || conversationId.isBlank() || applied == null) {
-            return;
+    private String recentTranscript(List<Message> history) {
+        if (history == null || history.isEmpty()) {
+            return "";
         }
-        String who = applied.bothPaused()
-                ? "هر دو نفر الان نمی‌توانند پیام بفرستند."
-                : "حداقل یک نفر الان نمی‌تواند پیام بفرستد.";
-        String prompt = "[SYSTEM | SESSION]\n"
-                + "GOVERNANCE_ENFORCED\n"
-                + "GOV=" + applied.action() + "\n"
-                + "CALM_DOWN\n"
-                + who + "\n"
-                + "ACTION باید INTERVENE باشد. GOV=NONE و TARGET=NONE و DURATION=0.\n"
-                + "دو تا چهار جمله فارسی آرام بگو تا بدن و هیجان پایین بیاید. سرزنش نکن. "
-                + "اگر هر دو محدودند روی نفس، مکث، و امنیت جلسه تمرکز کن. "
-                + "بگو بعد از آرام شدن، برای برگشتن باید تعهد احترام به جلسه را بپذیرند.";
-        try {
-            String raw = metisService.sendMessageAllowBlank(conversationId, prompt);
-            String visible = new GovernancePacketParser().strip(raw == null ? "" : raw);
-            if (visible != null && !visible.isBlank()) {
-                chatRealtimeService.saveAgentAndPublish(
-                        chatRoom.getId(),
-                        agentId,
-                        visible
-                );
+        int from = Math.max(0, history.size() - 12);
+        StringBuilder transcript = new StringBuilder();
+        for (Message message : history.subList(from, history.size())) {
+            if (message.getSenderType() == MessageSenderType.SYSTEM) {
+                continue;
             }
-        } catch (Exception exception) {
-            String fallback = applied.bothPaused()
-                    ? "هر دو نفرتان الان پیام نمی‌فرستید تا فضا آرام شود. چند نفس عمیق بکشید. وقتی آماده شدید، برای برگشتن به گفتگو یک تعهد ساده از شما می‌خواهم: احترام به جلسه و پرهیز از حمله شخصی."
-                    : "این مکث برای آرام شدن است، نه تنبیه. چند نفس بکش. وقتی آماده شدی، برای برگشتن به گفتگو ازت می‌خواهم به فرایند جلسه احترام بگذاری.";
-            chatRealtimeService.saveAgentAndPublish(
-                    chatRoom.getId(),
-                    agentId,
-                    fallback
+            String visible = new GovernancePacketParser().strip(
+                    ReentryCommitment.visible(message.getContent())
             );
+            if (visible.isBlank()) {
+                continue;
+            }
+            if (visible.length() > 280) {
+                visible = visible.substring(0, 280);
+            }
+            String speaker = message.getSenderType() == MessageSenderType.AGENT
+                    ? "مشاور"
+                    : "مراجع";
+            transcript.append(speaker).append(": ").append(visible).append('\n');
         }
+        return transcript.toString();
     }
 
 

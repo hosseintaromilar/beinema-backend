@@ -3,6 +3,7 @@ package com.coupleai.coupleai.beinema.DTO.messages;
 import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.MessageStatus;
+import com.coupleai.coupleai.beinema.governance.CounselorSignal;
 import com.coupleai.coupleai.beinema.governance.GovernancePacketParser;
 import com.coupleai.coupleai.beinema.governance.ReentryCommitment;
 import lombok.Builder;
@@ -45,6 +46,18 @@ public class MessageResponse {
     private String commitmentStatus;
 
     private String agreementKind;
+
+    private String agentReaction;
+
+    private Long replyToId;
+
+    private String replyExcerpt;
+
+    private String replyToSender;
+
+    private Boolean sticker;
+
+    private String stickerName;
 
 
     /**
@@ -106,13 +119,25 @@ public class MessageResponse {
                 .agreementKind(
                         ReentryCommitment.kind(message.getContent())
                 )
+                .agentReaction(
+                        message.getAgentReaction()
+                )
+                .replyToId(
+                        message.getReplyToMessageId()
+                )
+                .sticker(
+                        CounselorSignal.isSticker(message.getContent())
+                )
+                .stickerName(
+                        CounselorSignal.stickerName(message.getContent())
+                )
 
                 .build();
     }
 
     private static String visibleContent(String content) {
         return new GovernancePacketParser().strip(
-                ReentryCommitment.visible(content)
+                CounselorSignal.stripSticker(ReentryCommitment.visible(content))
         );
     }
 }
