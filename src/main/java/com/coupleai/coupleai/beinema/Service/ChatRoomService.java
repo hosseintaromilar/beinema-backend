@@ -47,6 +47,7 @@ public class ChatRoomService {
     private final AgentAccessRepository agentAccessRepository;
     private final GovernanceLogRepository governanceLogRepository;
     private final EntityManager entityManager;
+    private final ChatFileService chatFileService;
 
 
     public ChatRoomResponse createChatRoom(
@@ -623,6 +624,7 @@ public class ChatRoomService {
         relationshipInsightRepository.deleteAllByChatRoom(chatRoom);
         agentAccessRepository.deleteByChatRoomId(chatRoomId);
         governanceLogRepository.deleteByChatRoomId(chatRoomId);
+        chatFileService.deleteRoomFiles(chatRoomId);
         participantRepository.deleteAllByChatRoom(chatRoom);
         chatRoomAgentRepository.deleteAllByChatRoom(chatRoom);
         messageRepository.deleteAllByChatRoom(chatRoom);

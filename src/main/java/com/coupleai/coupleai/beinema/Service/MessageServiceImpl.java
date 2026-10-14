@@ -5,6 +5,7 @@ import com.coupleai.coupleai.beinema.DTO.messages.SendMessageRequest;
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.Message;
+import com.coupleai.coupleai.beinema.Entity.MessageAttachment;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
@@ -73,6 +74,8 @@ public class MessageServiceImpl implements MessageService {
     private final SessionMemoryService sessionMemoryService;
 
     private final RoomTurnLock roomTurnLock;
+
+    private final ChatFileService chatFileService;
 
     private final ConcurrentHashMap<String, Long> entryGreetedAt = new ConcurrentHashMap<>();
 
@@ -284,12 +287,15 @@ public class MessageServiceImpl implements MessageService {
          * 3. Validate request.
          */
 
+        boolean hasFiles = request != null
+                && request.getAttachmentIds() != null
+                && !request.getAttachmentIds().isEmpty();
+
         if (
                 request == null
                         ||
-                        request.getContent() == null
-                        ||
-                        request.getContent().isBlank()
+                        (!hasFiles
+                                && (request.getContent() == null || request.getContent().isBlank()))
         ) {
 
             throw new RuntimeException(
@@ -316,6 +322,7 @@ public class MessageServiceImpl implements MessageService {
                 participationPauseService.requireCanSend(chatRoom, user);
 
 
+
         /*
          * 5. Find next sequence.
          */
@@ -332,13 +339,16 @@ public class MessageServiceImpl implements MessageService {
          */
 
         Message replyTarget = resolveReplyTarget(chatRoom, request.getReplyToMessageId());
+        final List<MessageAttachment> files = chatFileService.prepare(
+                chatRoom.getId(), user.getId(), request.getAttachmentIds());
+        final String captionText = request.getContent() == null ? "" : request.getContent();
 
         Message userMessage =
                 Message.builder()
                         .chatRoom(chatRoom)
                         .senderType(MessageSenderType.USER)
                         .senderId(user.getId())
-                        .content(request.getContent())
+                        .content(captionText)
                         .replyToMessageId(replyTarget == null ? null : replyTarget.getId())
                         .status(MessageStatus.SENT)
                         .sequenceNumber(nextSequence)
@@ -346,12 +356,13 @@ public class MessageServiceImpl implements MessageService {
 
 
         messageRepository.saveAndFlush(userMessage);
+        chatFileService.link(files, userMessage.getId());
         chatRealtimeService.publish(chatRoom.getId(), userMessage);
 
         chatRoom = counselorSessionService.ensureBound(chatRoom, user);
         String conversationId = chatRoom.getAiConversationId();
         Long chatRoomPk = chatRoom.getId();
-        String userContent = labeledUserContent(chatRoom, user, request.getContent(), resumeHint, replyTarget);
+        String baseUserContent = labeledUserContent(chatRoom, user, captionText, resumeHint, replyTarget);
         Long agentId = resolveAgentId(chatRoomPk);
 
 
@@ -425,6 +436,13 @@ public class MessageServiceImpl implements MessageService {
              * only their processing waits in line.
              */
             roomTurnLock.lock(conversationId);
+
+            /*
+             * Files are read by a neutral reader; the brain receives that reading
+             * as text, together with whether the person also wrote a message.
+             */
+            final String userContent = baseUserContent
+                    + chatFileService.describeForBrain(files, !captionText.isBlank());
 
 
             try {

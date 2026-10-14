@@ -33,13 +33,27 @@ public class ChatRealtimeService {
     private final ChatRoomAgentRepository chatRoomAgentRepository;
     private final UserRepository userRepository;
     private final ChatRoomEventHub chatRoomEventHub;
+    private final com.coupleai.coupleai.beinema.Repository.MessageAttachmentRepository attachmentRepository;
 
     @Transactional(readOnly = true)
     public List<MessageResponse> toResponses(ChatRoom chatRoom, List<Message> messages) {
         Map<Long, ChatRoomParticipant> participants = participantsByUserId(chatRoom);
         String agentName = resolveAgentName(chatRoom.getId());
+        java.util.Map<Long, List<com.coupleai.coupleai.beinema.DTO.messages.AttachmentResponse>> files =
+                attachmentRepository.findAllByChatRoomIdAndMessageIdIsNotNull(chatRoom.getId()).stream()
+                        .collect(Collectors.groupingBy(
+                                com.coupleai.coupleai.beinema.Entity.MessageAttachment::getMessageId,
+                                Collectors.mapping(
+                                        com.coupleai.coupleai.beinema.DTO.messages.AttachmentResponse::from,
+                                        Collectors.toList()
+                                )
+                        ));
         return messages.stream()
-                .map(message -> toResponse(message, participants, agentName))
+                .map(message -> {
+                    MessageResponse response = toResponse(message, participants, agentName);
+                    response.setAttachments(files.getOrDefault(message.getId(), List.of()));
+                    return response;
+                })
                 .toList();
     }
 
@@ -190,11 +204,19 @@ public class ChatRealtimeService {
     }
 
     private MessageResponse toResponse(ChatRoom chatRoom, Message message) {
-        return toResponse(
+        MessageResponse response = toResponse(
                 message,
                 participantsByUserId(chatRoom),
                 resolveAgentName(chatRoom.getId())
         );
+        if (message.getId() != null) {
+            response.setAttachments(
+                    attachmentRepository.findAllByMessageId(message.getId()).stream()
+                            .map(com.coupleai.coupleai.beinema.DTO.messages.AttachmentResponse::from)
+                            .toList()
+            );
+        }
+        return response;
     }
 
     private Map<Long, ChatRoomParticipant> participantsByUserId(ChatRoom chatRoom) {

@@ -37,9 +37,22 @@ public class MetisClient {
     /**
      * Send a normal non-streaming message to Metis.
      */
+    public MetisMessageResponse sendMessage(String sessionId, String content) {
+        return sendMessage(sessionId, content, null);
+    }
+
     public MetisMessageResponse sendMessage(
             String sessionId,
-            String content
+            String content,
+            java.util.List<com.coupleai.coupleai.beinema.DTO.metis.MetisAttachment> attachments
+    ) {
+        return doSendMessage(sessionId, content, attachments);
+    }
+
+    private MetisMessageResponse doSendMessage(
+            String sessionId,
+            String content,
+            java.util.List<com.coupleai.coupleai.beinema.DTO.metis.MetisAttachment> attachments
     ) {
 
         try {
@@ -48,6 +61,7 @@ public class MetisClient {
                     MetisMessage.builder()
                             .content(content)
                             .type("USER")
+                            .attachments(attachments)
                             .build();
 
 
@@ -128,6 +142,46 @@ public class MetisClient {
 
 
     /**
+     * Uploads a file to Metis storage and returns the public direct-download URL
+     * that can be used as an attachment of a message.
+     */
+    public String uploadFile(byte[] bytes, String filename, String contentType) {
+        try {
+            String boundary = "----beinema" + java.util.UUID.randomUUID();
+            String safeName = (filename == null || filename.isBlank() ? "file" : filename)
+                    .replace("\"", "").replace("\r", "").replace("\n", "");
+            java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
+            String head = "--" + boundary + "\r\n"
+                    + "Content-Disposition: form-data; name=\"files\"; filename=\"" + safeName + "\"\r\n"
+                    + "Content-Type: " + contentType + "\r\n\r\n";
+            body.write(head.getBytes(StandardCharsets.UTF_8));
+            body.write(bytes);
+            body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/v1/storage"))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new RuntimeException("Metis storage returned HTTP " + response.statusCode());
+            }
+            var files = objectMapper.readTree(response.body()).path("files");
+            String url = files.isArray() && files.size() > 0 ? files.get(0).path("url").asText("") : "";
+            if (url.isBlank()) {
+                throw new RuntimeException("Metis storage returned no url");
+            }
+            return url;
+        } catch (RuntimeException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new RuntimeException("Could not upload file to Metis", exception);
+        }
+    }
+
+    /**
      * Send a message to Metis and receive the AI response
      * as a stream of tokens/chunks.
      *
@@ -135,6 +189,14 @@ public class MetisClient {
      * chunkConsumer exactly as received from Metis.
      */
     public void streamMessage(
+            String sessionId,
+            String content,
+            Consumer<String> chunkConsumer
+    ) {
+        doStreamMessage(sessionId, content, chunkConsumer);
+    }
+
+    private void doStreamMessage(
             String sessionId,
             String content,
             Consumer<String> chunkConsumer
@@ -419,4 +481,5 @@ public class MetisClient {
             return "Unable to read Metis error response";
         }
     }
+
 }

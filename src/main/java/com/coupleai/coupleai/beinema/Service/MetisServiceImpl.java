@@ -186,4 +186,23 @@ public class MetisServiceImpl implements MetisService {
         String reply = response == null ? null : response.extractContent();
         return reply == null ? "" : reply;
     }
+
+    @Override
+    public String uploadFile(byte[] bytes, String filename, String contentType) {
+        return metisClient.uploadFile(bytes, filename, contentType);
+    }
+
+    @Override
+    public String sendMessageWithAttachments(
+            String sessionId,
+            String content,
+            java.util.List<com.coupleai.coupleai.beinema.DTO.metis.MetisAttachment> attachments
+    ) {
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new IllegalArgumentException("Metis session id is required");
+        }
+        var response = metisClient.sendMessage(sessionId, content, attachments);
+        String reply = response == null ? null : response.extractContent();
+        return reply == null ? "" : reply;
+    }
 }

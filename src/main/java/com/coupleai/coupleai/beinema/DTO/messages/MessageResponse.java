@@ -55,6 +55,8 @@ public class MessageResponse {
 
     private String replyToSender;
 
+    private java.util.List<AttachmentResponse> attachments;
+
     private Boolean sticker;
 
     private String stickerName;

@@ -13,4 +13,7 @@ public class MetisMessage {
 
     @Builder.Default
     private String type = "USER";
+
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY)
+    private java.util.List<MetisAttachment> attachments;
 }

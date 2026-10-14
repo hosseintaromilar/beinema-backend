@@ -20,7 +20,8 @@ public class WebConfig implements WebMvcConfigurer {
         if (!location.endsWith("/")) {
             location = location + "/";
         }
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(location);
+        // Only avatars are public. Room files are served by ChatFileController.
+        registry.addResourceHandler("/uploads/avatars/**")
+                .addResourceLocations(location + "avatars/");
     }
 }

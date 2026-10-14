@@ -28,4 +28,14 @@ public interface MetisService {
             String sessionId,
             String content
     );
+
+    /** Uploads bytes to Metis storage and returns a direct-download URL. */
+    String uploadFile(byte[] bytes, String filename, String contentType);
+
+    /** Sends a message with attachments (image or file URLs) and returns the reply text. */
+    String sendMessageWithAttachments(
+            String sessionId,
+            String content,
+            java.util.List<com.coupleai.coupleai.beinema.DTO.metis.MetisAttachment> attachments
+    );
 }
