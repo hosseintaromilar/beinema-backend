@@ -26,6 +26,7 @@ public class CounselorSessionService {
     private final ChatRoomAgentRepository chatRoomAgentRepository;
     private final MetisService metisService;
     private final RoomTurnLock roomTurnLock;
+    private final SessionBriefService sessionBriefService;
 
     public Agent requireActiveAgent(ChatRoom chatRoom) {
         return chatRoomAgentRepository.findAllByChatRoom(chatRoom)
@@ -40,13 +41,67 @@ public class CounselorSessionService {
     public ChatRoom ensureBound(ChatRoom chatRoom, User user) {
         Agent agent = requireActiveAgent(chatRoom);
         if (!needsNewSession(chatRoom, agent)) {
-            return chatRoom;
+            return rotateIfLong(chatRoom, agent, user);
         }
 
         var conversation = metisService.createConversation(agent.getAiBotId(), user);
         chatRoom.setAiConversationId(conversation.getId());
         chatRoom.setAiBotId(agent.getAiBotId());
+        chatRoom.setAiSessionStartSequence(sessionBriefService.currentSequence(chatRoom));
+        chatRoom.setAiSessionBrief(null);
+        chatRoom.setAiResumeBlock(null);
         return chatRoomRepository.saveAndFlush(chatRoom);
+    }
+
+    /**
+     * A long room moves to a fresh Metis session so each turn stays cheap. The
+     * brief for the new session is delivered with the next message to Metis
+     * (see pendingResume).
+     */
+    private ChatRoom rotateIfLong(ChatRoom chatRoom, Agent agent, User user) {
+        if (!sessionBriefService.shouldRotate(chatRoom)) {
+            return chatRoom;
+        }
+        try {
+            var brief = sessionBriefService.buildBrief(chatRoom, user);
+            var conversation = metisService.createConversation(agent.getAiBotId(), user);
+            chatRoom.setAiConversationId(conversation.getId());
+            chatRoom.setAiSessionStartSequence(sessionBriefService.currentSequence(chatRoom));
+            chatRoom.setAiSessionBrief(brief.summary());
+            chatRoom.setAiResumeBlock(brief.block());
+            log.info("Room {} moved to a fresh Metis session", chatRoom.getId());
+            return chatRoomRepository.saveAndFlush(chatRoom);
+        } catch (Exception exception) {
+            log.warn("Could not move room {} to a fresh session: {}",
+                    chatRoom.getId(), exception.getMessage());
+            sessionBriefService.noteFailure(chatRoom);
+            return chatRoom;
+        }
+    }
+
+    /** The brief waiting to be delivered to the session of this room, or empty. */
+    public String pendingResume(Long chatRoomId) {
+        if (chatRoomId == null) {
+            return "";
+        }
+        return chatRoomRepository.findById(chatRoomId)
+                .map(ChatRoom::getAiResumeBlock)
+                .filter(block -> !block.isBlank())
+                .orElse("");
+    }
+
+    /** Called once the brief has reached Metis. */
+    @Transactional
+    public void resumeDelivered(Long chatRoomId) {
+        if (chatRoomId == null) {
+            return;
+        }
+        chatRoomRepository.findById(chatRoomId).ifPresent(room -> {
+            if (room.getAiResumeBlock() != null) {
+                room.setAiResumeBlock(null);
+                chatRoomRepository.save(room);
+            }
+        });
     }
 
     public String requestOpening(String conversationId) {
