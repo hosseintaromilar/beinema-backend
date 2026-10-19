@@ -47,24 +47,6 @@ public class ChatRoom extends BaseEntity {
     private String aiBotId;
 
 
-    /**
-     * شمارهٔ آخرین پیام اتاق در لحظهٔ ساخت نشست فعلی متیس. پیام‌های بعد از آن
-     * هزینهٔ تاریخچهٔ نشست را می‌سازند؛ با طولانی شدن، نشست عوض می‌شود.
-     */
-    @Column(name = "ai_session_start_sequence")
-    private Integer aiSessionStartSequence;
-
-
-    /** خلاصهٔ خصوصی جلسه تا آخرین عوض شدن نشست (برای ادامه‌ی همان جلسه). */
-    @Column(name = "ai_session_brief", columnDefinition = "TEXT")
-    private String aiSessionBrief;
-
-
-    /** خلاصه‌ای که هنوز به نشست تازهٔ متیس داده نشده و با پیام بعدی می‌رود. */
-    @Column(name = "ai_resume_block", columnDefinition = "TEXT")
-    private String aiResumeBlock;
-
-
     @OneToMany(
             mappedBy = "chatRoom"
     )

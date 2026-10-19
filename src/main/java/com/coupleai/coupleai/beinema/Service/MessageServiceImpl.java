@@ -194,14 +194,10 @@ public class MessageServiceImpl implements MessageService {
                     recentTranscript(history)
             );
         }
-        String resume = counselorSessionService.pendingResume(chatRoom.getId());
         String spoken = counselorSessionService.requestEntry(
                 chatRoom.getAiConversationId(),
-                resume + cue
+                cue
         );
-        if (!resume.isEmpty()) {
-            counselorSessionService.resumeDelivered(chatRoom.getId());
-        }
         if (spoken == null) {
             spoken = "";
         }
@@ -445,9 +441,7 @@ public class MessageServiceImpl implements MessageService {
              * Files are read by a neutral reader; the brain receives that reading
              * as text, together with whether the person also wrote a message.
              */
-            final String resumeBlock = counselorSessionService.pendingResume(chatRoomPk);
-            final String userContent = resumeBlock
-                    + baseUserContent
+            final String userContent = baseUserContent
                     + chatFileService.describeForBrain(files, !captionText.isBlank());
 
 
@@ -510,10 +504,6 @@ public class MessageServiceImpl implements MessageService {
                     }
                 }
 
-
-                if (!resumeBlock.isEmpty()) {
-                    counselorSessionService.resumeDelivered(chatRoomPk);
-                }
 
                 GovernanceDecision decision = streamBuffer.finish();
                 try {
