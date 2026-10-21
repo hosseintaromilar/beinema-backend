@@ -218,6 +218,34 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(QuestionAnswerException.class)
+    public ResponseEntity<Map<String, Object>> handleQuestionAnswer(
+            QuestionAnswerException exception
+    ) {
+        return ResponseEntity
+                .status(exception.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                        "code", exception.getCode(),
+                        "message", exception.getMessage()
+                ));
+    }
+
+
+    @ExceptionHandler(SessionOnBreakException.class)
+    public ResponseEntity<Map<String, Object>> handleSessionOnBreak(
+            SessionOnBreakException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                        "code", exception.getCode(),
+                        "message", exception.getMessage()
+                ));
+    }
+
+
     @ExceptionHandler(SessionEndedException.class)
     public ResponseEntity<Map<String, Object>> handleSessionEnded(
             SessionEndedException exception

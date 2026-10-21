@@ -1,0 +1,80 @@
+[
+  {
+    "id": "SP-01",
+    "title": "Pursue and withdraw around the household load",
+    "tags": ["BLAME", "CONSTRAINT", "FOCUS_D", "PAST_FOCUS"],
+    "setup": "One partner carries most daily tasks and feels alone; the other works long hours and feels judged whatever he does.",
+    "wants": "One wants partnership and closeness; the other wants recognition and less criticism. Both likely want the old closeness.",
+    "ambiguities": "Whether 'you only tolerate me' is a want for closeness or a doubt about love.",
+    "decision_points": ["Each describes the problem: reflect each once, then elicit a concrete want from each.", "The past ('we used to talk for hours') appears: link it to a present want.", "Accusations about lying or late returns: name the cycle without a culprit, then one recent moment.", "Both recognize the cycle: invite each to evaluate their own part."],
+    "alternatives": "If one partner brings money stress as a real constraint, record it and fit later steps to it.",
+    "pitfalls": "Asking the same 'what do you want' question again and again; siding with the partner who carries the load.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Built from a real test session; needs clinical review."},
+    "fa": "الگوی تعقیب و کناره‌گیری حول بار کارهای خانه."
+  },
+  {
+    "id": "SP-02",
+    "title": "Ambiguous 'I don't want to fight every night'",
+    "tags": ["UNCONFIRMED_WANTS", "DOUBT_RELATIONSHIP", "FOCUS_W"],
+    "setup": "A partner says they no longer want the nightly fights.",
+    "wants": "Readings: the fights should stop; the partner should change; exhausted and doubting the relationship.",
+    "ambiguities": "The readings lead to different routes (de-escalation, the partner's behavior, commitment).",
+    "decision_points": ["If nothing decides it and it is safe: CHOOSE question with the three readings.", "Chosen 'fights stop': explore one recent evening and what each does when it starts.", "Chosen 'partner changes': bring it gently to what this partner can do.", "Chosen 'doubting': explore the doubt neutrally, check the other partner's view later.", "'None': build a new reading from the free text. 'Not sure': smaller steps."],
+    "alternatives": "If the message already shows commitment, skip the question and reflect.",
+    "pitfalls": "Treating the confirmed reading as the other partner's want or as the therapy goal.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Mission example; needs clinical review."},
+    "fa": "«نمی‌خوام هر شب بحث کنیم» با سه برداشت."
+  },
+  {
+    "id": "SP-03",
+    "title": "Step accepted but not carried out",
+    "tags": ["NONCOMPLIANCE", "PLAN_PENDING", "CONSTRAINT"],
+    "setup": "In the previous session both agreed to a small step; one did it, one did not.",
+    "wants": "Unchanged unless they say otherwise.",
+    "ambiguities": "Forgot versus does not own the step versus a real constraint.",
+    "decision_points": ["Open with a warm follow-up of both steps.", "For the one who did it: acknowledge without comparing.", "For the one who did not: one brief question about what got in the way, then keep, shrink or change.", "If a real constraint appears: adapt the step."],
+    "alternatives": "If the step failed twice: revisit the want and the commitment.",
+    "pitfalls": "Shaming, comparing partners, giving up on planning.",
+    "source": {"kind": "THEORY", "ref": "Wubbolding (2011), follow-up."},
+    "fa": "قدمی که پذیرفته شد ولی اجرا نشد."
+  },
+  {
+    "id": "SP-04",
+    "title": "One partner dragged in",
+    "tags": ["MOTIVATION_LOW", "QUIET_PARTNER", "SESSION_START"],
+    "setup": "One partner wanted counseling; the other came reluctantly and answers briefly.",
+    "wants": "The reluctant one's wants are unknown.",
+    "ambiguities": "Reluctance from distrust of counseling, from fear of being blamed, or from fear of the partner.",
+    "decision_points": ["Acknowledge the reluctance without arguing.", "Ask what would make this time worth it for them.", "If fear appears: safety rules."],
+    "alternatives": "If both are reluctant, explore what each would want from being here.",
+    "pitfalls": "Allying with the motivated partner; pushing.",
+    "source": {"kind": "THEORY", "ref": "Wubbolding (2011), levels of commitment."},
+    "fa": "یک نفر به اجبار آمده."
+  },
+  {
+    "id": "SP-05",
+    "title": "Fear surfacing mid-session",
+    "tags": ["SAFETY_CUE", "SAFETY_CUE_HIGH", "ANGER"],
+    "setup": "In an apparently ordinary argument one partner hints at fear ('I don't dare say more').",
+    "wants": "Secondary until safety is clear.",
+    "ambiguities": "Fear of conflict versus fear of harm.",
+    "decision_points": ["Stop routine work; SAFETY_ASSESS to that partner only.", "If danger is confirmed: CONCERN or URGENT, resources, LIMIT_ROUTINE.", "If it is fear of conflict only, with evidence: WATCH and continue gently."],
+    "alternatives": "None that ignore the hint.",
+    "pitfalls": "Asking for details in front of the partner; pausing the person who disclosed; multiple-choice questions.",
+    "source": {"kind": "PRACTICE", "ref": "Stith et al. (2011); benchmark N-01 failure."},
+    "fa": "ترسی که وسط جلسه پیدا می‌شود."
+  },
+  {
+    "id": "SP-06",
+    "title": "Constraint-heavy couple",
+    "tags": ["CONSTRAINT", "FOCUS_P", "HOPELESS"],
+    "setup": "Rent, two jobs, a sick child; little time and money; both exhausted.",
+    "wants": "Often: more support from each other, a little time together.",
+    "ambiguities": "Whether hopelessness is about the constraints or about the relationship.",
+    "decision_points": ["Record the constraints per partner.", "Keep wants modest and concrete.", "Plans that cost no money and little time (ten minutes, one message)."],
+    "alternatives": "If hopelessness deepens: check safety and wellbeing.",
+    "pitfalls": "Advice that ignores reality; treating constraints as excuses.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Attainable plans (P-RT-03); needs clinical review."},
+    "fa": "زوجی که زیر بار محدودیت‌های واقعی است."
+  }
+]

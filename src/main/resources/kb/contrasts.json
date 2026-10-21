@@ -1,0 +1,102 @@
+[
+  {
+    "id": "C-01",
+    "title": "Tired of the fights vs doubting the relationship",
+    "tags": ["DOUBT_RELATIONSHIP", "UNCONFIRMED_WANTS", "FOCUS_W", "HOPELESS"],
+    "a": {"situation": "'I don't want to argue every night anymore', while still talking about doing things together.", "move": "Reflect the exhaustion and explore the want (fewer fights, calmer evenings)."},
+    "b": {"situation": "'I don't want to argue every night anymore, I don't know if I want this at all.'", "move": "Take the doubt seriously; if the readings change the route, ask a CHOOSE question (fights stop / partner changes / doubting the relationship)."},
+    "difference": "Signals of commitment versus doubt about continuing.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Mission example; needs clinical review."},
+    "fa": "خستگی از دعوا با تردید دربارهٔ ادامهٔ رابطه فرق دارد."
+  },
+  {
+    "id": "C-02",
+    "title": "Loud argument vs fear",
+    "tags": ["ANGER", "SAFETY_CUE", "BLAME"],
+    "a": {"situation": "'He yells at me and I yell back', both describe a heated argument, no fear.", "move": "INTERVENE: name the cycle without a culprit."},
+    "b": {"situation": "'He yells and I'm scared to say anything after that.'", "move": "SAFETY_ASSESS to her only; no joint discussion of it."},
+    "difference": "Fear and silencing mark a safety issue, not an ordinary conflict.",
+    "source": {"kind": "PRACTICE", "ref": "IPV screening practice (Stith et al.)."},
+    "fa": "دعوای بلند با ترس فرق دارد."
+  },
+  {
+    "id": "C-03",
+    "title": "Forgot the step vs does not own the step",
+    "tags": ["NONCOMPLIANCE", "PLAN_PENDING"],
+    "a": {"situation": "'I forgot, the week was crazy, but I still want to do it.'", "move": "Keep or shrink the step; make it more concrete (when exactly)."},
+    "b": {"situation": "'I didn't do it because it doesn't make sense to me.'", "move": "Revisit the want and the ownership of the step before planning again."},
+    "difference": "Whether the person still owns the step.",
+    "source": {"kind": "THEORY", "ref": "Wubbolding (2011), commitment and follow-up."},
+    "fa": "فراموشی قدم با قبول نداشتن قدم فرق دارد."
+  },
+  {
+    "id": "C-04",
+    "title": "'I don't know' from avoidance vs from a confusing question",
+    "tags": ["SHORT_REPLY", "QUIET_PARTNER"],
+    "a": {"situation": "A quiet partner answers 'I don't know' to most questions.", "move": "Invite gently with an easier, concrete question; accept a little."},
+    "b": {"situation": "'I don't know' right after a long or abstract question.", "move": "Rephrase more simply; the question was the problem."},
+    "difference": "The pattern of the person versus the quality of the last question.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Conversation craft; needs clinical review."},
+    "fa": "«نمی‌دونم» از اجتناب با «نمی‌دونم» از سؤال گنگ فرق دارد."
+  },
+  {
+    "id": "C-05",
+    "title": "Asking for a verdict vs asking for help with one's own choice",
+    "tags": ["QUESTION_TO_COUNSELOR", "UNREALISTIC_EXPECTATION"],
+    "a": {"situation": "'You tell us who is right.'", "move": "Clarify the counselor's role warmly; return to what each can choose."},
+    "b": {"situation": "'What do you think I should do when he gets home late?'", "move": "RESPOND briefly, then explore options with the person's own evaluation."},
+    "difference": "A verdict about the other versus help with one's own behavior.",
+    "source": {"kind": "THEORY", "ref": "Glasser (1998), internal control."},
+    "fa": "داوری خواستن با کمک خواستن برای انتخاب خود فرق دارد."
+  },
+  {
+    "id": "C-06",
+    "title": "Past that explains a want vs past used as ammunition",
+    "tags": ["PAST_FOCUS", "BLAME"],
+    "a": {"situation": "'We used to talk for hours in the car; I miss that.'", "move": "Link it to a present want (closeness, talking) and explore it."},
+    "b": {"situation": "'Five years ago you also lied about...' listing old grievances.", "move": "Acknowledge the hurt, then bring the talk to what each wants now."},
+    "difference": "Past as a picture of a want versus past as proof against the partner.",
+    "source": {"kind": "THEORY", "ref": "Glasser (1965), present focus."},
+    "fa": "گذشته‌ای که خواسته را نشان می‌دهد با گذشته‌ای که سلاح است فرق دارد."
+  },
+  {
+    "id": "C-07",
+    "title": "Direct kind exchange vs direct escalation",
+    "tags": ["PARTNERS_TALKING", "ANGER", "BLAME"],
+    "a": {"situation": "They speak to each other directly, ask and answer, no attacks.", "move": "WAIT or LISTENING."},
+    "b": {"situation": "They speak directly but with growing blame or contempt.", "move": "INTERVENE early; governance if an insult appears."},
+    "difference": "Tone and attacks, not who they are talking to.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Conversation craft; needs clinical review."},
+    "fa": "گفتگوی مستقیم مهربان با گفتگوی مستقیمِ رو به تشدید فرق دارد."
+  },
+  {
+    "id": "C-08",
+    "title": "Elaboration vs true change of want",
+    "tags": ["WANT_CHANGE", "UNCONFIRMED_WANTS"],
+    "a": {"situation": "'I want less fighting... I mean, I want us to talk calmly in the evening.'", "move": "ELABORATION: new precise intent with the old one as parent."},
+    "b": {"situation": "'I don't care about the fights anymore; I want to think about separating.'", "move": "TRUE_CHANGE only if explicit; acknowledge, check what it means now, re-plan."},
+    "difference": "Whether the old want still stands.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Memory change tracking; needs clinical review."},
+    "fa": "دقیق‌تر شدن خواسته با عوض شدن خواسته فرق دارد."
+  },
+  {
+    "id": "C-09",
+    "title": "One reluctant partner vs both under outside pressure",
+    "tags": ["MOTIVATION_LOW", "QUIET_PARTNER"],
+    "a": {"situation": "She wants counseling, he came reluctantly.", "move": "Respect both; find one small want of his; do not ally with her."},
+    "b": {"situation": "Both say family pressure brought them.", "move": "Explore what each would want from being here, if anything."},
+    "difference": "Asymmetric versus shared reluctance.",
+    "source": {"kind": "THEORY", "ref": "Wubbolding (2011), levels of commitment."},
+    "fa": "بی‌میلی یک نفر با بی‌میلی هر دو زیر فشار بیرونی فرق دارد."
+  },
+  {
+    "id": "C-10",
+    "title": "Self-blame as insight vs self-blame as collapse",
+    "tags": ["SELF_BLAME", "HOPELESS"],
+    "a": {"situation": "'I see I've been distant lately.'", "move": "Acknowledge the honesty; invite evaluation and possibly a small step."},
+    "b": {"situation": "'I ruin everything, I'm worthless.'", "move": "Slow down, separate the behavior from the person, watch for hopelessness (safety)."},
+    "difference": "Evaluating a behavior versus condemning oneself.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "With P-RT-02; needs clinical review."},
+    "fa": "پذیرفتن سهم خود با خودکوبی فرق دارد."
+  }
+]

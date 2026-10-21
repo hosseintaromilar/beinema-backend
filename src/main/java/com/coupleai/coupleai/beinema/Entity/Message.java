@@ -70,4 +70,8 @@ public class Message extends BaseEntity {
     @Column(name = "reply_to_message_id")
     private Long replyToMessageId;
 
+    /** A private platform notice: only this user sees it. Null means everyone in the room. */
+    @Column(name = "visible_to_user_id")
+    private Long visibleToUserId;
+
 }

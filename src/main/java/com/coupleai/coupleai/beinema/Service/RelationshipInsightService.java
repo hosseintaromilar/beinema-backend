@@ -183,7 +183,8 @@ public class RelationshipInsightService {
 
         StringBuilder transcript = new StringBuilder();
         for (Message message : recent) {
-            if (message.getContent() == null || message.getContent().isBlank()) {
+            if (message.getContent() == null || message.getContent().isBlank()
+                    || message.getVisibleToUserId() != null) {
                 continue;
             }
             String speaker;
@@ -196,7 +197,7 @@ public class RelationshipInsightService {
             }
             transcript.append(speaker)
                     .append(": ")
-                    .append(trimTo(message.getContent().replace('\n', ' '), MAX_MESSAGE_CHARS))
+                    .append(trimTo(com.coupleai.coupleai.beinema.counseling.MessageTexts.visible(message).replace('\n', ' '), MAX_MESSAGE_CHARS))
                     .append('\n');
         }
         return transcript.toString();

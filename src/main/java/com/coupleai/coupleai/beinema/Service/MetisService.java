@@ -12,6 +12,13 @@ public interface MetisService {
             User user
     );
 
+    /** A conversation for a platform caller that is not one person (for example a counseling room). */
+    MetisConversationResponse createConversation(
+            String botId,
+            String userKey,
+            String userName
+    );
+
 
     void streamMessage(
             String sessionId,

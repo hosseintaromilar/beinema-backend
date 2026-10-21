@@ -1,0 +1,123 @@
+[
+  {
+    "id": "X-01",
+    "title": "Building on a guessed want",
+    "tags": ["UNCONFIRMED_WANTS", "FOCUS_P", "FOCUS_E"],
+    "bad_move": "Recording an inferred want as fact and proposing a plan built on it.",
+    "why_harmful": "The partner feels misread; the plan solves the wrong problem and trust drops.",
+    "when_harmful": "Always, and more when the readings would lead to different routes.",
+    "instead": "Confirm the reading first (CONFIRM question or a tentative sentence).",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Epistemic discipline; needs clinical review."},
+    "fa": "برنامه روی خواستهٔ حدسی ممنوع."
+  },
+  {
+    "id": "X-02",
+    "title": "Multiple choice during a disclosure of fear",
+    "tags": ["SAFETY_CUE", "SAFETY_ACTIVE"],
+    "bad_move": "Asking 'which is closer: a, b or c?' when a partner hints at fear or violence.",
+    "why_harmful": "It trivializes danger and forces an answer in front of the partner they fear.",
+    "when_harmful": "Any safety cue that is not clearly false.",
+    "instead": "A gentle open safety check to that partner only.",
+    "source": {"kind": "PRACTICE", "ref": "IPV screening practice (Stith et al.)."},
+    "fa": "سؤال گزینه‌دار وسط افشای ترس ممنوع."
+  },
+  {
+    "id": "X-03",
+    "title": "Agreeing with one partner's complaint",
+    "tags": ["BLAME", "ANGER"],
+    "bad_move": "'Yes, that is really unfair of him.'",
+    "why_harmful": "The counselor takes a side; the other partner withdraws or attacks.",
+    "when_harmful": "In any ordinary conflict.",
+    "instead": "Reflect the feeling and the want without judging the partner.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Neutrality in couple work; needs clinical review."},
+    "fa": "تأیید شکایت یک نفر یعنی طرف‌گیری."
+  },
+  {
+    "id": "X-04",
+    "title": "A plan for the other partner",
+    "tags": ["FOCUS_P", "BLAME"],
+    "bad_move": "'You should ask him to call you every afternoon.'",
+    "why_harmful": "It puts control outside the planner and sets up blame when the other does not comply.",
+    "when_harmful": "Always.",
+    "instead": "A step this partner controls, whatever the other does.",
+    "source": {"kind": "THEORY", "ref": "Glasser (1998), internal control."},
+    "fa": "برنامه برای شریک، برنامه نیست."
+  },
+  {
+    "id": "X-05",
+    "title": "Repeated 'why didn't you do it?'",
+    "tags": ["NONCOMPLIANCE", "PLAN_PENDING"],
+    "bad_move": "Asking again and again why the step was not done.",
+    "why_harmful": "It invites excuses and shame and stalls the session.",
+    "when_harmful": "After any missed step.",
+    "instead": "One brief question about what got in the way, then keep, shrink or change the step.",
+    "source": {"kind": "THEORY", "ref": "Glasser (1965); Wubbolding (2011)."},
+    "fa": "«چرا انجام ندادی؟» تکراری بهانه و شرم می‌سازد."
+  },
+  {
+    "id": "X-06",
+    "title": "Premature planning",
+    "tags": ["FOCUS_P", "FOCUS_D", "FOCUS_W"],
+    "bad_move": "Proposing a step before the partner has evaluated their own behavior.",
+    "why_harmful": "The step is not owned and usually not carried out.",
+    "when_harmful": "When there is no self-evaluation yet.",
+    "instead": "Invite self-evaluation first.",
+    "source": {"kind": "THEORY", "ref": "Wubbolding (2011)."},
+    "fa": "برنامهٔ زودهنگام اجرا نمی‌شود."
+  },
+  {
+    "id": "X-07",
+    "title": "Echo then ask, every turn",
+    "tags": ["ALL", "LONG_STORY"],
+    "bad_move": "Handing the partner's words back (even paraphrased in other words) and adding a question on every turn.",
+    "why_harmful": "It sounds robotic, tells the partner nothing new, and slows the session.",
+    "when_harmful": "Always for restating; as a habit for the reflect-then-ask shape.",
+    "instead": "Vary: a reflection of meaning (the need, fear, hope or stake under the words), a pattern, a silence, a key question, a transition.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Observed failure of earlier versions; reflection of meaning (Ivey, Ivey & Zalaquett, Intentional Interviewing and Counseling); complex reflections (Miller & Rollnick, 2013)."},
+    "fa": "بازگویی حرف مراجع، حتی با کلمات تازه، ربات‌وار است؛ به‌جایش معنای زیر حرف را منعکس کن."
+  },
+  {
+    "id": "X-08",
+    "title": "Coercive control as a communication problem",
+    "tags": ["SAFETY_CUE"],
+    "bad_move": "Teaching both partners communication skills about monitoring or control.",
+    "why_harmful": "It legitimizes control and can increase risk for the controlled partner.",
+    "when_harmful": "Whenever there are signs of coercive control.",
+    "instead": "Treat it as a safety matter (S-03).",
+    "source": {"kind": "PRACTICE", "ref": "Johnson's typology; Stith et al. (2011)."},
+    "fa": "کنترل اجباری را مهارت ارتباطی جا نزن."
+  },
+  {
+    "id": "X-09",
+    "title": "Arguing with a reluctant partner",
+    "tags": ["MOTIVATION_LOW"],
+    "bad_move": "Defending the value of counseling or pressing with repeated questions.",
+    "why_harmful": "It strengthens resistance and the partner disengages.",
+    "when_harmful": "Whenever reluctance appears.",
+    "instead": "Acknowledge, accept, and look for one small want.",
+    "source": {"kind": "THEORY", "ref": "Glasser (1965), involvement."},
+    "fa": "با مراجع بی‌میل بحث نکن."
+  },
+  {
+    "id": "X-10",
+    "title": "Pausing the partner who disclosed",
+    "tags": ["SAFETY_CUE", "ANGER", "HOPELESS"],
+    "bad_move": "A caution or pause on the person who expressed pain, fear or despair.",
+    "why_harmful": "It punishes disclosure and silences the person at risk.",
+    "when_harmful": "Always.",
+    "instead": "Governance applies only to the person who insulted or threatened.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Room governance; needs clinical review."},
+    "fa": "مکث برای کسی که درد یا ترسش را گفته ممنوع."
+  },
+  {
+    "id": "X-11",
+    "title": "Questionnaire mode",
+    "tags": ["OPEN_QUESTION", "UNCONFIRMED_WANTS", "ANSWER"],
+    "bad_move": "Several structured questions in a row.",
+    "why_harmful": "The session feels like a form; the relationship with the counselor weakens.",
+    "when_harmful": "More than one structured question in two turns to the same partner.",
+    "instead": "After an answer, continue with natural conversation.",
+    "source": {"kind": "BEINEMA_DESIGN", "ref": "Question limits; needs clinical review."},
+    "fa": "پرسشنامه‌ای کردن گفتگو ممنوع."
+  }
+]

@@ -26,6 +26,8 @@ public class CounselorSessionService {
     private final ChatRoomAgentRepository chatRoomAgentRepository;
     private final MetisService metisService;
     private final RoomTurnLock roomTurnLock;
+    private final com.coupleai.coupleai.beinema.counseling.CounselingConfig counselingConfig;
+    private final com.coupleai.coupleai.beinema.counseling.CounselorEventVoice counselorEventVoice;
 
     public Agent requireActiveAgent(ChatRoom chatRoom) {
         return chatRoomAgentRepository.findAllByChatRoom(chatRoom)
@@ -59,6 +61,41 @@ public class CounselorSessionService {
         } catch (Exception exception) {
             log.warn("Could not send SESSION_CREATED to Metis: {}", exception.getMessage());
             return "";
+        }
+    }
+
+    /**
+     * The counselor's words for a platform event (entry, consent, session start).
+     * v2 (workflow): the room's Metis conversation; v3 (orchestrated): the voice
+     * lane of the new workflow, with what memory knows about the couple.
+     */
+    public String speakEvent(ChatRoom chatRoom, User user, String cue) {
+        if (usesNewBrain(chatRoom)) {
+            return counselorEventVoice.speak(chatRoom, cue);
+        }
+        ChatRoom bound = ensureBound(chatRoom, user);
+        if (bound.getAiConversationId() == null || bound.getAiConversationId().isBlank()) {
+            return "";
+        }
+        return requestEntry(bound.getAiConversationId(), cue);
+    }
+
+    /**
+     * The v3 brain (memory, clarifying questions, director and voice lanes) is the
+     * couple counselor. Other agents keep their own Metis bot, exactly as before.
+     */
+    public boolean usesNewBrain(ChatRoom chatRoom) {
+        return counselingConfig.orchestrated() && chatRoom != null && isRelationshipCounselor(chatRoom);
+    }
+
+    /** True for the couple counselor, whose welcome describes Reality Therapy. */
+    public boolean isRelationshipCounselor(ChatRoom chatRoom) {
+        try {
+            Agent agent = requireActiveAgent(chatRoom);
+            String name = agent.getName() == null ? "" : agent.getName();
+            return agent.getType() == com.coupleai.coupleai.beinema.Enum.AgentType.RELATIONSHIP || name.contains("زوج");
+        } catch (RuntimeException noAgent) {
+            return false;
         }
     }
 

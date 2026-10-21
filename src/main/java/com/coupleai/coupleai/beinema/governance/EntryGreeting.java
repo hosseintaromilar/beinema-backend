@@ -7,6 +7,15 @@ public final class EntryGreeting {
     private EntryGreeting() {
     }
 
+    /** The session starts without someone who did not come within the waiting time. */
+    public static String sessionReady(String names, String lateNames) {
+        String cue = sessionReady(names);
+        if (lateNames == null || lateNames.isBlank()) {
+            return cue;
+        }
+        return cue + "LATE: " + lateNames.trim() + " (did not come within the waiting time; may join any time)\n";
+    }
+
     public static String sessionReady(String names) {
         String present = names == null || names.isBlank() ? "" : names.trim();
         return "[SYSTEM | SESSION]\n"

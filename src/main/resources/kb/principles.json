@@ -1,0 +1,110 @@
+[
+  {
+    "id": "P-CT-01",
+    "title": "Internal control",
+    "text": "Each partner can only choose their own behavior. Trying to control the other (external control) damages the relationship; change starts with what each person can do.",
+    "fa": "هر کس فقط رفتار خودش را می‌تواند انتخاب کند؛ تلاش برای کنترل دیگری رابطه را خراب می‌کند.",
+    "tags": ["BLAME", "UNREALISTIC_EXPECTATION", "FOCUS_D", "FOCUS_P"],
+    "source": {"kind": "THEORY", "ref": "Glasser, W. (1998). Choice Theory. HarperCollins."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-CT-02",
+    "title": "Basic needs and wants",
+    "text": "Wants are specific pictures of how a person hopes to meet basic needs: love and belonging, power or recognition, freedom, fun, survival. A complaint usually hides an unmet want.",
+    "fa": "خواسته‌ها تصویر مشخص هر کس از برآوردن نیازهای پایه‌اند؛ پشت هر شکایت معمولاً یک خواستهٔ برآورده‌نشده هست.",
+    "tags": ["FOCUS_W", "NO_WANTS_YET", "BLAME"],
+    "source": {"kind": "THEORY", "ref": "Glasser, W. (1998). Choice Theory. HarperCollins."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-CT-03",
+    "title": "Total behavior",
+    "text": "Behavior has four parts: acting, thinking, feeling and physiology. Acting and thinking are the most directly chosen; feelings tend to follow when what a person does changes.",
+    "fa": "رفتار چهار بخش دارد: عمل، فکر، احساس و بدن. عمل و فکر مستقیم‌تر انتخاب می‌شوند و احساس به دنبال تغییر عمل می‌آید.",
+    "tags": ["FOCUS_D", "HOPELESS", "ANALYTICAL", "LONG_STORY"],
+    "source": {"kind": "THEORY", "ref": "Glasser, W. (1998). Choice Theory. HarperCollins."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-CT-04",
+    "title": "Deadly and caring habits",
+    "text": "Seven deadly habits (criticizing, blaming, complaining, nagging, threatening, punishing, bribing to control) destroy closeness; seven caring habits (supporting, encouraging, listening, accepting, trusting, respecting, negotiating differences) build it.",
+    "fa": "هفت عادت مخرب (انتقاد، سرزنش، شکایت، غر زدن، تهدید، تنبیه، رشوه برای کنترل) و هفت عادت مراقبتی (حمایت، تشویق، گوش دادن، پذیرش، اعتماد، احترام، مذاکره دربارهٔ تفاوت‌ها).",
+    "tags": ["BLAME", "ANGER", "PARTNERS_TALKING", "FOCUS_E"],
+    "source": {"kind": "THEORY", "ref": "Glasser, W. & Glasser, C. (2000). Getting Together and Staying Together. HarperCollins; (2007) Eight Lessons for a Happier Marriage."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-RT-01",
+    "title": "WDEP is a flexible system",
+    "text": "Wants, Doing, Evaluation and Planning are explored in whatever order the person needs; the counselor moves back and forth, not through fixed steps.",
+    "fa": "خواسته، رفتار، ارزیابی و برنامه به هر ترتیبی که مراجع لازم دارد بررسی می‌شوند، نه مرحله‌به‌مرحلهٔ ثابت.",
+    "tags": ["ALL", "FOCUS_NONE"],
+    "source": {"kind": "THEORY", "ref": "Wubbolding, R. E. (2011). Reality Therapy. American Psychological Association."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-RT-02",
+    "title": "Self-evaluation is the keystone",
+    "text": "Change follows when the person, not the counselor, judges whether what they do helps them get what they want. Typical question: is what you are doing getting you closer to what you want?",
+    "fa": "تغییر وقتی رخ می‌دهد که خود مراجع، نه مشاور، داوری کند که رفتارش به خواسته‌اش نزدیکش می‌کند یا نه.",
+    "tags": ["FOCUS_E", "FOCUS_D", "SELF_BLAME"],
+    "source": {"kind": "THEORY", "ref": "Wubbolding, R. E. (2017). Reality Therapy and Self-Evaluation: The Key to Client Change. American Counseling Association."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-RT-03",
+    "title": "Characteristics of a good plan",
+    "text": "A plan is simple, attainable, measurable, immediate, controlled by the planner, and committed to; it is better repeated than big. Wording of the acronym (SAMIC) varies between sources.",
+    "fa": "برنامهٔ خوب ساده، شدنی، قابل سنجش، فوری، در اختیار خود برنامه‌ریز و همراه با تعهد است.",
+    "tags": ["FOCUS_P", "PLAN_AGREED", "CONSTRAINT"],
+    "source": {"kind": "THEORY", "ref": "Wubbolding, R. E. (2011). Reality Therapy. American Psychological Association."},
+    "confidence": "MEDIUM"
+  },
+  {
+    "id": "P-RT-04",
+    "title": "No excuses, no punishment, no giving up",
+    "text": "When a plan is not carried out, the counselor does not accept excuses as the end of the story, does not criticize or punish, and does not give up; the question is what the person will do now.",
+    "fa": "وقتی برنامه اجرا نشد، نه بهانه پذیرفته می‌شود، نه سرزنش و تنبیه، نه ناامیدی؛ سؤال این است که حالا چه می‌کنی.",
+    "tags": ["NONCOMPLIANCE", "PLAN_PENDING"],
+    "source": {"kind": "THEORY", "ref": "Glasser, W. (1965). Reality Therapy. Harper & Row; Wubbolding (2011)."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-RT-05",
+    "title": "Present focus",
+    "text": "The past matters only as it bears on present wants and choices; long re-litigation of old grievances keeps a couple stuck.",
+    "fa": "گذشته فقط تا جایی مهم است که به خواسته‌ها و انتخاب‌های امروز ربط دارد.",
+    "tags": ["PAST_FOCUS", "BLAME", "LONG_STORY"],
+    "source": {"kind": "THEORY", "ref": "Glasser, W. (1965). Reality Therapy; Glasser (1998)."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-RT-06",
+    "title": "Levels of commitment",
+    "text": "Commitment ranges from 'I do not want to be here' through 'I want the result but not the effort', 'I will try', 'I will do my best', to 'I will do whatever it takes'. Explore it without pushing; small steps fit low commitment.",
+    "fa": "سطح تعهد از «نمی‌خوام اینجا باشم» تا «هر کاری لازم باشه می‌کنم» فرق می‌کند؛ بدون فشار بررسی می‌شود.",
+    "tags": ["MOTIVATION_LOW", "QUIET_PARTNER", "FOCUS_W", "FOCUS_P"],
+    "source": {"kind": "THEORY", "ref": "Wubbolding, R. E. (2011). Reality Therapy. American Psychological Association."},
+    "confidence": "MEDIUM"
+  },
+  {
+    "id": "P-RT-07",
+    "title": "Involvement first",
+    "text": "A warm, non-judgmental, steady relationship with the counselor is the ground for everything else; the counselor does not argue, criticize or give up on a reluctant person.",
+    "fa": "رابطهٔ گرم و بدون قضاوت با مشاور زمینهٔ همه‌چیز است؛ مشاور با مراجع بی‌میل بحث و انتقاد نمی‌کند.",
+    "tags": ["SESSION_START", "MOTIVATION_LOW", "ANGER"],
+    "source": {"kind": "THEORY", "ref": "Glasser, W. (1965). Reality Therapy; Wubbolding (2011)."},
+    "confidence": "HIGH"
+  },
+  {
+    "id": "P-SAFE-01",
+    "title": "Joint sessions and partner violence",
+    "text": "Partner violence and coercive control make joint problem-solving unsafe; professional guidance screens each partner separately and avoids joint work when there is fear or coercive control. Safety comes before the process.",
+    "fa": "خشونت و کنترل اجباری حل مسئلهٔ مشترک را ناامن می‌کند؛ در ترس یا کنترل اجباری کار مشترک کنار می‌رود و ایمنی مقدم است.",
+    "tags": ["SAFETY_CUE", "SAFETY_CUE_HIGH", "SAFETY_ACTIVE"],
+    "source": {"kind": "PRACTICE", "ref": "Stith, S. M., McCollum, E. E. & Rosen, K. H. (2011). Couples Therapy for Domestic Violence: Finding Safe Solutions. APA; Johnson's typology of partner violence."},
+    "confidence": "HIGH"
+  }
+]

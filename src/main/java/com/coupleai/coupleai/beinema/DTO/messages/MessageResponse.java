@@ -5,7 +5,9 @@ import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.MessageStatus;
 import com.coupleai.coupleai.beinema.governance.CounselorSignal;
 import com.coupleai.coupleai.beinema.governance.GovernancePacketParser;
+import com.coupleai.coupleai.beinema.governance.QuestionMarkers;
 import com.coupleai.coupleai.beinema.governance.ReentryCommitment;
+import com.coupleai.coupleai.beinema.DTO.counseling.QuestionResponse;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -60,6 +62,15 @@ public class MessageResponse {
     private Boolean sticker;
 
     private String stickerName;
+
+    /** A structured clarifying question shown by this counselor message. */
+    private QuestionResponse question;
+
+    /** This partner message answers the structured question with this id. */
+    private String answerToQuestionId;
+
+    /** Set on a private notice: only this user sees the message. */
+    private Long visibleToUserId;
 
 
     /**
@@ -133,13 +144,19 @@ public class MessageResponse {
                 .stickerName(
                         CounselorSignal.stickerName(message.getContent())
                 )
+                .answerToQuestionId(
+                        QuestionMarkers.answerTo(message.getContent())
+                )
+                .visibleToUserId(
+                        message.getVisibleToUserId()
+                )
 
                 .build();
     }
 
     private static String visibleContent(String content) {
         return new GovernancePacketParser().strip(
-                CounselorSignal.stripSticker(ReentryCommitment.visible(content))
+                CounselorSignal.stripSticker(ReentryCommitment.visible(QuestionMarkers.strip(content)))
         );
     }
 }

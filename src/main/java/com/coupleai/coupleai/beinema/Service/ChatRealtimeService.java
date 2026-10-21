@@ -34,6 +34,7 @@ public class ChatRealtimeService {
     private final UserRepository userRepository;
     private final ChatRoomEventHub chatRoomEventHub;
     private final com.coupleai.coupleai.beinema.Repository.MessageAttachmentRepository attachmentRepository;
+    private final com.coupleai.coupleai.beinema.Repository.ClarifyingQuestionRepository questionRepository;
 
     @Transactional(readOnly = true)
     public List<MessageResponse> toResponses(ChatRoom chatRoom, List<Message> messages) {
@@ -48,13 +49,49 @@ public class ChatRealtimeService {
                                         Collectors.toList()
                                 )
                         ));
+        java.util.Set<String> questionIds = new java.util.HashSet<>();
+        for (Message message : messages) {
+            String publicId = com.coupleai.coupleai.beinema.governance.QuestionMarkers.questionId(message.getContent());
+            if (publicId != null) {
+                questionIds.add(publicId);
+            }
+        }
+        Map<String, com.coupleai.coupleai.beinema.Entity.ClarifyingQuestion> questions = questionIds.isEmpty()
+                ? Map.of()
+                : questionRepository.findAllByPublicIdIn(questionIds).stream()
+                .collect(Collectors.toMap(
+                        com.coupleai.coupleai.beinema.Entity.ClarifyingQuestion::getPublicId,
+                        question -> question,
+                        (first, second) -> first
+                ));
         return messages.stream()
                 .map(message -> {
                     MessageResponse response = toResponse(message, participants, agentName);
                     response.setAttachments(files.getOrDefault(message.getId(), List.of()));
+                    attachQuestion(response, message, questions, participants);
                     return response;
                 })
                 .toList();
+    }
+
+    /** The question a counselor message shows, as the chat displays it (addressee, options, status). */
+    private void attachQuestion(
+            MessageResponse response,
+            Message message,
+            Map<String, com.coupleai.coupleai.beinema.Entity.ClarifyingQuestion> questions,
+            Map<Long, ChatRoomParticipant> participants
+    ) {
+        String publicId = com.coupleai.coupleai.beinema.governance.QuestionMarkers.questionId(message.getContent());
+        if (publicId == null) {
+            return;
+        }
+        com.coupleai.coupleai.beinema.Entity.ClarifyingQuestion question = questions.get(publicId);
+        if (question == null) {
+            return;
+        }
+        ChatRoomParticipant addressee = participants.get(question.getParticipantUserId());
+        String name = addressee == null || addressee.getUser() == null ? null : addressee.getUser().visibleName();
+        response.setQuestion(com.coupleai.coupleai.beinema.counseling.QuestionViews.view(question, name));
     }
 
     @Transactional
@@ -179,6 +216,29 @@ public class ChatRealtimeService {
         return sticker;
     }
 
+    /** A platform notice that only one member of the room sees, now and in the history. */
+    @Transactional
+    public Message savePrivateSystemAndPublish(Long chatRoomId, Long userId, String content) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+        int nextSequence = messageRepository
+                .findMaxSequenceNumberByChatRoom(chatRoom)
+                .orElse(0)
+                + 1;
+        Message notice = Message.builder()
+                .chatRoom(chatRoom)
+                .senderType(MessageSenderType.SYSTEM)
+                .senderId(0L)
+                .content(content == null ? "" : content)
+                .status(MessageStatus.SENT)
+                .sequenceNumber(nextSequence)
+                .visibleToUserId(userId)
+                .build();
+        messageRepository.saveAndFlush(notice);
+        chatRoomEventHub.publishToUser(chatRoomId, userId, toResponse(chatRoom, notice));
+        return notice;
+    }
+
     @Transactional
     public Message saveSystemAndPublish(Long chatRoomId, String content) {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
@@ -204,11 +264,17 @@ public class ChatRealtimeService {
     }
 
     private MessageResponse toResponse(ChatRoom chatRoom, Message message) {
+        Map<Long, ChatRoomParticipant> participants = participantsByUserId(chatRoom);
         MessageResponse response = toResponse(
                 message,
-                participantsByUserId(chatRoom),
+                participants,
                 resolveAgentName(chatRoom.getId())
         );
+        String questionId = com.coupleai.coupleai.beinema.governance.QuestionMarkers.questionId(message.getContent());
+        if (questionId != null) {
+            questionRepository.findByPublicId(questionId).ifPresent(question ->
+                    attachQuestion(response, message, Map.of(questionId, question), participants));
+        }
         if (message.getId() != null) {
             response.setAttachments(
                     attachmentRepository.findAllByMessageId(message.getId()).stream()

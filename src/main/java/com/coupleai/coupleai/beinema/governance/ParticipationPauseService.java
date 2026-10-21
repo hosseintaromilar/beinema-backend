@@ -47,6 +47,24 @@ public class ParticipationPauseService {
     private final ParticipationPauseService self;
     private final GovernancePolicy policy;
 
+    /** Runs the counselor's thank-you after a consent, off the request thread (tests run it in place). */
+    java.util.concurrent.Executor greeter = task -> {
+        Thread thread = new Thread(task, "beinema-consent-thanks");
+        thread.setDaemon(true);
+        thread.start();
+    };
+
+    /** How long the counselor is seen typing before the thank-you appears. */
+    long thanksTypingMillis = 2200L;
+
+    /** Agreeing to the rules is entering the open session; the session clock records it. */
+    private com.coupleai.coupleai.beinema.Service.SessionLifecycleService sessions;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setSessions(@Lazy com.coupleai.coupleai.beinema.Service.SessionLifecycleService sessions) {
+        this.sessions = sessions;
+    }
+
     public ParticipationPauseService(
             ChatRoomRepository chatRoomRepository,
             ChatRoomParticipantRepository participantRepository,
@@ -412,7 +430,14 @@ public class ParticipationPauseService {
         }
         participant.setSessionConsented(true);
         participant.setConsentOffered(true);
+        if (sessions == null) {
+            participant.setSessionReadyAt(java.time.Instant.now());
+        }
         participantRepository.save(participant);
+        if (sessions != null) {
+            // agreeing to the rules is entering the session that is open now
+            sessions.enterByConsent(chatRoom, user);
+        }
         audit(
                 chatRoom.getId(),
                 user.getId(),
@@ -436,7 +461,7 @@ public class ParticipationPauseService {
                         .message("با چارچوب جلسه موافقت شد.")
                         .build()
         );
-        maybeAnnounceSessionReady(chatRoom, user);
+        thankAfterConsent(chatRoom, user);
     }
 
     @Transactional
@@ -523,93 +548,73 @@ public class ParticipationPauseService {
         return true;
     }
 
-    private void maybeAnnounceSessionReady(ChatRoom chatRoom, User user) {
-        if (!allParticipantsConsented(chatRoom) || chatRealtimeService == null || user == null) {
+    /**
+     * After a person agrees, the counselor thanks them and asks one open intake
+     * question: what brought them, what they hope for, what help they want. Each
+     * person gets it at their own consent; the wording changes when the partner
+     * had already agreed. It is sent after the consent is stored, with a short
+     * typing pause, so it arrives like the counselor's other messages.
+     */
+    private void thankAfterConsent(ChatRoom chatRoom, User user) {
+        if (chatRealtimeService == null || chatRoom == null || user == null) {
             return;
         }
         Long roomId = chatRoom.getId();
         Long userId = user.getId();
-        if (!TransactionSynchronizationManager.isSynchronizationActive() || self == null) {
-            publishSessionOpening(roomId, userId);
+        Runnable task = () -> deliverConsentThanks(roomId, userId);
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            greeter.execute(task);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                self.openSessionAfterCommit(roomId, userId);
+                greeter.execute(task);
             }
         });
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void openSessionAfterCommit(Long roomId, Long userId) {
-        publishSessionOpening(roomId, userId);
-    }
-
-    private void publishSessionOpening(Long roomId, Long userId) {
-        ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElse(null);
-        if (chatRoom == null || chatRealtimeService == null) {
-            return;
-        }
-        List<ChatRoomParticipant> members = participantRepository.findAllByChatRoom(chatRoom);
-        String names = members.stream()
-                .map(item -> item.getUser() == null ? "" : item.getUser().visibleName())
-                .filter(name -> name != null && !name.isBlank())
-                .reduce((left, right) -> left + " و " + right)
-                .orElse("");
-        User speaker = members.stream()
-                .map(ChatRoomParticipant::getUser)
-                .filter(item -> item != null && userId.equals(item.getId()))
-                .findFirst()
-                .orElse(null);
-        String spoken = askCounselorToOpen(chatRoom, speaker, names);
-        Long agentId = 0L;
-        if (counselorSessionService != null) {
-            try {
-                agentId = counselorSessionService.requireActiveAgent(chatRoom).getId();
-            } catch (RuntimeException exception) {
-                log.warn("No active counselor for room {}: {}", roomId, exception.getMessage());
-            }
-        }
-        chatRealtimeService.saveAgentAndPublish(chatRoom.getId(), agentId, spoken);
-    }
-
-    private String askCounselorToOpen(ChatRoom chatRoom, User user, String names) {
-        if (counselorSessionService == null || user == null) {
-            return "";
-        }
+    void deliverConsentThanks(Long roomId, Long userId) {
         try {
-            ChatRoom bound = counselorSessionService.ensureBound(chatRoom, user);
-            if (bound.getAiConversationId() == null || bound.getAiConversationId().isBlank()) {
-                return "";
+            ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElse(null);
+            if (chatRoom == null) {
+                return;
             }
-            return counselorSessionService.requestEntry(
-                    bound.getAiConversationId(),
-                    activationCue(chatRoom, user, names)
-            );
+            List<ChatRoomParticipant> members = participantRepository.findAllByChatRoom(chatRoom);
+            ChatRoomParticipant me = members.stream()
+                    .filter(item -> item.getUser() != null && userId.equals(item.getUser().getId()))
+                    .findFirst()
+                    .orElse(null);
+            if (me == null) {
+                return;
+            }
+            boolean partnerAlreadyIn = members.stream().anyMatch(item -> item.getUser() != null
+                    && !userId.equals(item.getUser().getId())
+                    && Boolean.TRUE.equals(item.getSessionConsented()));
+            if (sessions != null && counselorSessionService != null && counselorSessionService.usesNewBrain(chatRoom)) {
+                // v3: the counselor writes the thanks and the first question itself, so it is never the same text
+                sessions.consentMoment(chatRoom, me, partnerAlreadyIn);
+                return;
+            }
+            String text = WelcomeGuide.afterConsent(me.getUser().visibleName(), partnerAlreadyIn);
+            Long agentId = 0L;
+            if (counselorSessionService != null) {
+                try {
+                    agentId = counselorSessionService.requireActiveAgent(chatRoom).getId();
+                } catch (RuntimeException exception) {
+                    log.warn("No active counselor for room {}: {}", roomId, exception.getMessage());
+                }
+            }
+            if (thanksTypingMillis > 0) {
+                chatRealtimeService.publishAgentTyping(roomId, thanksTypingMillis);
+                Thread.sleep(thanksTypingMillis);
+            }
+            chatRealtimeService.saveAgentAndPublish(roomId, agentId, text);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
         } catch (RuntimeException exception) {
-            log.warn("Could not open the session after consent: {}", exception.getMessage());
-            return "";
+            log.warn("Could not thank after consent in room {}: {}", roomId, exception.getMessage());
         }
-    }
-
-    private String activationCue(ChatRoom chatRoom, User user, String names) {
-        if (sessionAlreadyOpen(chatRoom)) {
-            String arrived = user == null || user.visibleName() == null ? "" : user.visibleName();
-            return EntryGreeting.participantConsented(arrived);
-        }
-        return EntryGreeting.sessionReady(names);
-    }
-
-    private boolean sessionAlreadyOpen(ChatRoom chatRoom) {
-        if (messageRepository == null || chatRoom == null) {
-            return false;
-        }
-        List<Message> messages = messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom);
-        // Entry greetings are counselor turns too, so only a partner's own message
-        // proves the session has really started.
-        return messages.stream()
-                .anyMatch(message -> message.getSenderType() == MessageSenderType.USER);
     }
 
     private boolean expireIfNeeded(ChatRoomParticipant participant) {

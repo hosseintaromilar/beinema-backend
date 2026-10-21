@@ -74,4 +74,41 @@ public class ChatRoom extends BaseEntity {
     @Column(nullable = false)
     private Long createdBy;
 
+
+    /** Which counseling session of this room is running (1, 2, ...). Null = 1. */
+    @Column(name = "session_number")
+    private Integer sessionNumber;
+
+    /** False between two sessions, after both partners agreed to a break. Null = active. */
+    @Column(name = "session_active")
+    private Boolean sessionActive;
+
+    /** When the last session ended; the next one may begin after the minimum break. */
+    @Column(name = "session_ended_at")
+    private java.time.Instant sessionEndedAt;
+
+    /** Start of the 45-minute countdown: when both partners agreed to begin. Null until then. */
+    @Column(name = "session_started_at")
+    private java.time.Instant sessionStartedAt;
+
+    /** Overrides beinema.session.duration-minutes for this room. */
+    @Column(name = "session_duration_minutes")
+    private Integer sessionDurationMinutes;
+
+    /** Set while the counselor's break proposal waits for both answers. */
+    @Column(name = "break_proposed_at")
+    private java.time.Instant breakProposedAt;
+
+    /** When a partner first said no to the break offer of this session (they went on). */
+    @Column(name = "break_declined_at")
+    private java.time.Instant breakDeclinedAt;
+
+    /** Last message number before this session began (the summary covers what came after). */
+    @Column(name = "session_start_sequence")
+    private Integer sessionStartSequence;
+
+    /** Brief for the first message of a new session; cleared once it reached the counselor. */
+    @Column(name = "resume_block", columnDefinition = "TEXT")
+    private String resumeBlock;
+
 }

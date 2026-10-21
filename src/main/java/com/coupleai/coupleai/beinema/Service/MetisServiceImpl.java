@@ -26,6 +26,16 @@ public class MetisServiceImpl implements MetisService {
             String botId,
             User user
     ) {
+        return createConversation(botId, String.valueOf(user.getId()), user.visibleName());
+    }
+
+
+    @Override
+    public MetisConversationResponse createConversation(
+            String botId,
+            String userKey,
+            String userName
+    ) {
 
         if (botId == null || botId.isBlank()) {
 
@@ -44,13 +54,11 @@ public class MetisServiceImpl implements MetisService {
                                 MetisUserRequest.builder()
 
                                         .id(
-                                                String.valueOf(
-                                                        user.getId()
-                                                )
+                                                userKey
                                         )
 
                                         .name(
-                                                user.visibleName()
+                                                userName
                                         )
 
                                         .build()

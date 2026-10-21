@@ -48,6 +48,15 @@ public class ChatRoomService {
     private final GovernanceLogRepository governanceLogRepository;
     private final EntityManager entityManager;
     private final ChatFileService chatFileService;
+    private final SessionLifecycleService sessionLifecycleService;
+    private final com.coupleai.coupleai.beinema.Repository.SessionSummaryRepository sessionSummaryRepository;
+    private final com.coupleai.coupleai.beinema.Repository.SessionParticipantSummaryRepository sessionParticipantSummaryRepository;
+    private final com.coupleai.coupleai.beinema.Repository.CounselingStateRepository counselingStateRepository;
+    private final com.coupleai.coupleai.beinema.Repository.ClientIntentRepository clientIntentRepository;
+    private final com.coupleai.coupleai.beinema.Repository.ClarifyingQuestionRepository clarifyingQuestionRepository;
+    private final com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository directorDecisionRecordRepository;
+    private final com.coupleai.coupleai.beinema.counseling.CounselorStateService counselorStateService;
+    private final com.coupleai.coupleai.beinema.Security.CurrentUserService currentUserService;
 
 
     public ChatRoomResponse createChatRoom(
@@ -620,6 +629,12 @@ public class ChatRoomService {
             );
         }
 
+        sessionSummaryRepository.deleteAllByChatRoomId(chatRoomId);
+        sessionParticipantSummaryRepository.deleteAllByChatRoomId(chatRoomId);
+        counselingStateRepository.deleteAllByChatRoomId(chatRoomId);
+        clientIntentRepository.deleteAllByChatRoomId(chatRoomId);
+        clarifyingQuestionRepository.deleteAllByChatRoomId(chatRoomId);
+        directorDecisionRecordRepository.deleteAllByChatRoomId(chatRoomId);
         invitationRepository.deleteAllByChatRoom(chatRoom);
         relationshipInsightRepository.deleteAllByChatRoom(chatRoom);
         agentAccessRepository.deleteByChatRoomId(chatRoomId);
@@ -758,7 +773,18 @@ public class ChatRoomService {
                 .hasActiveAgentAccess(hasAccess)
                 .agentAccessExpiresAt(expiresAt)
                 .sessionEnded(chatRoom.getStatus() != ChatRoomStatus.ACTIVE)
+                .session(sessionLifecycleService.describe(sessionLifecycleService.refresh(chatRoom)))
+                .counselorStateAvailable(canSeeCounselorState())
                 .build();
+    }
+
+
+    private boolean canSeeCounselorState() {
+        try {
+            return counselorStateService.canView(currentUserService.getCurrentUser());
+        } catch (RuntimeException noUser) {
+            return false;
+        }
     }
 
 

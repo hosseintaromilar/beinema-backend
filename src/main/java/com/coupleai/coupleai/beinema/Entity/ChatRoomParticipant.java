@@ -77,4 +77,22 @@ public class ChatRoomParticipant extends BaseEntity {
     @Builder.Default
     private Boolean consentOffered = false;
 
+    /**
+     * When this person entered the current session (the consent in the first session,
+     * the start button in later ones). Null = not in the session. Cleared when a session ends.
+     */
+    @Column(name = "session_ready_at")
+    private java.time.Instant sessionReadyAt;
+
+    /**
+     * Answer to the break offer at the end of the 45 minutes: null = not answered,
+     * true = takes the break (does not write until the session ends), false = goes on.
+     */
+    @Column(name = "break_vote")
+    private Boolean breakVote;
+
+    /** The last time this person opened the room (the first session waits while they read the rules). */
+    @Column(name = "entered_at")
+    private java.time.Instant enteredAt;
+
 }

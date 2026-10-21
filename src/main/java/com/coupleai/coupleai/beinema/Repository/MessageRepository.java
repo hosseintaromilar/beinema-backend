@@ -45,6 +45,20 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             ChatRoom chatRoom
     );
 
+    /** When someone of this kind last wrote in the room after the given message number. */
+    @Query("""
+            select max(m.createdAt)
+            from Message m
+            where m.chatRoom.id = :chatRoomId
+              and m.senderType = :senderType
+              and m.sequenceNumber > :afterSequence
+            """)
+    Optional<java.time.LocalDateTime> findLastMessageAtAfter(
+            @Param("chatRoomId") Long chatRoomId,
+            @Param("senderType") MessageSenderType senderType,
+            @Param("afterSequence") int afterSequence
+    );
+
     @Query("""
             select m.chatRoom.id, max(m.createdAt)
             from Message m

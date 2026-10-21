@@ -31,4 +31,9 @@ public class ChatRoomResponse {
 
     private Boolean sessionEnded;
 
+    private SessionInfo session;
+
+    /** The developer panel with the counselor's inner state (admins, or development mode). */
+    private Boolean counselorStateAvailable;
+
 }
