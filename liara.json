@@ -1,0 +1,11 @@
+{
+  "platform": "docker",
+  "app": "beinema-api",
+  "port": 8080,
+  "disks": [
+    {
+      "name": "uploads",
+      "mountTo": "/app/uploads"
+    }
+  ]
+}
