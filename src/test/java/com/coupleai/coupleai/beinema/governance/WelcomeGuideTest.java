@@ -2,6 +2,7 @@ package com.coupleai.coupleai.beinema.governance;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,7 +24,7 @@ class WelcomeGuideTest {
 
         assertTrue(text.startsWith("سلام افسانه، به بین‌ما خوش اومدی."));
         // 1. who the counselor is, under the Beinema brand
-        assertTrue(text.contains("من زوج‌درمانگر بین‌ما هستم"));
+        assertTrue(text.contains("من زوج‌درمانگر هستم؛ همراه هوشمند زوج‌ها در بین‌ما."));
         // 2. how the work goes and which framework it follows
         assertTrue(text.contains("روال کار در بین‌ما:"));
         assertTrue(text.contains("واقعیت‌درمانی") && text.contains("نظریهٔ انتخاب"));
@@ -36,7 +37,7 @@ class WelcomeGuideTest {
         assertTrue(text.endsWith("«موافقم» را بزن تا شروع کنیم."));
         assertFalse(text.contains("{"), "every placeholder is filled");
         // the order asked for: introduction, process and framework, invite, rules and safety, consent
-        int intro = text.indexOf("من زوج‌درمانگر بین‌ما هستم");
+        int intro = text.indexOf("من زوج‌درمانگر هستم؛ همراه هوشمند زوج‌ها در بین‌ما.");
         int process = text.indexOf("روال کار در بین‌ما:");
         int invite = text.indexOf("دعوت پارتنر:");
         int rules = text.indexOf("قوانین گفتگو:");
@@ -88,6 +89,23 @@ class WelcomeGuideTest {
                 "افسانه", "مشاور مالی", true, "", false, 45, 15, false, 15, 3));
         assertFalse(text.contains("واقعیت‌درمانی"));
         assertTrue(text.contains("گفتگو ساختاریافته و بی‌طرف است"));
-        assertTrue(text.contains("من مشاور مالی بین‌ما هستم"));
+        assertTrue(text.contains("من مشاور مالی هستم؛ همراه هوشمند زوج‌ها در بین‌ما."));
+    }
+
+    @Test
+    void aHumanNameReadsNaturally() {
+        assertEquals("من نادر هستم؛ همراه هوشمند زوج‌ها در بین‌ما.", WelcomeGuide.introduction("نادر"));
+        assertEquals("من نادر، مشاور زوج‌درمانگر بین‌ما هستم.",
+                WelcomeGuide.introduction("نادر، مشاور زوج‌درمانگر بین‌ما"));
+        assertEquals("من نادر، مشاور زوج‌درمانگر بین ما هستم.",
+                WelcomeGuide.introduction(" نادر، مشاور زوج‌درمانگر بین ما. "));
+        assertEquals("من نادر، زوج‌درمانگر در بین‌ما هستم.", WelcomeGuide.introduction("نادر، زوج‌درمانگر"));
+        assertEquals("من مشاور بین‌ما هستم.", WelcomeGuide.introduction(""));
+
+        String text = WelcomeGuide.firstEntry(new WelcomeGuide.Facts(
+                "افسانه", "نادر، مشاور زوج‌درمانگر بین‌ما", true, "", false, 45, 15, true, 15, 3));
+        assertTrue(text.contains("من نادر، مشاور زوج‌درمانگر بین‌ما هستم. اینجا فضایی خصوصی"));
+        assertFalse(text.contains("بین‌ما بین‌ما"));
+        assertFalse(text.contains("{"));
     }
 }

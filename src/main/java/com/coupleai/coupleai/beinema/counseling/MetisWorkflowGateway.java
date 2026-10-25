@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
  * Calls the v3 workflow. Every call runs in a new Metis session, so nothing
  * piles up in Metis history and each call costs only what it sends: the memory
  * lives in the backend and travels in the packet. The packet's first line
- * (##BEINEMA_MODE=DIRECTOR## or ##BEINEMA_MODE=VOICE##) picks the lane.
+ * (##BEINEMA_MODE=DIRECTOR##, VOICE, PLANNER or TEACHER) picks the lane.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,6 +32,11 @@ public class MetisWorkflowGateway implements BrainGateway {
 
     @Override
     public Reply planner(String packet) {
+        return call(packet);
+    }
+
+    @Override
+    public Reply teacher(String packet) {
         return call(packet);
     }
 

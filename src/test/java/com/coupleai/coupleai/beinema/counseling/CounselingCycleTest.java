@@ -379,4 +379,80 @@ class CounselingCycleTest {
         assertFalse(nothing.delivered(), "the second message's own turn finds nothing new");
         assertEquals(1, f.brain.directorPackets.size());
     }
+
+    private static String teachSevenDeadlyHabits(String packet) {
+        long trigger = lastNew(packet);
+        return """
+                {"schema":"director.v1",
+                 "analysis":{"speaker":"MEMBER","kinds":["PERCEPTION_OF_PARTNER"],"summary":"blame goes both ways","to_counselor":false,"answers_question":null,"contradictions":[]},
+                 "situation":{"goal":"fewer nightly fights","goal_reason":"","focus":{"OWNER":"D","MEMBER":"D"},"focus_reason":"",
+                   "thread":"nightly fights","known_add":[],"unknown_add":[],"unknown_resolved":[],"parked_add":[],"parked_resolved":[],
+                   "participants":{},"previous_outcome":{"effect":"UNKNOWN","note":""}},
+                 "intents":[],"plans":[],
+                 "decision":{"action":"TEACH","action_label":"","route":"SPEAK","addressee":"BOTH","purpose":"help them see the blame cycle as habits",
+                   "rationale":"both describe criticism and blame","rules_used":[],"alternatives":[],
+                   "governance":{"gov":"NONE","target":"NONE","duration":0},"signal":{"react":null,"sticker":null},"lead":"NONE"},
+                 "lesson":{"id":"L-SEVEN-DEADLY","why":"they criticize and blame each other every night"},
+                 "question":null,"question_updates":[],
+                 "brief":{"do":"connect the habits to their nightly fights","must_not":["do not take a side"],"length":"SHORT","refer_to":[%d]},
+                 "review_if":[],
+                 "safety":{"level":"NONE","signals":[],"who":"NONE","note":""}}
+                """.formatted(trigger);
+    }
+
+    @Test
+    void theDirectorDecidesToTeachTheTeacherPreparesItAndTheVoiceSaysIt() {
+        f.say(f.hossein, "هر شب اولین جمله‌اش اینه که باز هم دیر کردی. منم دیگه جوابشو با طعنه می‌دم.");
+        f.brain.directorReplies.add(CounselingCycleTest::teachSevenDeadlyHabits);
+        f.brain.teacherReply = """
+                {"schema":"lesson.v1","angle":"their evenings run on criticism and sarcasm",
+                 "opening":"چیزی که هر شب بین شما تکرار می‌شه، یه اسم آشنا داره.",
+                 "points":["انتقاد، سرزنش و طعنه معمولاً فاصله می‌سازن.","این عادت‌ها رو همه‌مون یاد گرفتیم و از سر بدی نیست."],
+                 "example":"وقتی جمله‌ی اول شب «باز هم دیر کردی» باشه، جواب هم معمولاً با طعنه میاد.",
+                 "check":"کدوم یکی از این عادت‌ها بیشتر سراغ خودت میاد؟"}
+                """;
+        f.brain.voiceReplies.add(packet -> "این چیزی که هر شب بین شما تکرار می‌شه، توی نظریهٔ انتخاب اسمش «هفت عادت مخرب»ه. کدوم یکی بیشتر سراغ خودت میاد؟");
+
+        TurnOrchestrator.Outcome outcome = f.orchestrator.runTurn(FakeRoom.ROOM);
+        f.orchestrator.deliverRemaining(outcome);
+
+        assertTrue(f.brain.directorPackets.get(0).contains("[LESSONS]\nL-"), "the director sees what it can teach");
+        String teacherPacket = f.brain.teacherPackets.get(0);
+        assertTrue(teacherPacket.startsWith(LessonTeacher.MODE), "the teacher lane is called");
+        assertTrue(teacherPacket.contains("why=they criticize and blame each other every night"));
+        assertTrue(teacherPacket.contains("core: هفت رفتار هست"), "the teacher gets the whole lesson");
+        String voicePacket = f.brain.voicePackets.get(0);
+        assertTrue(voicePacket.contains("[LESSON]\nlesson=هفت عادت مخرب (L-SEVEN-DEADLY)"));
+        assertTrue(voicePacket.contains("point=انتقاد، سرزنش و طعنه"));
+        assertTrue(voicePacket.contains("length=MEDIUM"), "a lesson is never squeezed into a short reply");
+        assertTrue(voicePacket.contains("counselor: نادر"), "the voice knows its own name");
+        assertTrue(f.counselorMessages().get(f.counselorMessages().size() - 1).getContent().contains("هفت عادت مخرب"));
+
+        CounselingSnapshot memory = CounselingStateStore.snapshot(f.state);
+        assertEquals("L-SEVEN-DEADLY", memory.lessons.get(0).id);
+        DirectorDecisionRecord record = f.decisions.values().iterator().next();
+        assertEquals("TEACH", record.getAction());
+
+        f.say(f.afsaneh, "آره، من اولش گلایه می‌کنم.");
+        f.brain.directorReplies.add(CounselingCycleTest::askToChoose);
+        f.brain.voiceReplies.add(packet -> "باشه.");
+        f.orchestrator.runTurn(FakeRoom.ROOM);
+        assertTrue(f.brain.directorPackets.get(1).contains("L-SEVEN-DEADLY | The seven deadly habits | TAUGHT in session 1"),
+                "the director knows it was taught");
+    }
+
+    @Test
+    void whenTheTeacherFailsTheLessonsOwnTextIsTaught() {
+        f.say(f.hossein, "هر شب اولین جمله‌اش اینه که باز هم دیر کردی.");
+        f.brain.directorReplies.add(CounselingCycleTest::teachSevenDeadlyHabits);
+        f.brain.teacherReply = "{\"schema\":\"lesson.v1\",\"error\":\"TEACHER_FAILED\"}";
+        f.brain.voiceReplies.add(packet -> "یه چیزی هست به اسم هفت عادت مخرب.");
+
+        f.orchestrator.runTurn(FakeRoom.ROOM);
+
+        String voicePacket = f.brain.voicePackets.get(0);
+        assertTrue(voicePacket.contains("point=هفت رفتار هست که تقریباً همیشه رابطه را سرد می‌کنند"));
+        DirectorDecisionRecord record = f.decisions.values().iterator().next();
+        assertTrue(String.valueOf(record.getValidationNotes()).contains("the lesson's own text was used"));
+    }
 }

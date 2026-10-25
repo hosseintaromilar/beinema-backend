@@ -6,13 +6,13 @@ import com.coupleai.coupleai.beinema.Entity.ClientIntent;
 import com.coupleai.coupleai.beinema.Entity.CounselingState;
 import com.coupleai.coupleai.beinema.Entity.DirectorDecisionRecord;
 import com.coupleai.coupleai.beinema.Entity.User;
-import com.coupleai.coupleai.beinema.Enum.UserRole;
 import com.coupleai.coupleai.beinema.Exception.ChatRoomAccessDeniedException;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.ClarifyingQuestionRepository;
 import com.coupleai.coupleai.beinema.Repository.ClientIntentRepository;
 import com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository;
+import com.coupleai.coupleai.beinema.Util.PhoneNumbers;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -20,14 +20,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * The counselor's inner state for the developer panel: memory, intents,
- * questions and the last decisions with their reasons. Only for admins, or for
- * room members when beinema.debug.state-panel=true (development).
+ * questions and the last decisions with their reasons. Only for the phone
+ * numbers in beinema.debug.state-panel-phones, and only in their own rooms.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,7 +43,21 @@ public class CounselorStateService {
     private final CounselingConfig config;
 
     public boolean canView(User user) {
-        return user != null && (user.getRole() == UserRole.ADMIN || config.isStatePanel());
+        if (user == null || user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
+            return false;
+        }
+        String phone = normalized(user.getPhoneNumber());
+        return phone != null && Arrays.stream(config.getStatePanelPhones().split(","))
+                .anyMatch(item -> phone.equals(normalized(item)));
+    }
+
+    /** A malformed number in the list is skipped, not an error on every room page. */
+    private static String normalized(String raw) {
+        try {
+            return raw == null || raw.isBlank() ? null : PhoneNumbers.normalize(raw.trim());
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +65,7 @@ public class CounselorStateService {
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ChatRoomAccessDeniedException("Access denied"));
         boolean member = participantRepository.existsByChatRoomAndUser(room, user);
-        if (!canView(user) || (!member && user.getRole() != UserRole.ADMIN)) {
+        if (!canView(user) || !member) {
             throw new ChatRoomAccessDeniedException("Access denied");
         }
         CounselingState state = stateStore.load(roomId);

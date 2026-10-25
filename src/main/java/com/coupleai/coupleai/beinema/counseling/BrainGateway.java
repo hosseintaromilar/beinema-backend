@@ -19,4 +19,9 @@ public interface BrainGateway {
     default Reply planner(String packet) {
         return new Reply("", 0);
     }
+
+    /** The teacher lane: a lesson fitted to the couple (JSON). Empty when there is no such lane. */
+    default Reply teacher(String packet) {
+        return new Reply("", 0);
+    }
 }

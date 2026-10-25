@@ -57,6 +57,12 @@ public class DirectorDecision {
     public String sticker;
     public String lead = "NONE";
 
+    /** TEACH: the lesson (kb/lessons.json) and why it helps now. */
+    public String lessonId;
+    public String lessonWhy = "";
+    /** TEACH: what the teacher lane prepared for the voice (filled after validation). */
+    public String lessonScript = "";
+
     public QuestionSpec question;
     public List<QuestionUpdate> questionUpdates = new ArrayList<>();
 

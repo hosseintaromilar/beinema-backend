@@ -47,6 +47,9 @@ public final class VoicePacketBuilder {
             out.append("about=").append(d.briefReferTo.stream().map(id -> "#" + id).reduce((a, b) -> a + "," + b).orElse(""))
                     .append('\n');
         }
+        if ("TEACH".equals(d.action) && !d.lessonScript.isBlank()) {
+            out.append("[LESSON]\n").append(d.lessonScript);
+        }
         if (d.question != null && !readings.isEmpty()) {
             out.append("[QUESTION]\n")
                     .append("type=").append(d.question.type).append(" to ").append(addressee(m, d.question.addressee)).append('\n');
@@ -79,6 +82,9 @@ public final class VoicePacketBuilder {
 
     private static void participants(StringBuilder out, TurnMaterial m) {
         out.append("[ROOM]\ntitle: ").append(DirectorPacketBuilder.roomTitle(m)).append('\n');
+        if (m.counselorName() != null && !m.counselorName().isBlank()) {
+            out.append("counselor: ").append(m.counselorName().trim()).append('\n');
+        }
         out.append("[PARTICIPANTS]\n");
         for (TurnMaterial.Partner partner : m.partners()) {
             out.append(partner.role()).append('=').append(partner.name()).append('\n');

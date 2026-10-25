@@ -41,7 +41,9 @@ public record TurnMaterial(
         Map<String, List<String>> looseTextsByRole,
         Map<Long, Message> messagesById,
         Map<Long, List<String>> fileLinesByMessageId,
-        List<com.coupleai.coupleai.beinema.Entity.PersonMilestone> milestones
+        List<com.coupleai.coupleai.beinema.Entity.PersonMilestone> milestones,
+        /** The agent's name from the admin panel ("نادر"), or empty. */
+        String counselorName
 ) {
 
     /** The stages of their own path each partner has reached (OWNER -> W, D...). */

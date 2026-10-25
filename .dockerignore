@@ -4,3 +4,5 @@ uploads
 .git
 *.iml
 application-local.properties
+.env
+.env.*

@@ -39,7 +39,6 @@ public final class WelcomeGuide {
 
     public static String firstEntry(Facts facts) {
         Map<String, String> s = sections();
-        String agent = blank(facts.agentName()) ? "مشاور" : facts.agentName().trim();
         String others = blank(facts.otherMembers()) ? "" : facts.otherMembers().trim();
         String process = s.get("process")
                 .replace("{framework}", s.get(facts.relationshipCounselor() ? "framework_relationship" : "framework_general"))
@@ -60,9 +59,30 @@ public final class WelcomeGuide {
                 .replace("{process}", process)
                 .replace("{rules}", s.get("rules"))
                 .replace("{name}", blank(facts.name()) ? "" : facts.name().trim())
-                .replace("{agent}", agent)
+                .replace("{intro}", introduction(facts.agentName()))
                 .replace("{inviter}", others.isEmpty() ? "پارتنرت" : others)
                 .trim();
+    }
+
+    /**
+     * The counselor's first sentence, from the agent's name as the admin wrote
+     * it. A plain name or role gets the brand after it; a name that already says
+     * who the agent is (with a comma, or the brand) is used as it is.
+     * «نادر» -> «من نادر هستم؛ همراه هوشمند زوج‌ها در بین‌ما.»
+     * «نادر، مشاور زوج‌درمانگر بین‌ما» -> «من نادر، مشاور زوج‌درمانگر بین‌ما هستم.»
+     * «نادر، زوج‌درمانگر» -> «من نادر، زوج‌درمانگر در بین‌ما هستم.»
+     */
+    static String introduction(String agentName) {
+        String name = blank(agentName) ? "مشاور بین‌ما" : agentName.trim().replaceAll("[.،,؛;:]+$", "");
+        boolean branded = name.replace("\u200c", "").replace(" ", "").contains("بینما");
+        boolean described = name.contains("،") || name.contains(",");
+        if (branded) {
+            return "من " + name + " هستم.";
+        }
+        if (described) {
+            return "من " + name + " در بین‌ما هستم.";
+        }
+        return "من " + name + " هستم؛ همراه هوشمند زوج‌ها در بین‌ما.";
     }
 
     /**

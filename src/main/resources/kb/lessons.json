@@ -1,0 +1,241 @@
+[
+  {
+    "id": "L-TOTAL-BEHAVIOR",
+    "title": "Total behavior: acting, thinking, feeling, physiology",
+    "fa_title": "رفتار کلی",
+    "when": "A partner speaks of feelings as things that happen to them ('he makes me angry', 'I just get upset') or believes they cannot change how they feel; or both are stuck on feelings and the work needs to move to what they do.",
+    "core": [
+      "هر کاری که می‌کنیم «رفتار کلی» است و چهار بخش دارد که همیشه با هم هستند: عمل (کاری که می‌کنیم)، فکر (چیزی که به خودمان می‌گوییم)، احساس، و حالت بدن (مثل تپش قلب، سردرد یا بی‌خوابی).",
+      "روی عمل و فکر کنترل مستقیم داریم؛ روی احساس و بدن نه. کسی نمی‌تواند به خودش دستور بدهد «الان ناراحت نباش».",
+      "ولی با عوض کردن کاری که می‌کنیم و فکری که در سر داریم، احساس و بدن هم کم‌کم دنبالشان عوض می‌شوند.",
+      "برای همین در این گفتگوها بیشتر می‌پرسم «چه کار کردی؟» و «به خودت چه گفتی؟» تا «چه حسی داشتی؟»؛ نه چون احساس مهم نیست، بلکه چون راهِ عوض شدنش از عمل و فکر می‌گذرد."
+    ],
+    "example": "وقتی همسرت دیر می‌رسد: عمل ممکن است ساکت شدن و قهر باشد، فکر «برایش مهم نیستم»، احساس دلخوری، و بدن سفتیِ گلو. اگر به‌جای قهر بگویی «نگرانت شدم، دفعهٔ بعد خبرم کن»، همان دلخوری معمولاً سبک‌تر می‌شود.",
+    "check": "در موقعیتی که برایت پیش آمد، کدام بخش از این چهار بخش برایت راحت‌تر قابل تغییر به نظر می‌رسد؟",
+    "avoid": ["Saying feelings are wrong or unimportant.", "Using the lesson to dismiss someone's pain."],
+    "related": ["L-BEHAVIOR-CAR", "L-TEN-AXIOMS"],
+    "source": "Glasser, Choice Theory (1998), ch. 4."
+  },
+  {
+    "id": "L-BEHAVIOR-CAR",
+    "title": "The behavior car",
+    "fa_title": "ماشین رفتار",
+    "when": "A simple picture is needed for total behavior, especially after a partner says they cannot help how they react, or when a plan must target doing rather than feeling.",
+    "core": [
+      "رفتار ما مثل یک ماشین است: موتورش نیازهای اساسی ماست، فرمانش خواسته‌هایمان، و چهار چرخ دارد.",
+      "دو چرخ جلو «عمل» و «فکر» هستند؛ این دو را با فرمان مستقیم می‌چرخانیم.",
+      "دو چرخ عقب «احساس» و «حالت بدن» هستند؛ این‌ها را مستقیم نمی‌چرخانیم، ولی هر جا چرخ‌های جلو بروند، دنبالشان می‌آیند.",
+      "پس اگر می‌خواهیم به جای دیگری برسیم، اول فرمان عمل و فکر را می‌چرخانیم، نه اینکه منتظر بمانیم احساس خودش عوض شود."
+    ],
+    "example": "اگر بعد از هر بحث هر دو چند روز سرد می‌مانید، منتظر ماندن تا «حالمان خوب شود» چرخ عقب را هل دادن است. یک قدم کوچک مثل یک پیام کوتاهِ «هنوز کنارتم» چرخ جلو را می‌چرخاند.",
+    "check": "اگر امروز فقط یکی از چرخ‌های جلو را بچرخانی، کدام را انتخاب می‌کنی؟",
+    "avoid": ["Turning the image into blame ('you chose to be sad')."],
+    "related": ["L-TOTAL-BEHAVIOR"],
+    "source": "Glasser, Choice Theory (1998); Wubbolding, Reality Therapy (2011)."
+  },
+  {
+    "id": "L-BASIC-NEEDS",
+    "title": "The five basic needs",
+    "fa_title": "نیازهای اساسی",
+    "when": "Partners are fighting over behaviors without seeing what each is trying to satisfy; a want sounds like control and its underlying need would make it understandable; or the work needs a shared language for what each is missing.",
+    "core": [
+      "همهٔ ما با پنج نیاز اساسی زندگی می‌کنیم: بقا (امنیت، سلامت، پول و جای امن)، عشق و تعلق (نزدیکی، پذیرفته شدن)، قدرت یا ارزشمندی (دیده شدن، شنیده شدن، احساس توانایی)، آزادی (حق انتخاب و فضای شخصی) و تفریح (یاد گرفتن، خندیدن، لذت بردن).",
+      "هر رفتاری، حتی رفتاری که به رابطه آسیب می‌زند، تلاشی است برای برآورده کردن یکی از این نیازها؛ معمولاً بهترین تلاشی که آن لحظه به ذهنمان رسیده.",
+      "خیلی از دعواهای زوج‌ها دعوای دو نیاز است، نه دو آدم بد؛ مثلاً یکی نزدیکی می‌خواهد و دیگری فضای شخصی.",
+      "وقتی بفهمیم پشت رفتار دیگری کدام نیاز است، می‌شود دنبال راهی گشت که نیاز هر دو را با هم برآورده کند."
+    ],
+    "example": "کسی که هر شب پیام می‌دهد «کجایی؟» ممکن است دنبال امنیت و تعلق باشد، و کسی که از این پیام‌ها کلافه می‌شود ممکن است از آزادی‌اش دفاع کند. هیچ‌کدام بد نیستند؛ نیازهایشان با هم برخورد کرده.",
+    "check": "فکر می‌کنی در این چند وقت کدام‌یک از این پنج نیاز برای خودت کمتر برآورده شده؟",
+    "avoid": ["Diagnosing the other partner's needs for them.", "Implying a need justifies harmful behavior."],
+    "related": ["L-NEED-STRENGTH", "L-QUALITY-WORLD"],
+    "source": "Glasser, Choice Theory (1998), ch. 2."
+  },
+  {
+    "id": "L-NEED-STRENGTH",
+    "title": "Different strengths of needs in a couple",
+    "fa_title": "شدت متفاوت نیازها در زوج‌ها",
+    "when": "The same issue keeps returning because the partners need different amounts of closeness, freedom, fun or security, and each reads the other's difference as a lack of love.",
+    "core": [
+      "همه این پنج نیاز را دارند، ولی شدتشان در آدم‌ها فرق دارد؛ یکی به آزادی بیشتری نیاز دارد، یکی به نزدیکی بیشتر، یکی به امنیت و برنامه.",
+      "این تفاوت عیب نیست و معمولاً از بین نمی‌رود؛ چیزی است که باید شناخته و مدیریت شود.",
+      "سختی وقتی شروع می‌شود که تفاوت نیاز را به معنای «دوستم ندارد» یا «می‌خواهد کنترلم کند» بخوانیم.",
+      "سؤال مفید این است: با این تفاوت، هر کدام چه کاری می‌توانیم بکنیم که نیاز دیگری هم جا داشته باشد؟"
+    ],
+    "example": "اگر یکی بعد از کار به یک ساعت تنهایی نیاز دارد و دیگری به حرف زدن، می‌شود قرار گذاشت: اول یک ساعت آرامش، بعد نیم ساعت گفتگو بدون گوشی. هر دو نیاز جا پیدا می‌کنند.",
+    "check": "اگر شدت نیازهایتان را کنار هم بگذاری، کجا بیشترین فاصله را می‌بینی؟",
+    "avoid": ["Ranking one partner's needs as more mature or correct."],
+    "related": ["L-BASIC-NEEDS", "L-SOLVING-CIRCLE"],
+    "source": "Glasser, Getting Together and Staying Together (2000)."
+  },
+  {
+    "id": "L-QUALITY-WORLD",
+    "title": "The quality world",
+    "fa_title": "دنیای مطلوب",
+    "when": "Partners need to name what they want concretely; their pictures of a good relationship differ; or one has taken the other out of their quality world and the work is about putting each other back.",
+    "core": [
+      "هر کدام از ما در ذهنمان یک «دنیای مطلوب» داریم: آلبومی از تصویرهای آدم‌ها، کارها، چیزها و ارزش‌هایی که حالمان را خوب می‌کنند و نیازهایمان را برآورده می‌کنند.",
+      "همسرمان معمولاً یکی از مهم‌ترین تصویرهای این آلبوم است، همراه با تصویری از اینکه رابطهٔ خوب «چه شکلی» است.",
+      "دو نفر می‌توانند هر دو رابطهٔ خوب بخواهند و تصویرشان فرق کند؛ برای یکی یعنی شام با هم، برای دیگری یعنی سفر یا حرف زدن تا دیروقت.",
+      "وقتی دلخوری زیاد می‌شود، گاهی کم‌کم تصویر همسر را از این آلبوم بیرون می‌گذاریم. بخش مهمی از کار این است که هر کدام دوباره جایی برای دیگری در آن باز کنیم."
+    ],
+    "example": "اگر یکی بگوید «می‌خواهم رابطه‌مان گرم‌تر باشد»، تصویرش ممکن است «صبحانهٔ آخر هفته با هم» باشد. تا این تصویر گفته نشود، دیگری دنبال حدس زدن است.",
+    "check": "اگر رابطه‌تان همان‌طور می‌شد که دوست داری، یک صحنهٔ کوچک از آن چه شکلی بود؟",
+    "avoid": ["Telling a partner what should be in their quality world."],
+    "related": ["L-BASIC-NEEDS", "L-PERCEIVED-WORLD"],
+    "source": "Glasser, Choice Theory (1998), ch. 3."
+  },
+  {
+    "id": "L-PERCEIVED-WORLD",
+    "title": "The comparing place: wants versus what we perceive",
+    "fa_title": "ترازوی مقایسه و دنیای ادراکی",
+    "when": "Partners see the same event very differently; or frustration is high and it helps to show that the gap between what one wants and what one perceives drives behavior.",
+    "core": [
+      "ما دنیا را همان‌طور که هست نمی‌بینیم؛ آن را از فیلتر تجربه‌ها و ارزش‌های خودمان می‌بینیم. برای همین دو نفر از یک اتفاق دو روایت متفاوت دارند و هر دو صادق‌اند.",
+      "در ذهنمان دائماً چیزی که می‌خواهیم (تصویر دنیای مطلوب) را با چیزی که می‌بینیم مقایسه می‌کنیم؛ مثل یک ترازو.",
+      "وقتی کفهٔ ترازو یک‌طرفه می‌شود، احساس ناکامی می‌کنیم و این ناکامی ما را به رفتار وامی‌دارد؛ گاهی رفتاری که کمک می‌کند و گاهی رفتاری که رابطه را خراب‌تر می‌کند.",
+      "به‌جای بحث بر سر اینکه «واقعاً چه شد»، می‌شود پرسید: هر کدام چه می‌خواستیم و چه دیدیم؟"
+    ],
+    "example": "در یک مهمانی، یکی می‌بیند «همسرم تمام شب با دیگران گرم گرفت و مرا تنها گذاشت» و دیگری می‌بیند «بالاخره بعد از مدت‌ها خوش گذراندیم». ترازوی هر کدام با تصویر خودش سنجیده.",
+    "check": "در آن موقعیت، تو چه می‌خواستی و چه دیدی که ترازو را به هم ریخت؟",
+    "avoid": ["Deciding whose perception is correct."],
+    "related": ["L-QUALITY-WORLD", "L-TOTAL-BEHAVIOR"],
+    "source": "Glasser, Choice Theory (1998); Wubbolding, Reality Therapy (2011)."
+  },
+  {
+    "id": "L-TEN-AXIOMS",
+    "title": "The ten axioms of choice theory",
+    "fa_title": "اصول ده‌گانهٔ نظریهٔ انتخاب",
+    "when": "The couple asks for the big picture of the approach, or several misunderstandings (control, past, blame) block the work at once. Teach only the two or three axioms that fit, not all ten at once, unless they ask for the whole list.",
+    "core": [
+      "۱. تنها رفتاری که می‌توانیم کنترل کنیم رفتار خودمان است. ۲. تنها چیزی که می‌توانیم به دیگری بدهیم اطلاعات است.",
+      "۳. بیشتر مشکلات روانی ماندگار، مشکلِ رابطه‌اند. ۴. رابطهٔ مسئله‌دار همیشه بخشی از زندگی امروز ماست.",
+      "۵. گذشته در شکل‌گیری امروزمان نقش دارد، ولی نیازهایمان را فقط امروز و با برنامه برای آینده می‌توانیم برآورده کنیم. ۶. نیازهایمان را از راه تصویرهای دنیای مطلوبمان برآورده می‌کنیم.",
+      "۷. هر کاری که می‌کنیم رفتار است. ۸. هر رفتاری «رفتار کلی» است: عمل، فکر، احساس و حالت بدن. ۹. رفتار کلی انتخاب می‌شود، ولی فقط روی عمل و فکر کنترل مستقیم داریم.",
+      "۱۰. رفتار را بهتر است با فعل نام ببریم: به‌جای «افسرده‌ام» یا «عصبانی‌ام»، دیدن اینکه دارم «افسرده‌ کردن» یا «عصبانی شدن» را انجام می‌دهم، راه انتخاب دیگر را باز می‌کند."
+    ],
+    "example": "اگر هر دو منتظرید دیگری عوض شود، اصل اول یادآوری می‌کند که فقط کار خودتان دست خودتان است، و اصل دوم می‌گوید از دیگری فقط می‌شود درخواست کرد و اطلاعات داد، نه مجبورش کرد.",
+    "check": "از این اصل‌ها کدام‌یک الان بیشتر به گفتگوی شما ربط دارد؟",
+    "avoid": ["Reciting all ten as a lecture.", "Using axiom 1 to excuse a harmful partner."],
+    "related": ["L-EXTERNAL-CONTROL", "L-TOTAL-BEHAVIOR"],
+    "source": "Glasser, Choice Theory (1998), appendix: the ten axioms."
+  },
+  {
+    "id": "L-EXTERNAL-CONTROL",
+    "title": "External control psychology",
+    "fa_title": "روان‌شناسی کنترل بیرونی",
+    "when": "Partners try to change each other by pressure (criticism, guilt, threats, silent treatment) and believe the other must change first; or say 'if only he/she would...'.",
+    "core": [
+      "بیشتر ما با این باور بزرگ شده‌ایم که می‌شود و باید دیگران را وادار کرد کاری را که درست می‌دانیم انجام دهند، و اگر نکردند با فشار وادارشان کرد.",
+      "این باور، «کنترل بیرونی»، در کوتاه‌مدت گاهی جواب می‌دهد ولی در بلندمدت نزدیکی را از بین می‌برد؛ چون کسی که تحت فشار است، فاصله می‌گیرد.",
+      "در رابطه کسی را نمی‌شود مجبور به دوست داشتن، گوش دادن یا عوض شدن کرد؛ فقط می‌شود دعوت کرد.",
+      "نظریهٔ انتخاب پیشنهاد می‌کند به‌جای «چطور او را عوض کنم؟» بپرسیم «من چه کاری می‌توانم بکنم که ما به هم نزدیک‌تر شویم؟»"
+    ],
+    "example": "غر زدن دربارهٔ کارهای خانه شاید یک بار کار را پیش ببرد، ولی بار دهم فقط ایجاد فاصله می‌کند. یک درخواست روشن و یک قرار مشترک معمولاً بیشتر جواب می‌دهد.",
+    "check": "اخیراً کجا سعی کردی با فشار، کاری را از طرف مقابل بگیری؟ و چه نتیجه‌ای داد؟",
+    "avoid": ["Blaming either partner for using external control; everyone learned it."],
+    "related": ["L-SEVEN-DEADLY", "L-SEVEN-CARING", "L-TEN-AXIOMS"],
+    "source": "Glasser, Choice Theory (1998), ch. 1."
+  },
+  {
+    "id": "L-SEVEN-DEADLY",
+    "title": "The seven deadly habits",
+    "fa_title": "هفت عادت مخرب",
+    "when": "Criticism, blame, complaints, nagging, threats or punishment show up in the room or in their stories, and naming the pattern (without a culprit) would help them see it.",
+    "core": [
+      "هفت رفتار هست که تقریباً همیشه رابطه را سرد می‌کنند: انتقاد کردن، سرزنش کردن، شکایت و گلایهٔ مداوم، غر زدن، تهدید کردن، تنبیه کردن، و رشوه دادن یا جایزه دادن برای کنترل کردن.",
+      "همهٔ این‌ها راه‌های کنترل بیرونی‌اند: تلاش برای اینکه دیگری را با فشار وادار به تغییر کنیم.",
+      "تقریباً همهٔ ما این عادت‌ها را جایی یاد گرفته‌ایم و از سر بدی سراغشان نمی‌رویم؛ معمولاً وقتی ناکام و خسته‌ایم به آن‌ها پناه می‌بریم.",
+      "قدم اول دیدن آن‌ها در رفتار خودمان است، نه شمردنشان در رفتار دیگری."
+    ],
+    "example": "جملهٔ «تو هیچ‌وقت به من گوش نمی‌دی» هم انتقاد است و هم سرزنش. همان دلخوری را می‌شود این‌طور گفت: «وقتی وسط حرفم گوشی را نگاه می‌کنی، حس می‌کنم مهم نیستم.»",
+    "check": "اگر فقط به رفتار خودت نگاه کنی، کدام‌یک از این هفت عادت بیشتر از بقیه سراغت می‌آید؟",
+    "avoid": ["Using the list to score the other partner.", "Teaching it right after one partner attacked, in a way that shames them."],
+    "related": ["L-SEVEN-CARING", "L-EXTERNAL-CONTROL"],
+    "source": "Glasser, Choice Theory (1998); Glasser & Glasser, Getting Together and Staying Together (2000)."
+  },
+  {
+    "id": "L-SEVEN-CARING",
+    "title": "The seven caring habits",
+    "fa_title": "هفت عادت حمایتگر",
+    "when": "After the destructive habits are named, or when partners are ready to build: they ask what to do instead, or a plan needs concrete connecting behaviors.",
+    "core": [
+      "هفت رفتار رابطه را گرم و نزدیک می‌کند: حمایت کردن، تشویق کردن، گوش دادن، پذیرفتن، اعتماد کردن، احترام گذاشتن، و مذاکره دربارهٔ تفاوت‌ها.",
+      "این‌ها جایگزین عادت‌های مخرب‌اند؛ مثلاً به‌جای انتقاد، تشویقِ کار درستی که انجام شده، و به‌جای تهدید، مذاکره.",
+      "لازم نیست همه را با هم شروع کنی؛ یک عادت، در یک موقعیت مشخص، کافی است تا تفاوتش دیده شود.",
+      "هر کس فقط عادت‌های خودش را می‌تواند عوض کند؛ ولی وقتی یکی شروع می‌کند، فضای رابطه برای دیگری هم عوض می‌شود."
+    ],
+    "example": "گوش دادن یعنی وقتی همسرت از روزش می‌گوید، گوشی را کنار بگذاری و یک سؤال دربارهٔ همان حرف بپرسی، بدون راه‌حل دادن.",
+    "check": "کدام‌یک از این هفت عادت را می‌توانی همین هفته، در یک موقعیت مشخص، امتحان کنی؟",
+    "avoid": ["Assigning habits to the other partner."],
+    "related": ["L-SEVEN-DEADLY", "L-SMART-PLAN"],
+    "source": "Glasser, Choice Theory (1998); Glasser & Glasser, Getting Together and Staying Together (2000)."
+  },
+  {
+    "id": "L-SOLVING-CIRCLE",
+    "title": "The solving circle",
+    "fa_title": "دایرهٔ حل مسئله",
+    "when": "Both partners want to keep the relationship but every attempt to solve a problem turns into blame; they need a structure that keeps the focus on what each will do.",
+    "core": [
+      "تصور کنید یک دایره روی زمین است و درونش فقط سه چیز جا دارد: تو، همسرت، و خود رابطه‌تان.",
+      "قاعدهٔ دایره این است: وقتی داخلش هستید، هر دو قبول دارید که رابطه برایتان مهم است و می‌خواهید حفظش کنید.",
+      "داخل دایره سؤال این نیست که «او باید چه کند؟»؛ هر کدام می‌گویید «من این هفته برای رابطه‌مان چه کاری می‌توانم بکنم؟»",
+      "اگر کسی شروع به سرزنش کرد، یعنی از دایره بیرون رفته؛ آرام برمی‌گردید و دوباره همان سؤال را می‌پرسید."
+    ],
+    "example": "دربارهٔ تقسیم کارهای خانه: داخل دایره یکی می‌گوید «من خرید آخر هفته را برمی‌دارم» و دیگری «من شام سه‌شنبه‌ها را»، به‌جای فهرست کارهایی که دیگری انجام نمی‌دهد.",
+    "check": "اگر الان داخل این دایره بودید، تو چه کاری برای رابطه‌تان پیشنهاد می‌دادی؟",
+    "avoid": ["Using it when one partner does not want to stay in the relationship or there is a safety concern."],
+    "related": ["L-SEVEN-CARING", "L-WDEP"],
+    "source": "Glasser & Glasser, Getting Together and Staying Together (2000)."
+  },
+  {
+    "id": "L-WDEP",
+    "title": "How the work goes: WDEP",
+    "fa_title": "مسیر کار: خواسته، رفتار، ارزیابی، برنامه",
+    "when": "The couple asks how this process works or why the counselor keeps asking certain questions; or at a transition between stages, when naming the map would orient them.",
+    "core": [
+      "کار ما چهار ایستگاه دارد. اول «خواسته»: هر کدام روشن می‌کنید واقعاً چه می‌خواهید.",
+      "دوم «رفتار»: نگاه می‌کنیم الان در عمل چه می‌کنید تا به آن خواسته برسید.",
+      "سوم «ارزیابی»: هر کدام خودتان قضاوت می‌کنید که آیا همین کارها شما را به خواسته‌تان نزدیک می‌کند یا دور. این قضاوت با خودتان است، نه با من.",
+      "چهارم «برنامه»: یک قدم کوچک و مشخص که خودتان انتخاب می‌کنید، و جلسهٔ بعد با هم نگاه می‌کنیم چه شد."
+    ],
+    "example": "اگر خواسته «وقت بیشتر با هم» باشد، رفتار فعلی ممکن است «هر شب هر کدام با گوشی» باشد؛ ارزیابی این است که این ما را نزدیک می‌کند یا نه؛ و برنامه «سه‌شنبه شب یک ساعت بدون گوشی».",
+    "check": "فکر می‌کنی الان خودت در کدام ایستگاه این مسیر هستی؟",
+    "avoid": ["Turning it into a checklist the couple must pass."],
+    "related": ["L-SMART-PLAN", "L-QUALITY-WORLD"],
+    "source": "Wubbolding, Reality Therapy (2011)."
+  },
+  {
+    "id": "L-SMART-PLAN",
+    "title": "What makes a good plan",
+    "fa_title": "ویژگی‌های یک برنامهٔ خوب",
+    "when": "A partner proposes a plan that is vague, too big, depends on the other partner, or is phrased as stopping something; or a plan failed and they blame themselves.",
+    "core": [
+      "برنامهٔ خوب ساده و کوچک است؛ چیزی که مطمئنی از عهده‌اش برمی‌آیی.",
+      "قابل سنجیدن است: معلوم است کی، کجا و چند بار؛ «بیشتر محبت کنم» برنامه نیست، «شنبه شب از روزش بپرسم» برنامه است.",
+      "فقط به خودت بستگی دارد، نه به اینکه دیگری اول کاری بکند؛ و انجام دادنِ یک کار است، نه فقط «دیگر فلان کار را نکنم».",
+      "اگر برنامه‌ای انجام نشد، شکست نیست؛ نشانه است که برنامه باید کوچک‌تر یا عملی‌تر شود."
+    ],
+    "example": "«دیگر سرش داد نمی‌زنم» قول خوبی است ولی برنامه نیست. «وقتی صدایم بالا رفت، می‌گویم پنج دقیقه وقت لازم دارم و بعد برمی‌گردم» برنامه است.",
+    "check": "برنامه‌ای که در ذهنت هست، چطور می‌شود آن را کوچک‌تر و مشخص‌تر کرد؟",
+    "avoid": ["Writing the plan for them."],
+    "related": ["L-WDEP", "L-SEVEN-CARING"],
+    "source": "Wubbolding, Reality Therapy (2011), the SAMI2C3 plan."
+  },
+  {
+    "id": "L-PAST-AND-PRESENT",
+    "title": "The past and the present",
+    "fa_title": "گذشته و امروز",
+    "when": "A partner keeps returning to old hurts or childhood as the explanation, or asks why the counselor does not go into the past.",
+    "core": [
+      "گذشته مهم است و بخشی از اینکه امروز چه کسی هستیم را ساخته؛ قرار نیست انکارش کنیم.",
+      "ولی گذشته را نمی‌شود عوض کرد، و نیازهایمان را فقط امروز می‌توانیم برآورده کنیم.",
+      "برای همین وقتی از گذشته حرف می‌زنیم، آن را برای فهمیدن امروز به کار می‌بریم و نه برای پیدا کردن مقصر؛ سؤال اصلی این است که امروز با آن چه کار کنیم.",
+      "زخم‌های قدیمی در رابطه وقتی کمرنگ می‌شوند که تجربه‌های تازه و بهتری کنارشان ساخته شود."
+    ],
+    "example": "اگر کسی می‌گوید «پارسال تولدم را فراموش کرد»، شنیدن این دلخوری مهم است؛ ولی کار ما این است که بپرسیم امسال چه چیزی می‌تواند حس دیده شدن را برگرداند.",
+    "check": "از آنچه گذشته، چه چیزی هست که دوست داری امروز جور دیگری ساخته شود؟",
+    "avoid": ["Dismissing a painful past event.", "Using it while a partner is disclosing trauma."],
+    "related": ["L-TEN-AXIOMS"],
+    "source": "Glasser, Choice Theory (1998), axioms 4 and 5."
+  }
+]

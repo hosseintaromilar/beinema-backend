@@ -109,6 +109,7 @@ class FakeRoom {
         when(participants.findAllByChatRoom(room)).thenReturn(List.of(owner, member));
         when(participants.existsByChatRoomAndUser(any(), any())).thenReturn(true);
         when(agents.findActiveAgentIds(ROOM)).thenReturn(List.of(AGENT));
+        when(agents.findActiveAgentNames(ROOM)).thenReturn(List.of("نادر"));
         when(attachments.findAllByChatRoomIdAndMessageIdIsNotNull(ROOM)).thenReturn(List.of());
 
         when(messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(any())).thenAnswer(call -> new ArrayList<>(messages));
@@ -169,7 +170,7 @@ class FakeRoom {
         });
         when(milestoneRepository.findAllByChatRoomIdOrderByIdAsc(ROOM)).thenAnswer(call -> new ArrayList<>(milestones));
         loader = new TurnMaterialLoader(rooms, participants, messageRepository, attachments, intentRepository, questionRepository,
-                decisionRepository, stateStore, new KnowledgeRetriever(new KnowledgeBase()), inbox, config, milestoneRepository);
+                decisionRepository, stateStore, new KnowledgeRetriever(new KnowledgeBase()), inbox, config, milestoneRepository, agents);
         persistence = new TurnPersistence(decisionRepository, stateRepository, stateStore, intentRepository, ledger, questionService,
                 milestoneRepository);
         orchestrator = new TurnOrchestrator(loader, brain, config, persistence, questionService, realtime, eventHub, pauses,
@@ -246,6 +247,14 @@ class FakeRoom {
         final List<String> voicePackets = new ArrayList<>();
         final List<String> plannerPackets = new ArrayList<>();
         String plannerReply = "";
+        final List<String> teacherPackets = new ArrayList<>();
+        String teacherReply = "";
+
+        @Override
+        public Reply teacher(String packet) {
+            teacherPackets.add(packet);
+            return new Reply(teacherReply, 6);
+        }
 
         @Override
         public Reply planner(String packet) {

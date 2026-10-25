@@ -49,6 +49,17 @@ public final class SnapshotUpdater {
             removeAll(partner.unresolved, update.unresolvedResolved);
         });
 
+        if ("TEACH".equals(d.action) && d.lessonId != null) {
+            CounselingSnapshot.Taught taught = new CounselingSnapshot.Taught();
+            taught.id = d.lessonId;
+            taught.session = session;
+            taught.at = now;
+            s.lessons.add(taught);
+            if (s.lessons.size() > 30) {
+                s.lessons.remove(0);
+            }
+        }
+
         for (DirectorDecision.PlanOp op : d.plans) {
             if ("AGREE".equals(op.op)) {
                 CounselingSnapshot.Plan plan = new CounselingSnapshot.Plan();

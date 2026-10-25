@@ -144,7 +144,10 @@ public class TurnOrchestrator {
             return new Outcome(roomId, agentId, trigger, List.of(), true, false, null);
         }
 
-        // 5. the voice (still writing: keep the typing sign up for both partners)
+        // 5. a lesson: the teacher fits it to the couple, then the voice says it
+        LessonTeacher.Result taught = LessonTeacher.prepare(m, d, brain);
+
+        // 6. the voice (still writing: keep the typing sign up for both partners)
         chatRealtimeService.publishAgentTyping(roomId, 9000);
         String voicePacket = VoicePacketBuilder.forDecision(m, d, stored.readings(), config.getVoiceRecentMessages());
         String voiceRaw = "";
@@ -177,8 +180,11 @@ public class TurnOrchestrator {
             return new Outcome(roomId, agentId, trigger, List.of(), false, true, error);
         }
 
-        // 6. deliver
+        // 7. deliver
         List<String> notes = new ArrayList<>(out.notes());
+        if (taught != null) {
+            notes.add(taught.note() + " (" + taught.millis() + " ms)");
+        }
         Long addresseeId = PartnerRole.isPartner(d.addressee) ? m.userIdOf(d.addressee) : null;
         if (trigger != null && addresseeId != null && loader.personWroteAfter(roomId, addresseeId, trigger)) {
             // the person this reply speaks to wrote again meanwhile: the next turn answers them with everything

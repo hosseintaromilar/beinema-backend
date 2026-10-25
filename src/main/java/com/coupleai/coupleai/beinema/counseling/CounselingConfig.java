@@ -38,8 +38,9 @@ public class CounselingConfig {
     @Value("${beinema.brain.questions-per-session:10}")
     private int questionsPerSession = 10;
 
-    @Value("${beinema.debug.state-panel:false}")
-    private boolean statePanel;
+    /** Phone numbers that may open the counselor's decision path in a room (comma-separated). */
+    @Value("${beinema.debug.state-panel-phones:}")
+    private String statePanelPhones = "";
 
     public boolean orchestrated() {
         return mode != null && "orchestrated".equalsIgnoreCase(mode.trim());

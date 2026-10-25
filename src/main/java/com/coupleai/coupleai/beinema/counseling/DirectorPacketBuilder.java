@@ -64,6 +64,7 @@ public final class DirectorPacketBuilder {
         } else {
             m.cards().forEach(card -> out.append(card.text()).append('\n'));
         }
+        out.append("[LESSONS]\n").append(lessons(m));
         out.append("[RECENT_MESSAGES]\n");
         if (m.recent().isEmpty()) {
             out.append("none\n");
@@ -115,6 +116,24 @@ public final class DirectorPacketBuilder {
             out.append(role).append(": ").append(reached.isBlank() ? "none yet" : reached).append('\n');
         }
         return out.length() == 0 ? "none\n" : out.toString();
+    }
+
+    /** What the counselor can teach (action TEACH), and what it already taught. */
+    static String lessons(TurnMaterial m) {
+        java.util.Map<String, Integer> taught = new java.util.LinkedHashMap<>();
+        for (CounselingSnapshot.Taught item : m.snapshot().lessons) {
+            taught.put(item.id, item.session);
+        }
+        StringBuilder out = new StringBuilder();
+        for (Lessons.Lesson lesson : Lessons.all()) {
+            out.append(lesson.id()).append(" | ").append(lesson.title());
+            Integer session = taught.get(lesson.id());
+            if (session != null) {
+                out.append(" | TAUGHT in session ").append(session);
+            }
+            out.append(" | when: ").append(lesson.when()).append('\n');
+        }
+        return out.toString();
     }
 
     /** The name the couple gave the room: often a hint of why they came. */

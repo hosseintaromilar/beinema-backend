@@ -101,7 +101,7 @@ public class AgentService {
                 .type(requireType(request))
                 .description(clean(request.getDescription()))
                 .systemPrompt(requireText(request.getSystemPrompt(), "دستور سیستم"))
-                .avatar(clean(request.getAvatar()))
+                .avatar(avatarOf(request))
                 .headline(clean(request.getHeadline()))
                 .bio(clean(request.getBio()))
                 .specialties(clean(request.getSpecialties()))
@@ -125,7 +125,7 @@ public class AgentService {
         agent.setType(requireType(request));
         agent.setDescription(clean(request.getDescription()));
         agent.setSystemPrompt(requireText(request.getSystemPrompt(), "دستور سیستم"));
-        agent.setAvatar(clean(request.getAvatar()));
+        agent.setAvatar(avatarOf(request));
         agent.setHeadline(clean(request.getHeadline()));
         agent.setBio(clean(request.getBio()));
         agent.setSpecialties(clean(request.getSpecialties()));
@@ -203,6 +203,12 @@ public class AgentService {
             throw new IllegalArgumentException("هزینه دسترسی نمی‌تواند منفی باشد.");
         }
         return price;
+    }
+
+    // the small picture next to the counselor's messages: the photo unless one is given
+    private static String avatarOf(AgentRequest request) {
+        String avatar = clean(request.getAvatar());
+        return avatar != null ? avatar : clean(request.getPhotoUrl());
     }
 
     private static String clean(String raw) {

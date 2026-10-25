@@ -226,4 +226,35 @@ class DecisionValidatorTest {
         assertTrue(d.intents.isEmpty());
         assertNull(d.question);
     }
+
+    @Test
+    void teachingNeedsALessonOfTheKnowledgeBase() throws Exception {
+        String teach = "{\"action\":\"TEACH\",\"addressee\":\"BOTH\",\"governance\":{\"gov\":\"NONE\"}}";
+
+        DirectorDecision d = DecisionValidator.validate(json(teach,
+                "\"lesson\":{\"id\":\"l-seven-deadly\",\"why\":\"they keep blaming each other\"}"), ctx());
+        assertEquals("TEACH", d.action);
+        assertEquals("L-SEVEN-DEADLY", d.lessonId);
+        assertEquals("they keep blaming each other", d.lessonWhy);
+
+        DirectorDecision unknown = DecisionValidator.validate(json(teach, "\"lesson\":{\"id\":\"L-INVENTED\"}"), ctx());
+        assertEquals("RESPOND", unknown.action, "a lesson the knowledge base does not have is not taught");
+        assertNull(unknown.lessonId);
+
+        DirectorDecision none = DecisionValidator.validate(json(teach, "\"lesson\":null"), ctx());
+        assertEquals("RESPOND", none.action);
+
+        DirectorDecision other = DecisionValidator.validate(json("{\"action\":\"ASK_OPEN\",\"addressee\":\"OWNER\"}",
+                "\"lesson\":{\"id\":\"L-BASIC-NEEDS\"}"), ctx());
+        assertNull(other.lessonId, "a lesson only goes with TEACH");
+    }
+
+    @Test
+    void noTeachingDuringASafetyConcern() throws Exception {
+        String teach = "{\"action\":\"TEACH\",\"addressee\":\"BOTH\",\"governance\":{\"gov\":\"NONE\"}}";
+        DirectorDecision d = DecisionValidator.validate(json(teach,
+                "\"lesson\":{\"id\":\"L-BASIC-NEEDS\",\"why\":\"x\"},"
+                        + "\"safety\":{\"level\":\"CONCERN\",\"who\":\"OWNER\",\"signals\":[\"fear\"],\"note\":\"afraid\"}"), ctx());
+        assertEquals("SAFETY_ASSESS", d.action);
+    }
 }

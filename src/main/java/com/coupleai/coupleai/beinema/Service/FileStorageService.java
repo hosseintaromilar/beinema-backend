@@ -30,6 +30,15 @@ public class FileStorageService {
     }
 
     public String storeAvatar(Long userId, MultipartFile file) {
+        return storeImage("avatars", String.valueOf(userId), file);
+    }
+
+    /** An agent's photo, uploaded in the admin panel. */
+    public String storeAgentPhoto(MultipartFile file) {
+        return storeImage("agents", "agent", file);
+    }
+
+    private String storeImage(String folder, String prefix, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("فایل عکس انتخاب نشده است");
         }
@@ -45,16 +54,16 @@ public class FileStorageService {
         }
 
         String extension = extensionOf(file.getOriginalFilename(), contentType);
-        String filename = userId + "-" + UUID.randomUUID() + extension;
-        Path avatarsDir = uploadRoot.resolve("avatars");
+        String filename = prefix + "-" + UUID.randomUUID() + extension;
+        Path dir = uploadRoot.resolve(folder);
 
         try {
-            Files.createDirectories(avatarsDir);
-            Path target = avatarsDir.resolve(filename);
+            Files.createDirectories(dir);
+            Path target = dir.resolve(filename);
             file.transferTo(target.toFile());
-            return "/uploads/avatars/" + filename;
+            return "/uploads/" + folder + "/" + filename;
         } catch (IOException exception) {
-            throw new IllegalArgumentException("ذخیره عکس پروفایل ناموفق بود");
+            throw new IllegalArgumentException("ذخیره عکس ناموفق بود");
         }
     }
 

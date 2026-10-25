@@ -32,12 +32,12 @@ public final class DecisionValidator {
             "RESPOND", "REFLECT", "SUMMARIZE", "ASK_OPEN", "ASK_CLARIFYING", "LISTENING", "WAIT",
             "EXPLORE_DOING", "FACILITATE_EVALUATION", "SUPPORT_PLANNING", "FOLLOW_UP_PLAN", "REVISIT_WANT",
             "RETURN_TO_THREAD", "INTERVENE", "INVITE_QUIET", "SAFETY_ASSESS", "SAFETY_RESPONSE",
-            "LIMIT_ROUTINE", "END_SESSION", "OTHER"
+            "LIMIT_ROUTINE", "END_SESSION", "TEACH", "OTHER"
     );
     /** Ordinary work that stops while a safety concern is open. */
     static final Set<String> ROUTINE = Set.of(
             "ASK_CLARIFYING", "EXPLORE_DOING", "FACILITATE_EVALUATION", "SUPPORT_PLANNING", "FOLLOW_UP_PLAN",
-            "REVISIT_WANT", "RETURN_TO_THREAD", "WAIT", "SUMMARIZE"
+            "REVISIT_WANT", "RETURN_TO_THREAD", "WAIT", "SUMMARIZE", "TEACH"
     );
     private static final Set<String> KINDS = Set.of(
             "WANT", "BEHAVIOR", "FEELING", "PERCEPTION_OF_PARTNER", "ANSWER_TO_QUESTION", "NEW_INFO", "RESISTANCE",
@@ -94,6 +94,7 @@ public final class DecisionValidator {
         readPlans(root.path("plans"), d, ctx);
         readMilestones(root.path("milestones"), d, ctx);
         readDecision(root.path("decision"), d, ctx);
+        readLesson(root.path("lesson"), d);
         readQuestionUpdates(root.path("question_updates"), d, ctx);
         readBrief(root.path("brief"), d, ctx);
         d.reviewIf = strings(root.path("review_if"), 5, 240);
@@ -440,6 +441,24 @@ public final class DecisionValidator {
         d.sticker = normalizeToken(n.path("signal").path("sticker").asText(null));
         d.lead = oneOf(n.path("lead").asText(""), LEADS, "NONE");
         d.route = "WAIT".equals(d.action) ? "SILENT" : "SPEAK";
+    }
+
+    /** TEACH needs a lesson of kb/lessons.json; without one the move becomes an ordinary reply. */
+    private static void readLesson(JsonNode lesson, DirectorDecision d) {
+        String id = lesson.path("id").asText("").trim().toUpperCase(Locale.ROOT);
+        if (!"TEACH".equals(d.action)) {
+            if (!id.isEmpty()) {
+                d.notes.add("lesson: " + id + " ignored, the action is " + d.action);
+            }
+            return;
+        }
+        if (Lessons.find(id).isEmpty()) {
+            d.notes.add("lesson: TEACH without a known lesson ('" + clip(id, 40) + "') became RESPOND");
+            d.action = "RESPOND";
+            return;
+        }
+        d.lessonId = id;
+        d.lessonWhy = clip(lesson.path("why").asText(""), 300);
     }
 
     private static void readQuestion(JsonNode q, DirectorDecision d, Context ctx) {

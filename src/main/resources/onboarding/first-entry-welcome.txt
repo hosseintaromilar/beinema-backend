@@ -4,14 +4,17 @@
 # It is fixed text (not written by the model), so it is complete every time.
 # Order: who the counselor is, how the work goes and its framework, how to invite
 # the partner (room creator only), the rules and safety, then the request to agree.
-# Sections start with [[name]]. Placeholders: {name} {agent} {inviter} {minutes} {break_minutes}
+# Sections start with [[name]]. Placeholders: {name} {intro} {inviter} {minutes} {break_minutes}
 # {overtime_minutes} {max_sessions} {started} {partner} {framework} {process} {rules}.
+# {intro} is the counselor's first sentence, made from the agent's name in the admin panel
+# (WelcomeGuide.introduction): «نادر» -> «من نادر هستم؛ همراه هوشمند زوج‌ها در بین‌ما.»,
+# «نادر، مشاور زوج‌درمانگر بین‌ما» -> «من نادر، مشاور زوج‌درمانگر بین‌ما هستم.»
 # Lines starting with # are ignored.
 
 [[owner]]
 سلام {name}، به بین‌ما خوش اومدی.
 
-من {agent} بین‌ما هستم؛ یک همراه هوشمند برای زوج‌ها. اینجا فضایی خصوصی برای تو و پارتنرت است تا با کمک من بهتر بفهمید هر کدام چه می‌خواهید و برای رابطه‌تان چه کاری از دست خودتان برمی‌آید.
+{intro} اینجا فضایی خصوصی برای تو و پارتنرت است تا با کمک من بهتر بفهمید هر کدام چه می‌خواهید و برای رابطه‌تان چه کاری از دست خودتان برمی‌آید.
 
 {process}
 
@@ -31,7 +34,7 @@
 [[partner]]
 سلام {name}، به بین‌ما خوش اومدی.
 
-من {agent} بین‌ما هستم؛ یک همراه هوشمند برای زوج‌ها. {inviter} تو را به این گروه دعوت کرده تا با هم و با کمک من بهتر بفهمید هر کدام چه می‌خواهید و برای رابطه‌تان چه کاری از دست خودتان برمی‌آید.{started}
+{intro} {inviter} تو را به این گروه دعوت کرده تا با هم و با کمک من بهتر بفهمید هر کدام چه می‌خواهید و برای رابطه‌تان چه کاری از دست خودتان برمی‌آید.{started}
 
 {process}
 

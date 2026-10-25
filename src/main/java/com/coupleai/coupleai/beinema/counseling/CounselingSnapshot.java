@@ -36,6 +36,15 @@ public class CounselingSnapshot {
     public int planSeq;
     /** The session manager's plan of the current session (agenda, checkpoints, how to close). */
     public SessionPlan sessionPlan;
+    /** Lessons already taught (kb/lessons.json), so the director does not teach them again. */
+    public List<Taught> lessons = new ArrayList<>();
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Taught {
+        public String id;
+        public int session;
+        public String at;
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SessionPlan {

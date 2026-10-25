@@ -52,6 +52,7 @@ public class TurnMaterialLoader {
     private final TurnInbox inbox;
     private final CounselingConfig config;
     private final com.coupleai.coupleai.beinema.Repository.PersonMilestoneRepository milestoneRepository;
+    private final com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository;
 
     @Transactional(readOnly = true)
     public TurnMaterial load(Long roomId) {
@@ -178,7 +179,11 @@ public class TurnMaterialLoader {
 
         return new TurnMaterial(room, sessionNumber, minutes, planned, partners, recent, fresh, notes, state, snapshot,
                 intents, open, answered, asked, lastTurns, screen, tags, cards, roleByUserId, roleByMessageId, looseTexts,
-                byId, files, milestoneRepository.findAllByChatRoomIdOrderByIdAsc(roomId));
+                byId, files, milestoneRepository.findAllByChatRoomIdOrderByIdAsc(roomId),
+                chatRoomAgentRepository.findActiveAgentNames(roomId).stream()
+                        .filter(name -> name != null && !name.isBlank())
+                        .findFirst()
+                        .orElse(""));
     }
 
     /** Whether this person wrote again after the given message (their newer words make a reply to the old ones stale). */
