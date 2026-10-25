@@ -39,9 +39,17 @@ import org.springframework.stereotype.Service;
 
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Deque;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 
 @Service
@@ -92,6 +100,18 @@ public class AuthService {
     @Value("${beinema.otp-bypass-phones:}")
     private String otpBypassPhones;
 
+    /**
+     * With a code, the bypass numbers get no SMS but must type this fixed code;
+     * without one (local development) they sign in directly.
+     */
+    @Value("${beinema.otp-bypass-code:}")
+    private String otpBypassCode;
+
+    private static final int BYPASS_MAX_FAILURES = 5;
+
+    /** Wrong fixed codes per phone in the last hour. */
+    private final Map<String, Deque<Instant>> bypassFailures = new ConcurrentHashMap<>();
+
 
     public AuthResponse register(RegisterRequest request) {
         throw new InvalidCredentialsException(PHONE_ONLY);
@@ -117,6 +137,10 @@ public class AuthService {
         String phone = PhoneNumbers.normalize(
                 request == null ? null : request.getPhoneNumber()
         );
+
+        if (fixedCodeFor(phone)) {
+            return new OtpRequestResponse(FIXED_CODE_PROMPT, false, null, false, null);
+        }
 
         if (isListedPhone(otpBypassPhones, phone)) {
             AuthResponse session = openPhoneSession(
@@ -149,7 +173,7 @@ public class AuthService {
         String phone = PhoneNumbers.normalize(
                 request == null ? null : request.getPhoneNumber()
         );
-        consumeLoginCode(phone, request == null ? null : request.getCode());
+        checkCode(phone, request == null ? null : request.getCode());
         return openPhoneSession(
                 phone,
                 request == null ? null : request.getReferralCode()
@@ -202,6 +226,10 @@ public class AuthService {
                 request == null ? null : request.getPhoneNumber()
         );
 
+        if (fixedCodeFor(phone)) {
+            return new OtpRequestResponse(FIXED_CODE_PROMPT, false, null, false, null);
+        }
+
         if (isListedPhone(otpBypassPhones, phone)) {
             AuthResponse session = linkPhone(
                     user,
@@ -233,7 +261,7 @@ public class AuthService {
         String phone = PhoneNumbers.normalize(
                 request == null ? null : request.getPhoneNumber()
         );
-        consumeLoginCode(phone, request == null ? null : request.getCode());
+        checkCode(phone, request == null ? null : request.getCode());
         return linkPhone(
                 user,
                 phone,
@@ -357,6 +385,39 @@ public class AuthService {
                     exception
             );
         }
+    }
+
+
+    private static final String FIXED_CODE_PROMPT =
+            "برای این شماره پیامک فرستاده نمی‌شود؛ کد ثابت ورود را وارد کنید.";
+
+    private boolean fixedCodeFor(String phone) {
+        return otpBypassCode != null && !otpBypassCode.isBlank() && isListedPhone(otpBypassPhones, phone);
+    }
+
+    /** The fixed code for the bypass numbers, the SMS code for everyone else. */
+    private void checkCode(String phone, String rawCode) {
+        if (!fixedCodeFor(phone)) {
+            consumeLoginCode(phone, rawCode);
+            return;
+        }
+        Deque<Instant> failures = bypassFailures.computeIfAbsent(phone, key -> new ConcurrentLinkedDeque<>());
+        Instant hourAgo = Instant.now().minus(Duration.ofHours(1));
+        failures.removeIf(at -> at.isBefore(hourAgo));
+        if (failures.size() >= BYPASS_MAX_FAILURES) {
+            throw new InvalidCredentialsException("تعداد تلاش‌ها بیش از حد مجاز است. یک ساعت دیگر دوباره تلاش کنید.");
+        }
+        String code = rawCode == null ? "" : rawCode.trim();
+        boolean same = MessageDigest.isEqual(
+                code.getBytes(StandardCharsets.UTF_8),
+                otpBypassCode.trim().getBytes(StandardCharsets.UTF_8)
+        );
+        if (!same) {
+            failures.add(Instant.now());
+            log.warn("Wrong fixed login code for ***{}", phone.substring(phone.length() - 4));
+            throw new InvalidCredentialsException("کد واردشده درست نیست.");
+        }
+        failures.clear();
     }
 
 
