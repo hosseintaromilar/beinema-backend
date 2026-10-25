@@ -1,6 +1,8 @@
 package com.coupleai.coupleai.beinema.Security;
 
 import com.coupleai.coupleai.beinema.Exception.InvalidCredentialsException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -24,6 +26,8 @@ import java.util.Set;
  */
 @Component
 public class GoogleTokenVerifier {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleTokenVerifier.class);
 
     static final String JWK_SET_URI = "https://www.googleapis.com/oauth2/v3/certs";
 
@@ -68,6 +72,11 @@ public class GoogleTokenVerifier {
         try {
             jwt = decoder().decode(idToken.trim());
         } catch (JwtException exception) {
+            // the reason (expired, wrong audience, keys unreachable...) goes to the log, never the token
+            log.warn("Google token rejected: {}: {}", exception.getClass().getSimpleName(), exception.getMessage());
+            if (String.valueOf(exception.getMessage()).contains("JWK")) {
+                throw new InvalidCredentialsException("ورود با گوگل الان ممکن نیست؛ سرور به گوگل دسترسی ندارد.");
+            }
             throw new InvalidCredentialsException("ورود با گوگل ناموفق بود. دوباره تلاش کنید.");
         }
 
