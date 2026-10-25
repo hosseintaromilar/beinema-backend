@@ -3,6 +3,8 @@ package com.coupleai.coupleai.beinema.Service;
 
 import com.coupleai.coupleai.beinema.DTO.Auth.AuthResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.ForgotPasswordRequest;
+import com.coupleai.coupleai.beinema.DTO.Auth.GoogleConfigResponse;
+import com.coupleai.coupleai.beinema.DTO.Auth.GoogleSignInRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LoginRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LogoutResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.OtpPhoneRequest;
@@ -19,6 +21,9 @@ import com.coupleai.coupleai.beinema.Exception.SmsDeliveryException;
 import com.coupleai.coupleai.beinema.Exception.UserNotActiveException;
 import com.coupleai.coupleai.beinema.Repository.PhoneLoginCodeRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
+import com.coupleai.coupleai.beinema.Security.CurrentUserService;
+import com.coupleai.coupleai.beinema.Security.GoogleTokenVerifier;
+import com.coupleai.coupleai.beinema.Security.GoogleTokenVerifier.GoogleIdentity;
 import com.coupleai.coupleai.beinema.Security.JwtService;
 import com.coupleai.coupleai.beinema.Security.TokenBlacklistService;
 import com.coupleai.coupleai.beinema.Service.sms.SmsProvider;
@@ -77,6 +82,10 @@ public class AuthService {
 
     private final ReferralService referralService;
 
+    private final GoogleTokenVerifier googleTokenVerifier;
+
+    private final CurrentUserService currentUserService;
+
     @Value("${beinema.admin-phones:}")
     private String adminPhones;
 
@@ -124,61 +133,7 @@ public class AuthService {
             );
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        phoneLoginCodeRepository
-                .findTopByPhoneNumberOrderByCreatedAtDesc(phone)
-                .filter(latest -> !latest.isUsed()
-                        && latest.getCreatedAt() != null
-                        && latest.getCreatedAt().isAfter(now.minusSeconds(RESEND_COOLDOWN_SECONDS)))
-                .ifPresent(latest -> {
-                    throw new IllegalArgumentException(
-                            "کد قبلی هنوز معتبر است. یک دقیقه دیگر دوباره تلاش کنید."
-                    );
-                });
-
-        long sentRecently = phoneLoginCodeRepository.countByPhoneNumberAndCreatedAtAfter(
-                phone,
-                now.minusHours(1)
-        );
-        if (sentRecently >= HOURLY_LIMIT) {
-            throw new IllegalArgumentException(
-                    "تعداد درخواست کد بیش از حد مجاز است. کمی بعد دوباره تلاش کنید."
-            );
-        }
-
-        phoneLoginCodeRepository.findByPhoneNumberAndUsedFalse(phone)
-                .forEach(previous -> {
-                    previous.setUsed(true);
-                    phoneLoginCodeRepository.save(previous);
-                });
-
-        String code = String.format("%04d", RANDOM.nextInt(10_000));
-        phoneLoginCodeRepository.save(
-                PhoneLoginCode.builder()
-                        .phoneNumber(phone)
-                        .codeHash(passwordEncoder.encode(code))
-                        .expiresAt(now.plusMinutes(OTP_TTL_MINUTES))
-                        .attempts(0)
-                        .used(false)
-                        .build()
-        );
-
-        try {
-            smsProvider.send(
-                    phone,
-                    "کد ورود بین‌ما: " + code + "\nاین کد تا ۲ دقیقه معتبر است."
-            );
-        } catch (SmsDeliveryException exception) {
-            log.warn(
-                    "OTP sms failed for ***{}: {}",
-                    phone.substring(phone.length() - 4),
-                    exception.getMessage()
-            );
-            throw new SmsDeliveryException(
-                    "ارسال پیامک ناموفق بود. کمی بعد دوباره تلاش کنید.",
-                    exception
-            );
-        }
+        sendLoginCode(phone);
 
         return new OtpRequestResponse(
                 "کد ۴ رقمی به شماره موبایل شما پیامک شد.",
@@ -194,42 +149,93 @@ public class AuthService {
         String phone = PhoneNumbers.normalize(
                 request == null ? null : request.getPhoneNumber()
         );
-        String code = request == null || request.getCode() == null
-                ? ""
-                : request.getCode().trim();
+        consumeLoginCode(phone, request == null ? null : request.getCode());
+        return openPhoneSession(
+                phone,
+                request == null ? null : request.getReferralCode()
+        );
+    }
 
-        if (!code.matches("\\d{4}")) {
-            throw new InvalidCredentialsException("کد ۴ رقمی پیامک‌شده را وارد کنید.");
+
+    public GoogleConfigResponse googleConfig() {
+        return new GoogleConfigResponse(
+                googleTokenVerifier.isEnabled(),
+                googleTokenVerifier.isEnabled() ? googleTokenVerifier.clientId() : null
+        );
+    }
+
+
+    /**
+     * Sign-in with a Google ID token. A new Google user gets an account without
+     * a phone number; the app then asks for the number once (requestPhoneLink /
+     * verifyPhoneLink), because partners and invitations are matched by phone.
+     */
+    public AuthResponse signInWithGoogle(GoogleSignInRequest request) {
+        GoogleIdentity identity = googleTokenVerifier.verify(
+                request == null ? null : request.getCredential()
+        );
+
+        User user = userRepository.findByGoogleSubject(identity.subject())
+                .or(() -> userRepository.findByEmail(identity.email())
+                        .filter(existing -> existing.getGoogleSubject() == null
+                                && !existing.isDeleted()))
+                .orElseGet(() -> createGoogleUser(identity));
+
+        if (!user.isActive()) {
+            throw new UserNotActiveException("حساب کاربری شما فعال نیست");
         }
+        if (user.getGoogleSubject() == null) {
+            user.setGoogleSubject(identity.subject());
+        }
+        if (user.getPhoneNumber() != null && isListedPhone(adminPhones, user.getPhoneNumber())) {
+            user.setRole(UserRole.ADMIN);
+        }
+        user.updateLastLogin();
+        userRepository.save(user);
+        return sessionFor(user);
+    }
 
-        PhoneLoginCode stored = phoneLoginCodeRepository
-                .findTopByPhoneNumberAndUsedFalseOrderByCreatedAtDesc(phone)
-                .orElseThrow(() -> new InvalidCredentialsException(
-                        "کد ورود پیدا نشد. دوباره درخواست کنید."
-                ));
 
-        if (stored.getExpiresAt() == null
-                || stored.getExpiresAt().isBefore(LocalDateTime.now())) {
-            stored.setUsed(true);
-            phoneLoginCodeRepository.save(stored);
-            throw new InvalidCredentialsException(
-                    "مهلت این کد تمام شده. دوباره کد بگیرید."
+    public OtpRequestResponse requestPhoneLink(OtpPhoneRequest request) {
+        User user = requireUserWithoutPhone();
+        String phone = PhoneNumbers.normalize(
+                request == null ? null : request.getPhoneNumber()
+        );
+
+        if (isListedPhone(otpBypassPhones, phone)) {
+            AuthResponse session = linkPhone(
+                    user,
+                    phone,
+                    request == null ? null : request.getReferralCode()
+            );
+            return new OtpRequestResponse(
+                    "شماره موبایل تأیید شد",
+                    true,
+                    session.getToken(),
+                    session.isProfileComplete(),
+                    session.getRole()
             );
         }
 
-        if (!passwordEncoder.matches(code, stored.getCodeHash())) {
-            int attempts = phoneOtpLockService.recordFailedAttempt(stored.getId());
-            if (attempts >= PhoneOtpLockService.MAX_ATTEMPTS) {
-                throw new InvalidCredentialsException(
-                        "تعداد تلاش‌ها بیش از حد مجاز است. کد جدید بگیرید."
-                );
-            }
-            throw new InvalidCredentialsException("کد واردشده درست نیست.");
-        }
+        sendLoginCode(phone);
+        return new OtpRequestResponse(
+                "کد ۴ رقمی به شماره موبایل شما پیامک شد.",
+                false,
+                null,
+                false,
+                null
+        );
+    }
 
-        stored.setUsed(true);
-        phoneLoginCodeRepository.save(stored);
-        return openPhoneSession(
+
+    public AuthResponse verifyPhoneLink(OtpVerifyRequest request) {
+        User user = requireUserWithoutPhone();
+        String phone = PhoneNumbers.normalize(
+                request == null ? null : request.getPhoneNumber()
+        );
+        consumeLoginCode(phone, request == null ? null : request.getCode());
+        return linkPhone(
+                user,
                 phone,
                 request == null ? null : request.getReferralCode()
         );
@@ -291,18 +297,209 @@ public class AuthService {
             referralService.rewardNewUser(user, referralCode);
         }
 
+        return openSession(user, phone);
+    }
+
+
+    private void sendLoginCode(String phone) {
+        LocalDateTime now = LocalDateTime.now();
+        phoneLoginCodeRepository
+                .findTopByPhoneNumberOrderByCreatedAtDesc(phone)
+                .filter(latest -> !latest.isUsed()
+                        && latest.getCreatedAt() != null
+                        && latest.getCreatedAt().isAfter(now.minusSeconds(RESEND_COOLDOWN_SECONDS)))
+                .ifPresent(latest -> {
+                    throw new IllegalArgumentException(
+                            "کد قبلی هنوز معتبر است. یک دقیقه دیگر دوباره تلاش کنید."
+                    );
+                });
+
+        long sentRecently = phoneLoginCodeRepository.countByPhoneNumberAndCreatedAtAfter(
+                phone,
+                now.minusHours(1)
+        );
+        if (sentRecently >= HOURLY_LIMIT) {
+            throw new IllegalArgumentException(
+                    "تعداد درخواست کد بیش از حد مجاز است. کمی بعد دوباره تلاش کنید."
+            );
+        }
+
+        phoneLoginCodeRepository.findByPhoneNumberAndUsedFalse(phone)
+                .forEach(previous -> {
+                    previous.setUsed(true);
+                    phoneLoginCodeRepository.save(previous);
+                });
+
+        String code = String.format("%04d", RANDOM.nextInt(10_000));
+        phoneLoginCodeRepository.save(
+                PhoneLoginCode.builder()
+                        .phoneNumber(phone)
+                        .codeHash(passwordEncoder.encode(code))
+                        .expiresAt(now.plusMinutes(OTP_TTL_MINUTES))
+                        .attempts(0)
+                        .used(false)
+                        .build()
+        );
+
+        try {
+            smsProvider.send(
+                    phone,
+                    "کد ورود بین‌ما: " + code + "\nاین کد تا ۲ دقیقه معتبر است."
+            );
+        } catch (SmsDeliveryException exception) {
+            log.warn(
+                    "OTP sms failed for ***{}: {}",
+                    phone.substring(phone.length() - 4),
+                    exception.getMessage()
+            );
+            throw new SmsDeliveryException(
+                    "ارسال پیامک ناموفق بود. کمی بعد دوباره تلاش کنید.",
+                    exception
+            );
+        }
+    }
+
+
+    private void consumeLoginCode(String phone, String rawCode) {
+        String code = rawCode == null ? "" : rawCode.trim();
+        if (!code.matches("\\d{4}")) {
+            throw new InvalidCredentialsException("کد ۴ رقمی پیامک‌شده را وارد کنید.");
+        }
+
+        PhoneLoginCode stored = phoneLoginCodeRepository
+                .findTopByPhoneNumberAndUsedFalseOrderByCreatedAtDesc(phone)
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "کد ورود پیدا نشد. دوباره درخواست کنید."
+                ));
+
+        if (stored.getExpiresAt() == null
+                || stored.getExpiresAt().isBefore(LocalDateTime.now())) {
+            stored.setUsed(true);
+            phoneLoginCodeRepository.save(stored);
+            throw new InvalidCredentialsException(
+                    "مهلت این کد تمام شده. دوباره کد بگیرید."
+            );
+        }
+
+        if (!passwordEncoder.matches(code, stored.getCodeHash())) {
+            int attempts = phoneOtpLockService.recordFailedAttempt(stored.getId());
+            if (attempts >= PhoneOtpLockService.MAX_ATTEMPTS) {
+                throw new InvalidCredentialsException(
+                        "تعداد تلاش‌ها بیش از حد مجاز است. کد جدید بگیرید."
+                );
+            }
+            throw new InvalidCredentialsException("کد واردشده درست نیست.");
+        }
+
+        stored.setUsed(true);
+        phoneLoginCodeRepository.save(stored);
+    }
+
+
+    private User createGoogleUser(GoogleIdentity identity) {
+        if (userRepository.existsByEmail(identity.email())) {
+            throw new IllegalArgumentException(
+                    "این ایمیل به حساب دیگری وصل است. با شماره موبایل وارد شوید."
+            );
+        }
+
+        String firstName = namePart(identity.givenName());
+        String lastName = namePart(identity.familyName());
+        boolean named = firstName != null && lastName != null;
+
+        // no wallet or referral reward yet: those wait for the verified phone number
+        return userRepository.save(User.builder()
+                .name(named ? firstName + " " + lastName : "")
+                .firstName(named ? firstName : null)
+                .lastName(named ? lastName : null)
+                .email(identity.email())
+                .googleSubject(identity.subject())
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .status(UserStatus.ACTIVE)
+                .role(UserRole.USER)
+                .emailVerified(true)
+                .build());
+    }
+
+
+    private static String namePart(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim().replaceAll("\\s+", " ");
+        return trimmed.length() < 2 || trimmed.length() > 50 ? null : trimmed;
+    }
+
+
+    private User requireUserWithoutPhone() {
+        User user = currentUserService.getCurrentUser();
+        if (user.getPhoneNumber() != null && !user.getPhoneNumber().isBlank()) {
+            throw new IllegalArgumentException("شماره موبایل این حساب قبلاً تأیید شده است.");
+        }
+        return user;
+    }
+
+
+    /**
+     * The phone is verified. If no account has it, it becomes this account's
+     * number. If one does, that account is the person's real one: the Google
+     * login moves to it and the empty account made by the Google sign-in is
+     * retired (it could not be used before this step).
+     */
+    private AuthResponse linkPhone(User user, String phone, String referralCode) {
+        User owner = userRepository.findByPhoneNumber(phone).orElse(null);
+
+        if (owner == null) {
+            user.setPhoneNumber(phone);
+            User saved = userRepository.save(user);
+            walletService.getOrCreate(saved);
+            referralService.rewardNewUser(saved, referralCode);
+            return openSession(saved, phone);
+        }
+
+        if (!owner.isActive()) {
+            throw new UserNotActiveException("حساب کاربری این شماره فعال نیست");
+        }
+        String subject = user.getGoogleSubject();
+        if (subject == null
+                || (owner.getGoogleSubject() != null && !owner.getGoogleSubject().equals(subject))) {
+            throw new IllegalArgumentException(
+                    "این شماره به حساب دیگری وصل است."
+            );
+        }
+
+        user.setGoogleSubject(null);
+        user.setDeleted(true);
+        userRepository.saveAndFlush(user);
+
+        owner.setGoogleSubject(subject);
+        if (!owner.hasRegisteredName() && user.hasRegisteredName()) {
+            owner.setFirstName(user.getFirstName());
+            owner.setLastName(user.getLastName());
+            owner.setName(user.getName());
+        }
+        return openSession(owner, phone);
+    }
+
+
+    private AuthResponse openSession(User user, String phone) {
         if (isListedPhone(adminPhones, phone)) {
             user.setRole(UserRole.ADMIN);
         }
         user.updateLastLogin();
         userRepository.save(user);
+        return sessionFor(user);
+    }
 
+
+    private AuthResponse sessionFor(User user) {
         String token = jwtService.generateToken(user.getId(), user.getEmail());
         return new AuthResponse(
                 "ورود با موفقیت انجام شد",
                 token,
                 user.hasRegisteredName(),
-                user.getRole().name()
+                user.getRole().name(),
+                user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()
         );
     }
 

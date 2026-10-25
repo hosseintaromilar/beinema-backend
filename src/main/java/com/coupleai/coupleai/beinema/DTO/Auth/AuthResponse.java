@@ -15,4 +15,7 @@ public class AuthResponse {
 
     private String role;
 
+    // signed in with Google and the phone number is not verified yet
+    private boolean phoneRequired;
+
 }

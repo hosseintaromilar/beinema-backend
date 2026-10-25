@@ -65,12 +65,14 @@ public class JwtAuthenticationFilter
                 || "/api/auth/forgot-password".equals(path)
                 || "/api/auth/reset-password".equals(path)
                 || "/api/auth/otp/request".equals(path)
-                || "/api/auth/otp/verify".equals(path))) {
+                || "/api/auth/otp/verify".equals(path)
+                || "/api/auth/google".equals(path))) {
             return true;
         }
 
         return "GET".equalsIgnoreCase(method)
-                && ((path.startsWith("/api/invitations/")
+                && ("/api/auth/google/config".equals(path)
+                || (path.startsWith("/api/invitations/")
                 && !path.endsWith("/accept"))
                 || path.startsWith("/api/referrals/preview/"));
     }
@@ -148,7 +150,8 @@ public class JwtAuthenticationFilter
             }
 
             boolean valid =
-                    jwtService.isTokenValid(token);
+                    jwtService.isTokenValid(token)
+                            && userDetails.isEnabled();
 
 
 

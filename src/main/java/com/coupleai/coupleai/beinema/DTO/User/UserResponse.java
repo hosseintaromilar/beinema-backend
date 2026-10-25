@@ -22,6 +22,9 @@ public class UserResponse {
 
     private boolean profileComplete;
 
+    // signed in with Google, phone number not verified yet
+    private boolean phoneRequired;
+
     private String avatarUrl;
 
     private String role;
@@ -48,6 +51,8 @@ public class UserResponse {
                 .phoneNumber(user.getPhoneNumber())
 
                 .profileComplete(user.hasRegisteredName())
+
+                .phoneRequired(user.getPhoneNumber() == null || user.getPhoneNumber().isBlank())
 
                 .avatarUrl(user.getAvatarUrl())
 

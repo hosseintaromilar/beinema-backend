@@ -1,11 +1,15 @@
 package com.coupleai.coupleai.beinema.Config;
 
+import com.coupleai.coupleai.beinema.Security.CustomUserDetailsService;
 import com.coupleai.coupleai.beinema.Security.JwtAuthenticationFilter;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -154,6 +158,10 @@ public class SecurityConfig {
 
                                 "/api/auth/otp/verify",
 
+                                "/api/auth/google",
+
+                                "/api/auth/google/config",
+
                                 "/api/waitlist"
 
                         )
@@ -218,9 +226,20 @@ public class SecurityConfig {
                         .hasRole("ADMIN")
 
 
+                        // a Google user without a verified phone may only finish signing in
+                        .requestMatchers(
+                                "/api/auth/phone/**",
+                                "/api/auth/logout",
+                                "/api/users/me",
+                                "/api/users/me/name"
+                        )
+                        .authenticated()
+
+
                         .anyRequest()
 
-                        .authenticated()
+                        .access((authentication, context) ->
+                                new AuthorizationDecision(phoneConfirmed(authentication.get())))
 
                 )
 
@@ -239,7 +258,13 @@ public class SecurityConfig {
                             response.setCharacterEncoding("UTF-8");
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
-                                    "{\"message\":\"این بخش فقط برای ادمین است.\"}"
+                                    hasAuthority(
+                                            org.springframework.security.core.context.SecurityContextHolder
+                                                    .getContext().getAuthentication(),
+                                            CustomUserDetailsService.PHONE_PENDING
+                                    )
+                                            ? "{\"code\":\"PHONE_REQUIRED\",\"message\":\"اول شماره موبایل خود را تأیید کنید.\"}"
+                                            : "{\"message\":\"این بخش فقط برای ادمین است.\"}"
                             );
                         })
                 )
@@ -304,6 +329,21 @@ public class SecurityConfig {
                 new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+
+    private static boolean phoneConfirmed(Authentication authentication) {
+        return authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken)
+                && !hasAuthority(authentication, CustomUserDetailsService.PHONE_PENDING);
+    }
+
+
+    private static boolean hasAuthority(Authentication authentication, String authority) {
+        return authentication != null
+                && authentication.getAuthorities().stream()
+                .anyMatch(granted -> authority.equals(granted.getAuthority()));
     }
 
 }

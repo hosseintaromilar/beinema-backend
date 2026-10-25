@@ -2,6 +2,8 @@ package com.coupleai.coupleai.beinema.Controller;
 
 import com.coupleai.coupleai.beinema.DTO.Auth.AuthResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.ForgotPasswordRequest;
+import com.coupleai.coupleai.beinema.DTO.Auth.GoogleConfigResponse;
+import com.coupleai.coupleai.beinema.DTO.Auth.GoogleSignInRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LoginRequest;
 import com.coupleai.coupleai.beinema.DTO.Auth.LogoutResponse;
 import com.coupleai.coupleai.beinema.DTO.Auth.OtpPhoneRequest;
@@ -78,6 +80,59 @@ public class AuthController {
 
         return ResponseEntity.ok(
                 authService.verifyOtp(request)
+        );
+
+    }
+
+
+    @GetMapping("/google/config")
+    public ResponseEntity<GoogleConfigResponse> googleConfig() {
+
+        return ResponseEntity.ok(
+                authService.googleConfig()
+        );
+
+    }
+
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> signInWithGoogle(
+
+            @RequestBody GoogleSignInRequest request
+
+    ) {
+
+        return ResponseEntity.ok(
+                authService.signInWithGoogle(request)
+        );
+
+    }
+
+
+    // after a Google sign-in: verify the phone number once
+    @PostMapping("/phone/request")
+    public ResponseEntity<OtpRequestResponse> requestPhoneLink(
+
+            @RequestBody OtpPhoneRequest request
+
+    ) {
+
+        return ResponseEntity.ok(
+                authService.requestPhoneLink(request)
+        );
+
+    }
+
+
+    @PostMapping("/phone/verify")
+    public ResponseEntity<AuthResponse> verifyPhoneLink(
+
+            @RequestBody OtpVerifyRequest request
+
+    ) {
+
+        return ResponseEntity.ok(
+                authService.verifyPhoneLink(request)
         );
 
     }

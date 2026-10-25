@@ -169,6 +169,10 @@ public class User extends BaseEntity {
     @Column(name = "referral_code", unique = true, length = 12)
     private String referralCode;
 
+    // Google account id ("sub" claim) of a user who signs in with Google
+    @Column(name = "google_subject", unique = true, length = 64)
+    private String googleSubject;
+
     public boolean hasRegisteredName() {
         return name != null && !name.isBlank();
     }
