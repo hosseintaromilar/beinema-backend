@@ -1,0 +1,53 @@
+# Google refuses servers in Iran (403), so the backend on Liara cannot read
+# Google's public sign-in keys itself. GitHub's runners can: every six hours
+# they copy https://www.googleapis.com/oauth2/v3/certs to certs.json on the
+# google-certs branch, which the backend reads after Google (GoogleTokenVerifier).
+# The keys are public; only this repository's writers can change the copy.
+# Liara deploys main only, so this branch never starts a deploy.
+name: Mirror Google sign-in keys
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/google-certs.yml
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Google's public keys
+        run: |
+          curl -fsS https://www.googleapis.com/oauth2/v3/certs -o certs.json
+          jq -e '.keys | length > 0' certs.json > /dev/null
+
+      - name: Publish them on the google-certs branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          git init -q mirror
+          cd mirror
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          if git fetch -q --depth 1 origin google-certs; then
+            git checkout -q -b google-certs FETCH_HEAD
+          else
+            git checkout -q --orphan google-certs
+          fi
+          cp ../certs.json certs.json
+          git add certs.json
+          if git diff --cached --quiet; then
+            echo "keys unchanged"
+            exit 0
+          fi
+          git commit -q -m "Google sign-in keys $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q origin HEAD:google-certs

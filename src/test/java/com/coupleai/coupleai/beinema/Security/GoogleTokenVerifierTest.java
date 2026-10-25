@@ -122,4 +122,34 @@ class GoogleTokenVerifierTest {
         assertFalse(off.isEnabled());
         assertThrows(IllegalArgumentException.class, () -> off.verify("anything"));
     }
+
+    @Test
+    void whenGoogleRefusesTheKeysTheMirrorIsUsed() throws Exception {
+        String keys = new com.nimbusds.jose.jwk.JWKSet(new com.nimbusds.jose.jwk.RSAKey.Builder((RSAPublicKey) googleKey.getPublic())
+                .keyID("k1").build()).toString();
+        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/google", exchange -> {
+            exchange.sendResponseHeaders(403, -1);
+            exchange.close();
+        });
+        server.createContext("/mirror", exchange -> {
+            byte[] body = keys.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String base = "http://127.0.0.1:" + server.getAddress().getPort();
+            GoogleTokenVerifier verifier = new GoogleTokenVerifier(CLIENT, base + "/google, " + base + "/mirror");
+
+            GoogleIdentity identity = verifier.verify(token(googleKey, claims -> { }));
+            assertEquals("10987654321", identity.subject());
+            assertThrows(InvalidCredentialsException.class, () -> verifier.verify(token(otherKey, claims -> { })),
+                    "the mirror's keys still check the signature");
+        } finally {
+            server.stop(0);
+        }
+    }
 }
