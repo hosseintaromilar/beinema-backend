@@ -10,5 +10,7 @@ public enum SessionEndReason {
     TIME_LIMIT,
 
     /** Nobody wrote anything in it; it does not count as a session. */
-    EMPTY
+    EMPTY,
+    /** The owner ended the whole conversation for good during it. */
+    ENDED_FOR_GOOD
 }

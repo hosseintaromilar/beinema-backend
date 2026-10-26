@@ -478,7 +478,7 @@ public class ParticipationPauseService {
     }
 
     public boolean allParticipantsConsented(ChatRoom chatRoom) {
-        List<ChatRoomParticipant> participants = participantRepository.findAllByChatRoom(chatRoom);
+        List<ChatRoomParticipant> participants = ChatRoomParticipant.active(participantRepository.findAllByChatRoom(chatRoom));
         if (participants.isEmpty()) {
             return false;
         }
@@ -589,6 +589,7 @@ public class ParticipationPauseService {
                 return;
             }
             boolean partnerAlreadyIn = members.stream().anyMatch(item -> item.getUser() != null
+                    && item.isActiveMember()
                     && !userId.equals(item.getUser().getId())
                     && Boolean.TRUE.equals(item.getSessionConsented()));
             if (sessions != null && counselorSessionService != null && counselorSessionService.usesNewBrain(chatRoom)) {

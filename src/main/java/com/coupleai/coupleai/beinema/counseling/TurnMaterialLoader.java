@@ -62,6 +62,7 @@ public class TurnMaterialLoader {
         // partners
         List<TurnMaterial.Partner> partners = new ArrayList<>();
         Map<Long, String> roleByUserId = new HashMap<>();
+        Map<String, String> namesByRole = new HashMap<>();
         Instant now = Instant.now();
         for (ChatRoomParticipant participant : participantRepository.findAllByChatRoom(room)) {
             if (participant.getUser() == null) {
@@ -73,6 +74,11 @@ public class TurnMaterialLoader {
                 continue;
             }
             roleByUserId.put(participant.getUser().getId(), role);
+            namesByRole.put(role, participant.getUser().visibleName());
+            if (!participant.isActiveMember()) {
+                // left the conversation: their earlier messages keep their role, but the work goes on without them
+                continue;
+            }
             partners.add(new TurnMaterial.Partner(role, participant.getUser().getId(),
                     participant.getUser().visibleName(), status(participant, now)));
         }
@@ -183,7 +189,8 @@ public class TurnMaterialLoader {
                 chatRoomAgentRepository.findActiveAgentNames(roomId).stream()
                         .filter(name -> name != null && !name.isBlank())
                         .findFirst()
-                        .orElse(""));
+                        .orElse(""),
+                namesByRole);
     }
 
     /** Whether this person wrote again after the given message (their newer words make a reply to the old ones stale). */

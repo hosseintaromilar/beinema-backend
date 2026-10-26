@@ -12,6 +12,10 @@ public class SessionOnBreakException extends RuntimeException {
     public static final String ENTRY = "SESSION_ENTRY";
     public static final String REST = "SESSION_REST";
     public static final String LIMIT = "SESSION_LIMIT";
+    /** The owner ended the conversation for good: only reading is left. */
+    public static final String CLOSED = "ROOM_ENDED";
+    /** This person left the conversation: they read, and can come back to write. */
+    public static final String LEFT = "MEMBER_LEFT";
 
     private final String code;
 

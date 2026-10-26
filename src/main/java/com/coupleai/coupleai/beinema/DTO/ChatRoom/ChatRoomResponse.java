@@ -31,6 +31,9 @@ public class ChatRoomResponse {
 
     private Boolean sessionEnded;
 
+    /** Who ended the conversation for good (the owner), or null. */
+    private Long endedBy;
+
     private SessionInfo session;
 
     /** The developer panel with the counselor's inner state (admins, or development mode). */

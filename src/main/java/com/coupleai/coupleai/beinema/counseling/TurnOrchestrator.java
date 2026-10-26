@@ -95,6 +95,10 @@ public class TurnOrchestrator {
         if (!m.hasNewMessages() && !m.hasMoment()) {
             return Outcome.nothing(roomId);
         }
+        if (m.room() != null && m.room().getStatus() == com.coupleai.coupleai.beinema.Enum.ChatRoomStatus.ENDED) {
+            // the owner ended the conversation for good: the counselor does not speak any more
+            return Outcome.nothing(roomId);
+        }
         Long trigger = m.triggerMessageId();
         if (trigger != null) {
             DirectorDecisionRecord existing = decisionRepository.findByChatRoomIdAndTriggerMessageId(roomId, trigger).orElse(null);

@@ -1,5 +1,6 @@
 package com.coupleai.coupleai.beinema.Entity;
 
+import com.coupleai.coupleai.beinema.Enum.ChatRoomMemberStatus;
 import com.coupleai.coupleai.beinema.Enum.ParticipantRole;
 import jakarta.persistence.*;
 import lombok.*;
@@ -94,5 +95,27 @@ public class ChatRoomParticipant extends BaseEntity {
     /** The last time this person opened the room (the first session waits while they read the rules). */
     @Column(name = "entered_at")
     private java.time.Instant enteredAt;
+
+    /**
+     * LEFT: a non-owner ended the conversation for themselves. They still read
+     * the history but do not write and are not counted in sessions or turns;
+     * they can come back. null means ACTIVE (rows from before this column).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "member_status", length = 16)
+    private ChatRoomMemberStatus memberStatus;
+
+    @Column(name = "left_at")
+    private java.time.Instant leftAt;
+
+    /** Takes part in the conversation now (not someone who left it). */
+    public boolean isActiveMember() {
+        return memberStatus == null || memberStatus == ChatRoomMemberStatus.ACTIVE;
+    }
+
+    /** The people taking part now: everyone except who left (sessions, consent, votes, turns). */
+    public static java.util.List<ChatRoomParticipant> active(java.util.List<ChatRoomParticipant> people) {
+        return people.stream().filter(ChatRoomParticipant::isActiveMember).toList();
+    }
 
 }

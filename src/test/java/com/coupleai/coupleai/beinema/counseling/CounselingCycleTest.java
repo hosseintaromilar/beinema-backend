@@ -455,4 +455,33 @@ class CounselingCycleTest {
         DirectorDecisionRecord record = f.decisions.values().iterator().next();
         assertTrue(String.valueOf(record.getValidationNotes()).contains("the lesson's own text was used"));
     }
+
+    @Test
+    void whenThePartnerLeftTheCounselorWorksWithTheOwnerAloneButKeepsTheirWords() {
+        f.say(f.hossein, "من دیگه خسته شدم.");
+        f.participants.findAllByChatRoom(f.room).get(1)
+                .setMemberStatus(com.coupleai.coupleai.beinema.Enum.ChatRoomMemberStatus.LEFT);
+        f.say(f.afsaneh, AFSANEH_SAYS);
+        f.brain.directorReplies.add(CounselingCycleTest::askToChoose);
+        f.brain.voiceReplies.add(CounselingCycleTest::voiceWithOptions);
+
+        f.orchestrator.runTurn(FakeRoom.ROOM);
+
+        String packet = f.brain.directorPackets.get(0);
+        String participants = packet.substring(packet.indexOf("[PARTICIPANTS]"), packet.indexOf("[SAFETY_SCREEN]"));
+        assertTrue(participants.contains("OWNER=افسانه"));
+        assertFalse(participants.contains("MEMBER"), "who left is not a partner of this turn");
+        assertTrue(packet.contains("MEMBER حسین: من دیگه خسته شدم"), "their earlier words keep their role");
+    }
+
+    @Test
+    void theCounselorSaysNothingInAConversationTheOwnerEnded() {
+        f.say(f.afsaneh, AFSANEH_SAYS);
+        f.room.setStatus(com.coupleai.coupleai.beinema.Enum.ChatRoomStatus.ENDED);
+
+        TurnOrchestrator.Outcome outcome = f.orchestrator.runTurn(FakeRoom.ROOM);
+
+        assertFalse(outcome.delivered());
+        assertTrue(f.brain.directorPackets.isEmpty(), "the brain is not even asked");
+    }
 }

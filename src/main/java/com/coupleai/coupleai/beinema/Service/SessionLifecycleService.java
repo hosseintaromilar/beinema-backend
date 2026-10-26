@@ -7,6 +7,7 @@ import com.coupleai.coupleai.beinema.Entity.SessionParticipantSummary;
 import com.coupleai.coupleai.beinema.Entity.SessionRecord;
 import com.coupleai.coupleai.beinema.Entity.SessionSummary;
 import com.coupleai.coupleai.beinema.Entity.User;
+import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.SessionEndReason;
 import com.coupleai.coupleai.beinema.Exception.ChatRoomAccessDeniedException;
@@ -115,6 +116,8 @@ public class SessionLifecycleService {
             "تو بریک را انتخاب کرده‌ای و تا پایان این جلسه پیامی نمی‌فرستی. اگر می‌خواهی برگردی، «برمی‌گردم» را بزن.";
     static final String LIMIT_TEXT = "در هر %s ساعت حداکثر %s جلسه برگزار می‌شود؛ جلسه‌ی بعد از %s می‌تواند شروع شود.";
     static final String CONSENT_FIRST_TEXT = "اول با قوانین جلسه موافقت کن.";
+    static final String CLOSED_TEXT = "این گفتگو به‌طور کامل پایان یافته است؛ فقط می‌توانی پیام‌های قبلی را ببینی.";
+    static final String LEFT_TEXT = "تو از این گفتگو خارج شده‌ای. برای نوشتن، «می‌خواهم به گروه برگردم» را بزن.";
 
     /** Clock times are shown in Iran time. */
     static final ZoneId DAY_ZONE = ZoneId.of("Asia/Tehran");
@@ -179,7 +182,7 @@ public class SessionLifecycleService {
         long duration = durationSeconds(room);
         Instant started = room.getSessionStartedAt();
         boolean active = isActive(room);
-        List<ChatRoomParticipant> people = participantRepository.findAllByChatRoom(room);
+        List<ChatRoomParticipant> people = ChatRoomParticipant.active(participantRepository.findAllByChatRoom(room));
 
         List<SessionInfo.Vote> votes = new ArrayList<>();
         List<SessionInfo.Ready> ready = new ArrayList<>();
@@ -252,6 +255,7 @@ public class SessionLifecycleService {
      * and did not take the break. Agreeing to the rules is checked by the pause service.
      */
     public void requireCanWrite(ChatRoom room, User user) {
+        requireOpen(room, user);
         requireActive(room);
         if (user == null) {
             return;
@@ -266,6 +270,25 @@ public class SessionLifecycleService {
         if (Boolean.TRUE.equals(mine.getBreakVote()) && room.getBreakProposedAt() != null) {
             throw new SessionOnBreakException(SessionOnBreakException.REST, REST_TEXT);
         }
+    }
+
+    /**
+     * The conversation still goes on for this person: the owner has not ended it
+     * for good, and they did not leave it. Checked before writing, answering a
+     * card, entering a session or voting.
+     */
+    public void requireOpen(ChatRoom room, User user) {
+        if (room != null && room.getStatus() == ChatRoomStatus.ENDED) {
+            throw new SessionOnBreakException(SessionOnBreakException.CLOSED, CLOSED_TEXT);
+        }
+        if (room == null || user == null) {
+            return;
+        }
+        participantRepository.findByChatRoomAndUser(room, user)
+                .filter(mine -> !mine.isActiveMember())
+                .ifPresent(mine -> {
+                    throw new SessionOnBreakException(SessionOnBreakException.LEFT, LEFT_TEXT);
+                });
     }
 
     // ---------------------------------------------------------------- the clock
@@ -290,7 +313,7 @@ public class SessionLifecycleService {
                 // between sessions nothing moves by itself: each partner enters with the start button
                 return fresh;
             }
-            List<ChatRoomParticipant> people = participantRepository.findAllByChatRoom(fresh);
+            List<ChatRoomParticipant> people = ChatRoomParticipant.active(participantRepository.findAllByChatRoom(fresh));
             Instant now = clock.instant();
             enterLegacyMembers(fresh, people, now);
             Instant started = fresh.getSessionStartedAt();
@@ -379,12 +402,13 @@ public class SessionLifecycleService {
         synchronized (lock(roomId)) {
             room = chatRoomRepository.findById(roomId).orElse(room);
             Instant now = clock.instant();
+            requireOpen(room, user);
             ChatRoomParticipant mine = participantRepository.findByChatRoomAndUser(room, user)
                     .orElseThrow(() -> new ChatRoomAccessDeniedException("Access denied"));
             if (Boolean.FALSE.equals(mine.getSessionConsented())) {
                 throw new SessionOnBreakException(SessionOnBreakException.ENTRY, CONSENT_FIRST_TEXT);
             }
-            List<ChatRoomParticipant> people = participantRepository.findAllByChatRoom(room);
+            List<ChatRoomParticipant> people = ChatRoomParticipant.active(participantRepository.findAllByChatRoom(room));
             if (!isActive(room)) {
                 Limit limit = limit(room, now);
                 if (limit.reached()) {
@@ -427,6 +451,7 @@ public class SessionLifecycleService {
         String line = null;
         synchronized (lock(roomId)) {
             room = chatRoomRepository.findById(roomId).orElse(room);
+            requireOpen(room, user);
             if (!isActive(room) || room.getBreakProposedAt() == null || room.getSessionStartedAt() == null) {
                 return describe(room);
             }
@@ -439,7 +464,7 @@ public class SessionLifecycleService {
             participantRepository.save(mine);
 
             Instant now = clock.instant();
-            List<ChatRoomParticipant> people = participantRepository.findAllByChatRoom(room);
+            List<ChatRoomParticipant> people = ChatRoomParticipant.active(participantRepository.findAllByChatRoom(room));
             boolean everyoneRests = people.stream()
                     .filter(person -> person.getSessionReadyAt() != null)
                     .allMatch(person -> Boolean.TRUE.equals(person.getBreakVote()));
@@ -654,6 +679,29 @@ public class SessionLifecycleService {
     }
 
     /**
+     * The owner ended the conversation for good (the room is already ENDED): a
+     * session that is open is closed now and its summaries are written, without
+     * the words about the next session.
+     */
+    public void closeForGood(ChatRoom room, User user) {
+        if (room == null || room.getId() == null) {
+            return;
+        }
+        Closing closing = null;
+        synchronized (lock(room.getId())) {
+            // a session that began and has not closed (sessionActive is null while one runs)
+            if (isActive(room) && room.getSessionStartedAt() != null) {
+                List<ChatRoomParticipant> people = ChatRoomParticipant.active(participantRepository.findAllByChatRoom(room));
+                closing = close(room, people, clock.instant(), SessionEndReason.ENDED_FOR_GOOD, user);
+            }
+        }
+        if (closing != null) {
+            Closing done = closing;
+            opener.execute(() -> finishClosing(done));
+        }
+    }
+
+    /**
      * Someone just accepted the rules (their first entry): with the v3 brain the
      * counselor thanks them and asks the opening question in its own words.
      */
@@ -743,7 +791,12 @@ public class SessionLifecycleService {
             return;
         }
         int number = closing.number();
+        // a conversation ended for good gets no "next session" words, only its summaries
+        boolean forGood = room.getStatus() == ChatRoomStatus.ENDED;
         if (closing.empty()) {
+            if (forGood) {
+                return;
+            }
             chatRealtimeService.saveSystemAndPublish(roomId, String.format(EMPTY_TEXT, persianDigits(number)));
             log.info("Session {} of room {} ended without a conversation", number, roomId);
             return;
@@ -784,7 +837,9 @@ public class SessionLifecycleService {
             log.warn("Could not save per-person summaries of room {}: {}", roomId, exception.getMessage());
         }
 
-        say(room, closingText(closing));
+        if (!forGood) {
+            say(room, closingText(closing));
+        }
         log.info("Session {} of room {} closed", number, roomId);
     }
 

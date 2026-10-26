@@ -73,4 +73,5 @@ public interface ChatRoomParticipantRepository
     java.util.List<Long> findRoomIdsWithExpiredPause(
             @Param("now") java.time.Instant now
     );
+
 }

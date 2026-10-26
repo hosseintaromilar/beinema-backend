@@ -683,7 +683,10 @@ public class ChatRoomService {
             );
         }
 
-        announceLeave(chatRoom, user);
+        // someone who already left, or a closed room, was told once; no second notice
+        if (participant.isActiveMember() && chatRoom.getStatus() != ChatRoomStatus.ENDED) {
+            announceLeave(chatRoom, user);
+        }
         participantRepository.deleteByChatRoomAndUser(chatRoom, user);
     }
 
@@ -773,6 +776,7 @@ public class ChatRoomService {
                 .hasActiveAgentAccess(hasAccess)
                 .agentAccessExpiresAt(expiresAt)
                 .sessionEnded(chatRoom.getStatus() != ChatRoomStatus.ACTIVE)
+                .endedBy(chatRoom.getEndedBy())
                 .session(sessionLifecycleService.describe(sessionLifecycleService.refresh(chatRoom)))
                 .counselorStateAvailable(canSeeCounselorState())
                 .build();
@@ -801,6 +805,8 @@ public class ChatRoomService {
                             .paused(until != null)
                             .pausedUntil(until == null ? null : until.toEpochMilli())
                             .reentryPending(Boolean.TRUE.equals(item.getReentryPending()))
+                            .left(!item.isActiveMember())
+                            .leftAt(item.getLeftAt() == null ? null : item.getLeftAt().toEpochMilli())
                             .sessionConsented(item.getSessionConsented())
                             .build();
                 })

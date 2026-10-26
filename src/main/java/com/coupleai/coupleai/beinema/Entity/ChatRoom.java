@@ -111,4 +111,11 @@ public class ChatRoom extends BaseEntity {
     @Column(name = "resume_block", columnDefinition = "TEXT")
     private String resumeBlock;
 
+    /** When the owner ended the conversation for good (status ENDED): nobody writes any more. */
+    @Column(name = "ended_at")
+    private java.time.Instant endedAt;
+
+    @Column(name = "ended_by")
+    private Long endedBy;
+
 }

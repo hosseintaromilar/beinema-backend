@@ -153,11 +153,17 @@ public class MessageServiceImpl implements MessageService {
         chatRoom = sessionLifecycleService.refresh(chatRoom);
         boolean sessionOpen = sessionLifecycleService.isActive(chatRoom);
 
-        List<ChatRoomParticipant> members = participantRepository.findAllByChatRoom(chatRoom);
-        ChatRoomParticipant me = members.stream()
+        List<ChatRoomParticipant> everyone = participantRepository.findAllByChatRoom(chatRoom);
+        ChatRoomParticipant me = everyone.stream()
                 .filter(item -> item.getUser() != null && item.getUser().getId().equals(user.getId()))
                 .findFirst()
                 .orElse(null);
+        if (chatRoom.getStatus() == ChatRoomStatus.ENDED || (me != null && !me.isActiveMember())) {
+            // a finished conversation, or someone who left it: they read, nobody greets or waits for them
+            return;
+        }
+        // who left the conversation is not waited for, greeted with or counted
+        List<ChatRoomParticipant> members = ChatRoomParticipant.active(everyone);
         List<Message> history = messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom);
         boolean fresh = history.stream().noneMatch(message ->
                 message.getSenderType() == MessageSenderType.USER
@@ -968,7 +974,7 @@ public class MessageServiceImpl implements MessageService {
             role = toStableRole(participant.getRole());
         }
 
-        String roster = participantRepository.findAllByChatRoom(chatRoom)
+        String roster = ChatRoomParticipant.active(participantRepository.findAllByChatRoom(chatRoom))
                 .stream()
                 .map(item -> toStableRole(item.getRole())
                         + "="

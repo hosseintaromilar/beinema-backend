@@ -21,4 +21,10 @@ public class ParticipantSummary {
     private Boolean reentryPending;
 
     private Boolean sessionConsented;
+
+    /** Left the conversation (reads, does not write; can come back). */
+    private Boolean left;
+
+    /** When they left (epoch millis), or null. */
+    private Long leftAt;
 }

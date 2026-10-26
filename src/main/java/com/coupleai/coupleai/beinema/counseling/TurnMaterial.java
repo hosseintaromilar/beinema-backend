@@ -43,7 +43,9 @@ public record TurnMaterial(
         Map<Long, List<String>> fileLinesByMessageId,
         List<com.coupleai.coupleai.beinema.Entity.PersonMilestone> milestones,
         /** The agent's name from the admin panel ("نادر"), or empty. */
-        String counselorName
+        String counselorName,
+        /** Names of everyone by role, also of a partner who left (their earlier messages keep a name). */
+        Map<String, String> namesByRole
 ) {
 
     /** The stages of their own path each partner has reached (OWNER -> W, D...). */
@@ -86,7 +88,10 @@ public record TurnMaterial(
 
     public String nameOf(String role) {
         Partner partner = partner(role);
-        return partner == null || partner.name() == null ? role : partner.name();
+        if (partner != null && partner.name() != null) {
+            return partner.name();
+        }
+        return namesByRole == null ? role : namesByRole.getOrDefault(role, role);
     }
 
     public Long userIdOf(String role) {

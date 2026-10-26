@@ -686,4 +686,53 @@ class SessionLifecycleServiceTest {
 
         verify(realtime).saveAgentAndPublish(eq(5L), eq(9L), contains("حداکثر ۳ جلسه"));
     }
+
+    // ------------------------------------------------------------ ending for good and leaving
+
+    @Test
+    void aConversationTheOwnerEndedTakesNoMoreMessagesVotesOrSessions() {
+        bothInTheFirstSession();
+        room.setStatus(com.coupleai.coupleai.beinema.Enum.ChatRoomStatus.ENDED);
+
+        SessionOnBreakException closed = assertThrows(SessionOnBreakException.class,
+                () -> service.requireCanWrite(room, hossein));
+        assertEquals(SessionOnBreakException.CLOSED, closed.getCode());
+        as(afsaneh);
+        assertEquals(SessionOnBreakException.CLOSED,
+                assertThrows(SessionOnBreakException.class, () -> service.enterSession(5L)).getCode());
+        assertEquals(SessionOnBreakException.CLOSED,
+                assertThrows(SessionOnBreakException.class, () -> service.vote(5L, true)).getCode());
+    }
+
+    @Test
+    void whoLeftReadsButDoesNotWriteAndIsNotCountedInTheSession() {
+        bothInTheFirstSession();
+        hosseinLink.setMemberStatus(com.coupleai.coupleai.beinema.Enum.ChatRoomMemberStatus.LEFT);
+
+        assertEquals(SessionOnBreakException.LEFT,
+                assertThrows(SessionOnBreakException.class, () -> service.requireCanWrite(room, hossein)).getCode());
+        service.requireCanWrite(room, afsaneh);
+
+        // the break offer at 45 minutes: the owner alone decides it
+        now = T0.plusSeconds(45 * MIN);
+        someoneWrote(T0.plusSeconds(10 * MIN));
+        service.refresh(room);
+        as(afsaneh);
+        service.vote(5L, true);
+        assertEquals(Boolean.FALSE, room.getSessionActive(), "the owner alone took the break, so the session ended");
+    }
+
+    @Test
+    void theOwnerEndingForGoodClosesTheOpenSessionWithoutWordsAboutTheNext() {
+        bothInTheFirstSession();
+        someoneWrote(T0.plusSeconds(5 * MIN));
+        now = T0.plusSeconds(20 * MIN);
+        room.setStatus(com.coupleai.coupleai.beinema.Enum.ChatRoomStatus.ENDED);
+
+        service.closeForGood(room, afsaneh);
+
+        assertEquals(Boolean.FALSE, room.getSessionActive());
+        assertEquals(com.coupleai.coupleai.beinema.Enum.SessionEndReason.ENDED_FOR_GOOD, records.get(0).getEndReason());
+        verify(realtime, never()).saveAgentAndPublish(anyLong(), anyLong(), contains("جلسه‌ی بعد"));
+    }
 }

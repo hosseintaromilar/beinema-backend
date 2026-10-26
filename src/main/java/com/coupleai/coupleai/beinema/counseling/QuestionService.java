@@ -154,6 +154,12 @@ public class QuestionService {
         if (!participantRepository.existsByChatRoomAndUser(room, user)) {
             throw new QuestionAnswerException("NOT_MEMBER", HttpStatus.FORBIDDEN, "دسترسی به این گفتگو نداری.");
         }
+        try {
+            sessionLifecycleService.requireOpen(room, user);
+        } catch (com.coupleai.coupleai.beinema.Exception.SessionOnBreakException closed) {
+            // the conversation ended for good, or this person left it
+            throw new QuestionAnswerException(closed.getCode(), HttpStatus.CONFLICT, closed.getMessage());
+        }
         ClarifyingQuestion question = questionRepository.findByPublicIdForUpdate(publicId)
                 .filter(found -> found.getChatRoomId().equals(roomId))
                 .orElseThrow(() -> new QuestionAnswerException("QUESTION_NOT_FOUND", HttpStatus.NOT_FOUND, "سؤال پیدا نشد."));
