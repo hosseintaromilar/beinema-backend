@@ -177,6 +177,10 @@ public class SecurityConfig {
 
                                 "/api/agents/*/plans",
 
+                                "/api/blog",
+
+                                "/api/blog/*",
+
                                 "/uploads/**"
 
                         )
