@@ -160,9 +160,7 @@ public class SecurityConfig {
 
                                 "/api/auth/google",
 
-                                "/api/auth/google/config",
-
-                                "/api/waitlist"
+                                "/api/auth/google/config"
 
                         )
 
