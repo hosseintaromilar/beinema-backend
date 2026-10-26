@@ -72,4 +72,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             @Param("userId") Long userId,
             @Param("senderType") MessageSenderType senderType
     );
+
+    /** For the admin dashboard: what people wrote since a moment. */
+    long countBySenderTypeAndCreatedAtAfter(MessageSenderType senderType, java.time.LocalDateTime since);
 }

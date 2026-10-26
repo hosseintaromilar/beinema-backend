@@ -38,18 +38,18 @@ public class FileStorageService {
         return storeImage("agents", "agent", file);
     }
 
-    /** A blog picture downloaded from the image generator (jpg, png or webp, up to 8 MB). */
-    public String storeBlogImage(byte[] data, String contentType) {
+    /** A picture downloaded from the image generator into /uploads/{folder} (jpg, png or webp, up to 8 MB). */
+    public String storeGeneratedImage(String folder, byte[] data, String contentType) {
         String type = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT).split(";")[0].trim();
         if (data == null || data.length == 0 || data.length > 8 * 1024 * 1024 || !ALLOWED_TYPES.contains(type)) {
             throw new IllegalArgumentException("تصویر دریافت‌شده معتبر نیست");
         }
-        String filename = "post-" + UUID.randomUUID() + extensionOf(null, type);
-        Path dir = uploadRoot.resolve("blog");
+        String filename = folder + "-" + UUID.randomUUID() + extensionOf(null, type);
+        Path dir = uploadRoot.resolve(folder);
         try {
             Files.createDirectories(dir);
             Files.write(dir.resolve(filename), data);
-            return "/uploads/blog/" + filename;
+            return "/uploads/" + folder + "/" + filename;
         } catch (IOException exception) {
             throw new IllegalArgumentException("ذخیره تصویر ناموفق بود");
         }

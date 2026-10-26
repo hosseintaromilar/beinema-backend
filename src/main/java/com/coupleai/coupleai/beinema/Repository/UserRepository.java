@@ -16,4 +16,7 @@ public interface UserRepository
     Optional<User> findByReferralCode(String referralCode);
     boolean existsByReferralCode(String referralCode);
 
+
+    /** For the admin dashboard. */
+    long countByCreatedAtAfter(java.time.LocalDateTime since);
 }

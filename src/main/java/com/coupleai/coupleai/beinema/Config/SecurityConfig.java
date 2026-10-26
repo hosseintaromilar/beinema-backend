@@ -166,6 +166,11 @@ public class SecurityConfig {
 
                         .permitAll()
 
+                        // readers send blog comments without an account; they wait for the admin
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/blog/*/comments")
+
+                        .permitAll()
+
 
                         .requestMatchers(
 
@@ -180,6 +185,8 @@ public class SecurityConfig {
                                 "/api/blog",
 
                                 "/api/blog/*",
+
+                                "/api/blog/*/comments",
 
                                 "/uploads/**"
 

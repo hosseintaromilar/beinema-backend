@@ -26,6 +26,7 @@ public class AdminAgentController {
 
     private final AgentService agentService;
     private final FileStorageService fileStorageService;
+    private final com.coupleai.coupleai.beinema.Service.ImageStudio imageStudio;
 
     @GetMapping
     public List<AdminAgentResponse> list() {
@@ -41,6 +42,20 @@ public class AdminAgentController {
     @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, String> uploadPhoto(@RequestParam("file") MultipartFile file) {
         return Map.of("photoUrl", fileStorageService.storeAgentPhoto(file));
+    }
+
+    /** Four portrait options from the admin's description, in the agents' base style. Body: { "description": "..." }. */
+    @PostMapping("/photo/generate")
+    public Map<String, Object> generatePhoto(@RequestBody Map<String, String> body) {
+        var result = imageStudio.imagine(com.coupleai.coupleai.beinema.Service.ImageStudio.Kind.AGENT,
+                body == null ? null : body.get("description"));
+        return Map.of("urls", result.urls(), "cost", result.cost());
+    }
+
+    /** Stores the chosen option and returns its address; the form saves it with the agent. Body: { "url": "..." }. */
+    @PostMapping("/photo/pick")
+    public Map<String, String> pickPhoto(@RequestBody Map<String, String> body) {
+        return Map.of("photoUrl", imageStudio.store(body == null ? null : body.get("url"), "agents"));
     }
 
     @PutMapping("/{id}")

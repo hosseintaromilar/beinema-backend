@@ -28,10 +28,15 @@ public class AdminBlogController {
         return blogService.all();
     }
 
-    /** Writes a new post now, with its pictures (takes a minute or two). */
+    /** Starts writing a new post in the background (about a minute); the panel follows /writer. */
     @PostMapping("/write")
-    public BlogPost write() {
-        return blogWriter.writeNew();
+    public com.coupleai.coupleai.beinema.Service.BlogWriter.Status write() {
+        return blogWriter.startWriting();
+    }
+
+    @GetMapping("/writer")
+    public com.coupleai.coupleai.beinema.Service.BlogWriter.Status writer() {
+        return blogWriter.status();
     }
 
     @GetMapping("/{id}")
@@ -41,14 +46,21 @@ public class AdminBlogController {
 
     /** Makes the four pictures of the current version (takes up to a few minutes). */
     @PostMapping("/{id}/images")
-    public Map<String, Object> makeImages(@PathVariable Long id) {
-        double cost = blogImageGenerator.generate(id);
+    public Map<String, Object> makeImages(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
+        double cost = blogImageGenerator.generate(id, body == null ? null : body.get("description"));
         return Map.of("cost", cost, "images", blogService.view(id).images());
     }
 
     @PostMapping("/{id}/image/{imageId}")
     public BlogPost chooseImage(@PathVariable Long id, @PathVariable Long imageId) {
         return blogService.chooseImage(id, imageId);
+    }
+
+    /** The admin's edit of the current version. Body: title, slug, summary, bodyMarkdown, tags. */
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    public BlogService.PostView edit(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        return blogService.edit(id, new BlogService.Draft(body.get("title"), body.get("slug"), body.get("summary"),
+                body.get("bodyMarkdown"), body.get("tags"), null, null));
     }
 
     @PostMapping("/{id}/publish")
@@ -72,16 +84,7 @@ public class AdminBlogController {
     }
 
     private void rewriteInBackground(Long id) {
-        Thread thread = new Thread(() -> {
-            try {
-                blogWriter.revise(id);
-            } catch (RuntimeException exception) {
-                org.slf4j.LoggerFactory.getLogger(AdminBlogController.class)
-                        .warn("Blog post {} could not be rewritten: {}", id, exception.getMessage());
-            }
-        }, "beinema-blog-" + id);
-        thread.setDaemon(true);
-        thread.start();
+        blogWriter.startRevising(id);
     }
 
     @PostMapping("/{id}/reject")

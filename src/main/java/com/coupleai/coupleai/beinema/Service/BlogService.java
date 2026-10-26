@@ -11,12 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.text.Normalizer;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -35,12 +30,7 @@ public class BlogService {
     private final BlogPostRepository postRepository;
     private final BlogPostVersionRepository versionRepository;
     private final BlogImageRepository imageRepository;
-    private final FileStorageService fileStorageService;
-
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15))
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
+    private final ImageStudio imageStudio;
 
     /** What the writer workflow returns for one version. */
     public record Draft(String title, String slug, String summary, String bodyMarkdown, String tags,
@@ -48,6 +38,11 @@ public class BlogService {
     }
 
     public record PostView(BlogPost post, List<BlogPostVersion> versions, List<BlogImage> images) {
+    }
+
+    /** A published post as the site shows it; tags and text only on the post's own page. */
+    public record PublicPost(Long id, String slug, String title, String summary, String imagePath,
+                             Long publishedAt, String tags, String bodyMarkdown) {
     }
 
     /** A new post from the writer: version 1, waiting for the admin. */
@@ -116,7 +111,7 @@ public class BlogService {
                 .filter(image -> image.getPostId().equals(postId))
                 .orElseThrow(() -> new IllegalArgumentException("تصویر پیدا نشد."));
         if (chosen.getStoredPath() == null) {
-            chosen.setStoredPath(download(chosen.getSourceUrl()));
+            chosen.setStoredPath(imageStudio.download(chosen.getSourceUrl(), "blog"));
         }
         for (BlogImage image : imageRepository.findAllByPostId(postId)) {
             image.setChosen(image.getId().equals(chosen.getId()));
@@ -124,6 +119,31 @@ public class BlogService {
         }
         post.setImagePath(chosen.getStoredPath());
         return postRepository.save(post);
+    }
+
+    /** The admin's own edit of the current version (title, summary, text, tags; the address only before publishing). */
+    @Transactional
+    public PostView edit(Long postId, Draft edit) {
+        requireText(edit);
+        BlogPost post = find(postId);
+        if (post.getStatus() == BlogPostStatus.REJECTED || post.getStatus() == BlogPostStatus.REVISING) {
+            throw new IllegalArgumentException("این مطلب الان ویرایش نمی‌شود.");
+        }
+        BlogPostVersion current = currentVersion(post);
+        current.setTitle(clip(edit.title(), 200));
+        current.setSummary(clip(edit.summary(), 400));
+        current.setBodyMarkdown(edit.bodyMarkdown().trim());
+        current.setTags(clip(edit.tags(), 300));
+        versionRepository.save(current);
+        copyHeadline(post, edit);
+        if (post.getStatus() != BlogPostStatus.PUBLISHED && edit.slug() != null && !edit.slug().isBlank()) {
+            String wanted = slugOf(edit.slug(), edit.title());
+            if (!wanted.equals(post.getSlug())) {
+                post.setSlug(uniqueSlug(wanted, edit.title()));
+            }
+        }
+        postRepository.save(post);
+        return view(postId);
     }
 
     @Transactional
@@ -177,11 +197,29 @@ public class BlogService {
     }
 
     /** The site: one published post and the text of its current version. */
-    public PostView publishedBySlug(String slug) {
-        BlogPost post = postRepository.findBySlug(slug)
+    public PublicPost publishedBySlug(String slug) {
+        BlogPost post = publishedPost(slug);
+        BlogPostVersion text = currentVersion(post);
+        return new PublicPost(post.getId(), post.getSlug(), post.getTitle(), post.getSummary(), post.getImagePath(),
+                millis(post.getPublishedAt()), text.getTags(), text.getBodyMarkdown());
+    }
+
+    /** The site's list: only what a reader sees (no notes, prompts or versions). */
+    public List<PublicPost> publishedCards() {
+        return published().stream()
+                .map(post -> new PublicPost(post.getId(), post.getSlug(), post.getTitle(), post.getSummary(),
+                        post.getImagePath(), millis(post.getPublishedAt()), null, null))
+                .toList();
+    }
+
+    public BlogPost publishedPost(String slug) {
+        return postRepository.findBySlug(slug)
                 .filter(item -> item.getStatus() == BlogPostStatus.PUBLISHED)
                 .orElseThrow(() -> new IllegalArgumentException("مطلب پیدا نشد."));
-        return new PostView(post, List.of(currentVersion(post)), List.of());
+    }
+
+    private static Long millis(Instant instant) {
+        return instant == null ? null : instant.toEpochMilli();
     }
 
     public BlogPostVersion currentVersion(BlogPost post) {
@@ -207,27 +245,6 @@ public class BlogService {
             slug = base + "-" + i;
         }
         return slug;
-    }
-
-    private String download(String url) {
-        if (url == null || !url.startsWith("https://")) {
-            throw new IllegalArgumentException("آدرس تصویر معتبر نیست.");
-        }
-        try {
-            HttpResponse<byte[]> response = http.send(
-                    HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(60)).GET().build(),
-                    HttpResponse.BodyHandlers.ofByteArray());
-            if (response.statusCode() != 200) {
-                throw new IllegalArgumentException("دریافت تصویر ممکن نشد (" + response.statusCode() + ").");
-            }
-            String type = response.headers().firstValue("Content-Type").orElse("");
-            return fileStorageService.storeBlogImage(response.body(), type);
-        } catch (java.io.IOException exception) {
-            throw new IllegalArgumentException("دریافت تصویر ممکن نشد.");
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IllegalArgumentException("دریافت تصویر قطع شد.");
-        }
     }
 
     private BlogPost find(Long postId) {

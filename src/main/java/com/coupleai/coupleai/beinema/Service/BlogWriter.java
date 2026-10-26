@@ -42,6 +42,16 @@ public class BlogWriter {
     public record Topic(String key, String column, String subject) {
     }
 
+    /** What the admin panel shows about the writer: busy, and how the last try ended. */
+    public record Status(boolean writing, Long startedAt, Long lastPostId, String lastError, Long lastFinishedAt) {
+    }
+
+    private volatile boolean writing;
+    private volatile Long startedAt;
+    private volatile Long lastPostId;
+    private volatile String lastError;
+    private volatile Long lastFinishedAt;
+
     private final BlogService blogService;
     private final BlogImageGenerator imageGenerator;
     private final BlogPostRepository postRepository;
@@ -86,13 +96,45 @@ public class BlogWriter {
             return;
         }
         try {
-            writeNew();
+            startWriting();
         } catch (RuntimeException exception) {
-            log.warn("The daily blog post could not be written: {}", exception.getMessage());
+            log.info("The daily blog post was not started: {}", exception.getMessage());
         }
     }
 
-    /** Writes a new post now (also the admin's «نوشتن مطلب تازه»). */
+    public Status status() {
+        return new Status(writing, startedAt, lastPostId, lastError, lastFinishedAt);
+    }
+
+    /**
+     * The admin's «نوشتن مطلب تازه»: writing and the pictures take about a minute,
+     * longer than a request may stay open behind the proxies, so it runs in the
+     * background and the panel follows {@link #status()}.
+     */
+    public synchronized Status startWriting() {
+        if (writing) {
+            throw new IllegalArgumentException("نویسنده همین الان در حال نوشتن است.");
+        }
+        writing = true;
+        startedAt = System.currentTimeMillis();
+        lastError = null;
+        Thread thread = new Thread(() -> {
+            try {
+                lastPostId = writeNew().getId();
+            } catch (RuntimeException exception) {
+                lastError = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
+                log.warn("The blog post could not be written", exception);
+            } finally {
+                lastFinishedAt = System.currentTimeMillis();
+                writing = false;
+            }
+        }, "beinema-blog-writer");
+        thread.setDaemon(true);
+        thread.start();
+        return status();
+    }
+
+    /** Writes a new post now (the daily run, and the background job of the admin's button). */
     public BlogPost writeNew() {
         List<BlogPost> recent = postRepository.findTop60ByOrderByIdDesc();
         Topic topic = nextTopic(topics, recent);
@@ -104,6 +146,21 @@ public class BlogWriter {
         BlogPost post = blogService.createDraft(draft);
         pictures(post.getId());
         return post;
+    }
+
+    /** The rewrite after the admin's notes, in the background; a failure shows in {@link #status()}. */
+    public void startRevising(Long postId) {
+        Thread thread = new Thread(() -> {
+            try {
+                revise(postId);
+            } catch (RuntimeException exception) {
+                lastError = "بازنویسی مطلب " + postId + ": " + exception.getMessage();
+                lastFinishedAt = System.currentTimeMillis();
+                log.warn("Blog post {} could not be rewritten", postId, exception);
+            }
+        }, "beinema-blog-" + postId);
+        thread.setDaemon(true);
+        thread.start();
     }
 
     /** The next version of a post the admin sent back with notes. */

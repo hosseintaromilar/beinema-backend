@@ -19,4 +19,6 @@ public interface BlogPostRepository extends JpaRepository<BlogPost, Long> {
 
     /** Titles already written, so the writer does not repeat a subject. */
     List<BlogPost> findTop60ByOrderByIdDesc();
+
+    long countByStatus(BlogPostStatus status);
 }

@@ -36,7 +36,7 @@ class BlogServiceTest {
     void setUp() {
         posts = mock(BlogPostRepository.class);
         versions = mock(BlogPostVersionRepository.class);
-        service = new BlogService(posts, versions, mock(BlogImageRepository.class), mock(FileStorageService.class));
+        service = new BlogService(posts, versions, mock(BlogImageRepository.class), mock(ImageStudio.class));
         when(posts.save(any(BlogPost.class))).thenAnswer(call -> {
             BlogPost post = call.getArgument(0);
             if (post.getId() == null) {
@@ -102,6 +102,25 @@ class BlogServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.publish(5L));
         assertThrows(IllegalArgumentException.class, () -> service.reject(5L));
+    }
+
+    @Test
+    void theAdminEditsTheTextAndTheAddressOnlyBeforePublishing() {
+        BlogPost post = post(BlogPostStatus.DRAFT);
+        BlogPostVersion current = new BlogPostVersion();
+        when(versions.findByPostIdAndVersionNumber(5L, 1)).thenReturn(Optional.of(current));
+        BlogService.Draft edit = new BlogService.Draft("عنوان تازه", "New Address", "خلاصه", "متن تازه", "برچسب", null, null);
+
+        service.edit(5L, edit);
+        assertEquals("متن تازه", current.getBodyMarkdown());
+        assertEquals("عنوان تازه", post.getTitle());
+        assertEquals("new-address", post.getSlug());
+
+        post.setStatus(BlogPostStatus.PUBLISHED);
+        service.edit(5L, new BlogService.Draft("عنوان", "other-address", "خلاصه", "متن", "برچسب", null, null));
+        assertEquals("new-address", post.getSlug(), "a published address never changes");
+        assertThrows(IllegalArgumentException.class,
+                () -> service.edit(5L, new BlogService.Draft("عنوان", null, null, " ", null, null, null)));
     }
 
     @Test
