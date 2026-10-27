@@ -27,7 +27,7 @@ public final class PhoneNumbers {
 
         if (!digits.matches("09[0-9]{9}")) {
             throw new InvalidContactException(
-                    "فرمت شماره موبایل صحیح نیست."
+                    "شماره موبایل درست نیست؛ آن را مثل ۰۹۱۲۳۴۵۶۷۸۹ وارد کنید."
             );
         }
 

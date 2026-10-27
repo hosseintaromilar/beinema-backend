@@ -101,7 +101,7 @@ public class MessageResponse {
 
                 .displayName(
                         message.getSenderType() == MessageSenderType.AGENT
-                                ? "دستیار"
+                                ? "مشاور"
                                 : null
                 )
 

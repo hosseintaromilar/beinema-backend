@@ -30,4 +30,6 @@ public class RelationshipInsightResponse {
     private Long analyzedAt;
 
     private String message;
+    /** Written after this person last opened it. */
+    private boolean unread;
 }

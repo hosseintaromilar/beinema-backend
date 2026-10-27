@@ -56,5 +56,17 @@ public class ChatRoomRoleSchemaMigrator implements ApplicationRunner {
                     exception.getMessage()
             );
         }
+
+        // a database made by a newer Hibernate has an ENUM here, which rejects SESSION_FEE and CARD_TOP_UP
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "ALTER TABLE wallet_transactions "
+                            + "MODIFY COLUMN type VARCHAR(32) NOT NULL"
+            );
+            log.info("wallet_transactions.type is VARCHAR(32)");
+        } catch (Exception exception) {
+            log.warn("Could not migrate wallet_transactions.type: {}", exception.getMessage());
+        }
     }
 }

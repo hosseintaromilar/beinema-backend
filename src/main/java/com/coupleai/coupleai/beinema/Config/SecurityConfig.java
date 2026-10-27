@@ -182,6 +182,8 @@ public class SecurityConfig {
 
                                 "/api/agents/*/plans",
 
+                                "/api/billing/prices",
+
                                 "/api/blog",
 
                                 "/api/blog/*",
@@ -275,7 +277,7 @@ public class SecurityConfig {
                                             CustomUserDetailsService.PHONE_PENDING
                                     )
                                             ? "{\"code\":\"PHONE_REQUIRED\",\"message\":\"اول شماره موبایل خود را تأیید کنید.\"}"
-                                            : "{\"message\":\"این بخش فقط برای ادمین است.\"}"
+                                            : "{\"message\":\"به این بخش دسترسی ندارید.\"}"
                             );
                         })
                 )

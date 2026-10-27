@@ -41,6 +41,7 @@ public class AdminDashboardController {
     private final BlogCommentService commentService;
     private final BlogWriter blogWriter;
     private final com.coupleai.coupleai.beinema.Service.SupportService supportService;
+    private final com.coupleai.coupleai.beinema.Service.TopUpReceiptService topUpReceiptService;
 
     @GetMapping
     public Map<String, Object> dashboard() {
@@ -87,6 +88,7 @@ public class AdminDashboardController {
         result.put("feedback", feedback);
         result.put("blog", blog);
         result.put("support", Map.of("open", supportService.openCount()));
+        result.put("topUps", Map.of("pending", topUpReceiptService.pendingCount()));
         return result;
     }
 

@@ -52,4 +52,8 @@ public class SessionRecord extends BaseEntity {
     /** 1 for the room's first completed session, 2 for the second, and so on. */
     @Column(name = "completed_ordinal")
     private Integer completedOrdinal;
+
+    /** How the creator paid for it: FREE, PAID or UNPAID (the wallet ran short); null until it is settled. */
+    @Column(name = "billing", length = 8)
+    private String billing;
 }

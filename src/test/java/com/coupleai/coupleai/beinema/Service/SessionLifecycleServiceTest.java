@@ -105,7 +105,8 @@ class SessionLifecycleServiceTest {
         events = mock(ApplicationEventPublisher.class);
         service = new SessionLifecycleService(
                 rooms, participants, agents, summaries, personSummaries,
-                realtime, currentUser, counselor, summaryService, messages, sessionRecords, eventHub, events);
+                realtime, currentUser, counselor, summaryService, messages, sessionRecords, eventHub, events,
+                mock(RelationshipInsightService.class), mock(SessionBillingService.class));
         ReflectionTestUtils.setField(service, "defaultMinutes", 45);
         ReflectionTestUtils.setField(service, "partnerWaitMinutes", 5);
         ReflectionTestUtils.setField(service, "minBreakMinutes", 15);
@@ -396,7 +397,7 @@ class SessionLifecycleServiceTest {
         assertEquals(T0.plusSeconds(60 * MIN), room.getSessionEndedAt());
         assertEquals(SessionEndReason.TIME_LIMIT, records.get(0).getEndReason());
         verify(summaries).save(any(SessionSummary.class));
-        verify(realtime).saveAgentAndPublish(eq(5L), eq(9L), contains("جلسه‌ی اول با موفقیت"));
+        verify(realtime).saveAgentAndPublish(eq(5L), eq(9L), contains("جلسه‌ی اول تموم شد. حرف‌های امروزمون"));
     }
 
     @Test
@@ -429,7 +430,7 @@ class SessionLifecycleServiceTest {
         assertEquals("خلاصه‌ی جلسه", saved.getValue().getSummary());
         ArgumentCaptor<SessionParticipantSummary> mine = ArgumentCaptor.forClass(SessionParticipantSummary.class);
         verify(personSummaries, times(2)).save(mine.capture());
-        verify(realtime).saveAgentAndPublish(eq(5L), eq(9L), contains("جلسه‌ی اول با موفقیت"));
+        verify(realtime).saveAgentAndPublish(eq(5L), eq(9L), contains("جلسه‌ی اول تموم شد. حرف‌های امروزمون"));
 
         SessionInfo info = service.describe(room);
         assertEquals(1, info.getCompletedSessions());

@@ -116,6 +116,13 @@ public class ChatRoomParticipant extends BaseEntity {
     @Column(name = "left_at")
     private java.time.Instant leftAt;
 
+    /**
+     * When this person last opened the relationship path. A path written after
+     * it (at the end of a session) shows them a «1» until they open it.
+     */
+    @Column(name = "insight_seen_at")
+    private java.time.LocalDateTime insightSeenAt;
+
     /** Takes part in the conversation now (not someone who left it). */
     public boolean isActiveMember() {
         return memberStatus == null || memberStatus == ChatRoomMemberStatus.ACTIVE;

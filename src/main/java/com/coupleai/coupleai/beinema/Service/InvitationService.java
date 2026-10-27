@@ -8,6 +8,7 @@ import com.coupleai.coupleai.beinema.Entity.ChatRoomInvitation;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Entity.User;
+import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import com.coupleai.coupleai.beinema.Enum.InvitationStatus;
 import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.MessageStatus;
@@ -76,6 +77,12 @@ public class InvitationService {
         User inviter = currentUserService.getCurrentUser();
         ChatRoom chatRoom = getAuthorizedChatRoom(chatRoomId, inviter);
         String phone = PhoneNumbers.normalize(rawPhone);
+
+        if (chatRoom.getStatus() != ChatRoomStatus.ACTIVE) {
+            throw new IllegalArgumentException(
+                    "این گفتگو پایان یافته است و نمی‌توان کسی را به آن دعوت کرد."
+            );
+        }
 
         if (Objects.equals(phone, inviter.getPhoneNumber())) {
             throw new IllegalArgumentException(
@@ -230,6 +237,10 @@ public class InvitationService {
         }
         if (status != InvitationStatus.PENDING) {
             throw new IllegalArgumentException("این دعوت‌نامه دیگر معتبر نیست.");
+        }
+
+        if (chatRoom.getStatus() != ChatRoomStatus.ACTIVE) {
+            throw new IllegalArgumentException("این گفتگو پایان یافته است و دیگر نمی‌توان به آن پیوست.");
         }
 
         if (participantRepository.countByChatRoom(chatRoom) >= MAX_HUMAN_PARTICIPANTS) {

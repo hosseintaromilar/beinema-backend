@@ -67,8 +67,6 @@ public class ChatFileService {
     private final CurrentUserService currentUserService;
     private final UserRepository userRepository;
     private final MetisService metisService;
-    private final AgentAccessService agentAccessService;
-    private final com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository;
 
     private final Path uploadRoot;
     private final String readerBotId;
@@ -81,8 +79,6 @@ public class ChatFileService {
             CurrentUserService currentUserService,
             UserRepository userRepository,
             MetisService metisService,
-            AgentAccessService agentAccessService,
-            com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository,
             @Value("${beinema.upload.dir:uploads}") String uploadDir,
             @Value("${metis.insight-bot-id}") String readerBotId
     ) {
@@ -92,8 +88,6 @@ public class ChatFileService {
         this.currentUserService = currentUserService;
         this.userRepository = userRepository;
         this.metisService = metisService;
-        this.agentAccessService = agentAccessService;
-        this.chatRoomAgentRepository = chatRoomAgentRepository;
         this.uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
         this.readerBotId = readerBotId;
     }
@@ -344,8 +338,6 @@ public class ChatFileService {
         if (!participantRepository.existsByChatRoomAndUser(room, user)) {
             throw new IllegalArgumentException("شما عضو این گفتگو نیستید.");
         }
-        Long agentId = chatRoomAgentRepository.findActiveAgentIds(chatRoomId).stream().findFirst().orElse(null);
-        agentAccessService.requireValidAccess(chatRoomId, agentId);
         return room;
     }
 

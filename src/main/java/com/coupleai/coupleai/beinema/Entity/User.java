@@ -173,6 +173,13 @@ public class User extends BaseEntity {
     @Column(name = "google_subject", unique = true, length = 64)
     private String googleSubject;
 
+    /**
+     * Free sessions this person has used as the creator of a conversation
+     * (SessionBillingService); null for accounts from before it, read as 0.
+     */
+    @Column(name = "free_sessions_used")
+    private Integer freeSessionsUsed;
+
     public boolean hasRegisteredName() {
         return name != null && !name.isBlank();
     }

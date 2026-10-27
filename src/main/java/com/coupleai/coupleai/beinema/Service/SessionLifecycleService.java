@@ -95,17 +95,17 @@ public class SessionLifecycleService {
     static final String GOES_ON_TEXT = "%s ادامه می‌دهد؛ این جلسه حداکثر تا %s ادامه دارد.";
 
     static final String CLOSING_TEXT =
-            "جلسه‌ی %s با موفقیت تموم شد و خلاصه‌اش ذخیره شد تا جلسه‌ی بعد از همین‌جا ادامه پیدا کنه. "
+            "جلسه‌ی %s تموم شد. حرف‌های امروزمون یادم می‌مونه تا جلسه‌ی بعد از همین‌جا ادامه بدیم. "
                     + "جلسه‌ی بعد از %s می‌تونه شروع بشه؛ هر وقت آماده بودین، «شروع» رو بزنین.";
 
     /** The same when the session closed long after it ended (nobody was there): the break is already over. */
     static final String CLOSING_LATE_TEXT =
-            "جلسه‌ی %s با موفقیت تموم شد و خلاصه‌اش ذخیره شد تا جلسه‌ی بعد از همین‌جا ادامه پیدا کنه. "
+            "جلسه‌ی %s تموم شد. حرف‌های امروزمون یادم می‌مونه تا جلسه‌ی بعد از همین‌جا ادامه بدیم. "
                     + "هر وقت آماده بودین، «شروع» رو بزنین تا جلسه‌ی بعد شروع بشه.";
 
     static final String CLOSING_LIMITED_TEXT =
-            "جلسه‌ی %s با موفقیت تموم شد و خلاصه‌اش ذخیره شد تا جلسه‌ی بعد از همین‌جا ادامه پیدا کنه. "
-                    + "چون در هر %s ساعت حداکثر %s جلسه داریم، جلسه‌ی بعد از %s می‌تونه شروع بشه.";
+            "جلسه‌ی %s تموم شد. حرف‌های امروزمون یادم می‌مونه تا جلسه‌ی بعد از همین‌جا ادامه بدیم. "
+                    + "برای اینکه فرصت کنین حرف‌های این جلسه‌ها رو امتحان کنین، در هر %s ساعت حداکثر %s جلسه داریم؛ جلسه‌ی بعد از %s می‌تونه شروع بشه.";
 
     static final String EMPTY_TEXT =
             "جلسه‌ی %s بدون گفتگو تمام شد و جلسه حساب نمی‌شود. هر وقت آماده بودید «شروع» را بزنید.";
@@ -161,6 +161,8 @@ public class SessionLifecycleService {
     private final SessionRecordRepository sessionRecordRepository;
     private final ChatRoomEventHub eventHub;
     private final ApplicationEventPublisher events;
+    private final RelationshipInsightService relationshipInsightService;
+    private final SessionBillingService sessionBillingService;
 
     /** Tests replace these two to control time and to run the closing in place. */
     Clock clock = Clock.systemUTC();
@@ -422,6 +424,8 @@ public class SessionLifecycleService {
                     throw new SessionOnBreakException(SessionOnBreakException.BREAK,
                             "برای یک استراحت کوتاه، جلسه‌ی بعد را " + persianDigits(minutes) + " دقیقه‌ی دیگر می‌توانید شروع کنید.");
                 }
+                // the creator pays for sessions: a free one left, or credit for one
+                sessionBillingService.requireCanStart(room, user);
                 open(room, people, now);
                 mine.setSessionReadyAt(now);
                 participantRepository.save(mine);
@@ -746,6 +750,9 @@ public class SessionLifecycleService {
             record.setEndReason(reason);
             record.setCompleted(true);
             record.setCompletedOrdinal(number);
+            if (record.getBilling() == null) {
+                record.setBilling(settle(room, number));
+            }
         }
         sessionRecordRepository.save(record);
 
@@ -778,6 +785,16 @@ public class SessionLifecycleService {
             }
         }
         return closing;
+    }
+
+    /** A session with a conversation in it is paid for when it closes; billing never stops a session closing. */
+    private String settle(ChatRoom room, int number) {
+        try {
+            return sessionBillingService.settle(room, number);
+        } catch (RuntimeException exception) {
+            log.warn("Could not settle session {} of room {}: {}", number, room.getId(), exception.getMessage());
+            return SessionBillingService.UNPAID;
+        }
     }
 
     /** The private summaries of the session that just closed, then the counselor's closing words. */
@@ -838,6 +855,9 @@ public class SessionLifecycleService {
         } catch (RuntimeException exception) {
             log.warn("Could not save per-person summaries of room {}: {}", roomId, exception.getMessage());
         }
+
+        // the relationship path is written again for every session that had a conversation
+        relationshipInsightService.refreshAfterSession(roomId, closing.user());
 
         if (!forGood) {
             say(room, closingText(closing));

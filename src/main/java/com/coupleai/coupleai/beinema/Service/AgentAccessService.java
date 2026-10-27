@@ -51,7 +51,7 @@ public class AgentAccessService {
     @Transactional(readOnly = true)
     public List<AgentPlanResponse> getPlans(Long agentId) {
         Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("ایجنت پیدا نشد"));
+                .orElseThrow(() -> new RuntimeException("این مشاور پیدا نشد."));
 
         return agentPlanRepository
                 .findByAgentAndActiveTrueOrderByDurationDaysAsc(agent)
@@ -103,7 +103,7 @@ public class AgentAccessService {
             PurchaseAgentAccessRequest request
     ) {
         if (request == null || request.getPlanId() == null) {
-            throw new IllegalArgumentException("پلن دسترسی را انتخاب کنید");
+            throw new IllegalArgumentException("یکی از بسته‌های دسترسی را انتخاب کنید.");
         }
 
         User user = requireUser(email);
@@ -121,11 +121,11 @@ public class AgentAccessService {
         }
 
         AgentPlan plan = agentPlanRepository.findById(request.getPlanId())
-                .orElseThrow(() -> new IllegalArgumentException("پلن معتبر نیست"));
+                .orElseThrow(() -> new IllegalArgumentException("این بسته دیگر در دسترس نیست؛ یکی دیگر را انتخاب کنید."));
 
         if (!plan.isActive() || plan.getDurationDays() == null || plan.getDurationDays() <= 0
                 || plan.getPrice() == null || plan.getPrice() < 0) {
-            throw new IllegalArgumentException("پلن معتبر نیست");
+            throw new IllegalArgumentException("این بسته دیگر در دسترس نیست؛ یکی دیگر را انتخاب کنید.");
         }
 
         Agent planAgent = plan.getAgent();
@@ -135,7 +135,7 @@ public class AgentAccessService {
 
         Long roomAgentId = resolveAgentId(chatRoom.getId());
         if (roomAgentId == null || !roomAgentId.equals(planAgent.getId())) {
-            throw new IllegalArgumentException("این پلن برای مشاور این گفتگو نیست");
+            throw new IllegalArgumentException("این بسته برای مشاور این گفتگو نیست.");
         }
 
         Wallet wallet = walletService.lockByUserId(user.getId());
@@ -187,7 +187,7 @@ public class AgentAccessService {
         );
         if (plan == null || plan.getPrice() == null || plan.getPrice() < 0
                 || plan.getDurationDays() == null || plan.getDurationDays() <= 0) {
-            throw new IllegalArgumentException("هزینه دسترسی این مشاور تعریف نشده است");
+            throw new IllegalArgumentException("خرید این مشاور فعلاً ممکن نیست. کمی بعد دوباره امتحان کنید.");
         }
         return plan;
     }
@@ -200,7 +200,7 @@ public class AgentAccessService {
     public void grantForNewRoom(User user, ChatRoom chatRoom, Agent agent, AgentPlan plan) {
         if (plan == null || !plan.isActive() || plan.getDurationDays() == null
                 || plan.getDurationDays() <= 0 || plan.getPrice() == null || plan.getPrice() < 0) {
-            throw new IllegalArgumentException("هزینه دسترسی این مشاور تعریف نشده است");
+            throw new IllegalArgumentException("خرید این مشاور فعلاً ممکن نیست. کمی بعد دوباره امتحان کنید.");
         }
 
         Wallet wallet = walletService.lockByUserId(user.getId());

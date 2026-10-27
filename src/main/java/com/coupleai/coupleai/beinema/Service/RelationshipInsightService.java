@@ -5,6 +5,7 @@ import com.coupleai.coupleai.beinema.DTO.ChatRoom.RelationshipInsightResponse;
 import com.coupleai.coupleai.beinema.DTO.metis.MetisConversationResponse;
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomAgent;
+import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Entity.RelationshipInsight;
 import com.coupleai.coupleai.beinema.Entity.User;
@@ -19,6 +20,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +40,7 @@ public class RelationshipInsightService {
     private static final int MAX_MESSAGES = 80;
     private static final int MAX_MESSAGE_CHARS = 420;
     private static final int MIN_USER_MESSAGES = 2;
+    private static final Logger log = LoggerFactory.getLogger(RelationshipInsightService.class);
 
     @Value("${metis.insight-bot-id}")
     private String insightBotId;
@@ -49,23 +53,90 @@ public class RelationshipInsightService {
     private final RelationshipInsightRepository insightRepository;
     private final MetisService metisService;
     private final ObjectMapper objectMapper;
+    private final ChatRoomEventHub eventHub;
 
     @Transactional(readOnly = true)
     public RelationshipInsightResponse getInsight(String email, Long chatRoomId) {
-        ChatRoom chatRoom = requireAccessibleRoom(email, chatRoomId);
+        User user = requireUser(email);
+        ChatRoom chatRoom = requireAccessibleRoom(user, chatRoomId);
         return insightRepository.findByChatRoom(chatRoom)
-                .map(this::toResponse)
+                .map(insight -> toResponse(insight, isUnread(insight, chatRoom, user)))
                 .orElseGet(() -> emptyResponse(
                         chatRoomId,
-                        "هنوز مسیر رابطه برای این گفتگو ساخته نشده است."
+                        "مسیر رابطه‌تان بعد از پایان اولین جلسه اینجا نوشته می‌شود."
                 ));
+    }
+
+    /** They opened the path: its «1» goes away. */
+    @Transactional
+    public void markSeen(String email, Long chatRoomId) {
+        User user = requireUser(email);
+        ChatRoom chatRoom = requireAccessibleRoom(user, chatRoomId);
+        participantRepository.findByChatRoomAndUser(chatRoom, user).ifPresent(person -> {
+            person.setInsightSeenAt(LocalDateTime.now());
+            participantRepository.save(person);
+        });
+    }
+
+    /** A path written after this person last opened it (the badge on the room and its card). */
+    @Transactional(readOnly = true)
+    public boolean unreadFor(ChatRoom chatRoom, User user) {
+        if (chatRoom == null || user == null) {
+            return false;
+        }
+        return insightRepository.findByChatRoom(chatRoom)
+                .map(insight -> isUnread(insight, chatRoom, user))
+                .orElse(false);
+    }
+
+    private boolean isUnread(RelationshipInsight insight, ChatRoom chatRoom, User user) {
+        if (insight.getAnalyzedAt() == null) {
+            return false;
+        }
+        LocalDateTime seen = participantRepository.findByChatRoomAndUser(chatRoom, user)
+                .map(ChatRoomParticipant::getInsightSeenAt)
+                .orElse(null);
+        return seen == null || seen.isBefore(insight.getAnalyzedAt());
     }
 
     @Transactional
     public RelationshipInsightResponse refreshInsight(String email, Long chatRoomId) {
         User user = requireUser(email);
         ChatRoom chatRoom = requireAccessibleRoom(user, chatRoomId);
+        return refresh(user, chatRoom);
+    }
 
+    /**
+     * Writes the path again when a session closes, so it is ready without anyone
+     * asking; the open pages hear «insight_updated» and show it. Never throws:
+     * a failed path must not stop the session from closing.
+     */
+    @Transactional
+    public void refreshAfterSession(Long chatRoomId, User user) {
+        try {
+            ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId).orElse(null);
+            if (chatRoom == null) {
+                return;
+            }
+            User asker = user != null ? user : participantRepository.findAllByChatRoom(chatRoom).stream()
+                    .map(ChatRoomParticipant::getUser)
+                    .findFirst()
+                    .orElse(null);
+            if (asker == null) {
+                return;
+            }
+            RelationshipInsightResponse fresh = refresh(asker, chatRoom);
+            if (!fresh.isEmpty()) {
+                eventHub.publishNamed(chatRoomId, "insight_updated",
+                        Map.of("chatRoomId", chatRoomId, "analyzedAt", fresh.getAnalyzedAt()));
+            }
+        } catch (RuntimeException exception) {
+            log.warn("Could not write the relationship path of room {}: {}", chatRoomId, exception.getMessage());
+        }
+    }
+
+    private RelationshipInsightResponse refresh(User user, ChatRoom chatRoom) {
+        Long chatRoomId = chatRoom.getId();
         List<Message> messages = messageRepository
                 .findByChatRoomIdAndDeletedFalseOrderBySequenceNumberAsc(chatRoomId);
 
@@ -99,7 +170,7 @@ public class RelationshipInsightService {
                 .filter(link -> Boolean.TRUE.equals(link.getActive()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "ایجنت این گفتگو پیدا نشد."
+                        "مشاور این گفتگو پیدا نشد."
                 ));
 
         String transcript = buildTranscript(chatRoom, messages);
@@ -127,17 +198,17 @@ public class RelationshipInsightService {
             insight.setAnalyzedAt(LocalDateTime.now());
             insight.setMessageCountAtAnalysis(messages.size());
             insight.setAnalysisSessionId(session.getId());
-            return toResponse(insightRepository.save(insight));
+            return toResponse(insightRepository.save(insight), false);
         } catch (IllegalArgumentException exception) {
             throw exception;
         } catch (Exception exception) {
             throw new IllegalArgumentException(
-                    "تحلیل مسیر رابطه الان ممکن نشد. کمی بعد دوباره تلاش کنید."
+                    "نوشتن مسیر رابطه الان ممکن نشد. کمی بعد دوباره سر بزنید."
             );
         }
     }
 
-    private RelationshipInsightResponse toResponse(RelationshipInsight insight) {
+    private RelationshipInsightResponse toResponse(RelationshipInsight insight, boolean unread) {
         boolean empty = insight.getAnalyzedAt() == null
                 && isBlank(insight.getWhereWeAre())
                 && isBlank(insight.getDailySentence());
@@ -153,8 +224,9 @@ public class RelationshipInsightService {
                 .dailySentence(insight.getDailySentence())
                 .analyzedAt(toEpochMillis(insight.getAnalyzedAt()))
                 .message(empty
-                        ? "هنوز مسیر رابطه برای این گفتگو ساخته نشده است."
+                        ? "مسیر رابطه‌تان بعد از پایان اولین جلسه اینجا نوشته می‌شود."
                         : null)
+                .unread(unread)
                 .build();
     }
 
@@ -224,17 +296,17 @@ public class RelationshipInsightService {
 
     private InsightLlmPayload parsePayload(String raw) {
         if (raw == null || raw.isBlank()) {
-            throw new IllegalArgumentException("پاسخ تحلیل خالی بود.");
+            throw new IllegalArgumentException("نوشتن مسیر رابطه الان ممکن نشد. کمی بعد دوباره سر بزنید.");
         }
         String json = extractJson(raw);
         try {
             InsightLlmPayload payload = objectMapper.readValue(json, InsightLlmPayload.class);
             if (payload == null || isBlank(payload.getWhereWeAre()) && isBlank(payload.getDailySentence())) {
-                throw new IllegalArgumentException("تحلیل قابل فهم نبود.");
+                throw new IllegalArgumentException("نوشتن مسیر رابطه الان ممکن نشد. کمی بعد دوباره سر بزنید.");
             }
             return payload;
         } catch (JsonProcessingException exception) {
-            throw new IllegalArgumentException("تحلیل قابل فهم نبود.");
+            throw new IllegalArgumentException("نوشتن مسیر رابطه الان ممکن نشد. کمی بعد دوباره سر بزنید.");
         }
     }
 

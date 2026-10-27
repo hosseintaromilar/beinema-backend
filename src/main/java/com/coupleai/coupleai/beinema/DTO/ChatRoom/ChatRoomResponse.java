@@ -39,4 +39,7 @@ public class ChatRoomResponse {
     /** The developer panel with the counselor's inner state (admins, or development mode). */
     private Boolean counselorStateAvailable;
 
+    /** A new relationship path this person has not opened yet (the «1» badge). */
+    private Boolean insightUnread;
+
 }

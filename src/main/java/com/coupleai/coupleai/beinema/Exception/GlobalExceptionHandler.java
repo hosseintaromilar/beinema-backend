@@ -148,12 +148,24 @@ public class GlobalExceptionHandler {
 
                         new ErrorMessage(
 
-                                exception.getMessage()
+                                forThePerson(exception.getMessage())
 
                         )
 
                 );
 
+    }
+
+
+    /**
+     * Our own messages are written for the person in Persian. A message from
+     * inside Java or a library ("For input string: ...") is not for them.
+     */
+    static String forThePerson(String message) {
+        if (message != null && message.codePoints().anyMatch(c -> c >= 0x0600 && c <= 0x06FF)) {
+            return message;
+        }
+        return "درخواست انجام نشد. صفحه را تازه کن و دوباره امتحان کن.";
     }
 
 

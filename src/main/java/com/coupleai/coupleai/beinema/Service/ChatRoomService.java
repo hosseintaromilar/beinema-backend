@@ -41,8 +41,9 @@ public class ChatRoomService {
     private final ChatRoomInvitationRepository invitationRepository;
     private final ChatRealtimeService chatRealtimeService;
     private final MetisService metisService;
-    private final AgentAccessService agentAccessService;
+    private final SessionBillingService sessionBillingService;
     private final RelationshipInsightRepository relationshipInsightRepository;
+    private final RelationshipInsightService relationshipInsightService;
     private final ParticipationPauseService participationPauseService;
     private final AgentAccessRepository agentAccessRepository;
     private final GovernanceLogRepository governanceLogRepository;
@@ -94,8 +95,8 @@ public class ChatRoomService {
                 agent.getStatus() != AgentStatus.ACTIVE
         ) {
 
-            throw new RuntimeException(
-                    "Agent is not active"
+            throw new IllegalArgumentException(
+                    "این مشاور فعلاً در دسترس نیست."
             );
 
         }
@@ -113,8 +114,8 @@ public class ChatRoomService {
 
         }
 
-        AgentPlan accessPlan = agentAccessService.requireDefaultPlan(agent);
-        agentAccessService.assertCanAfford(user, accessPlan);
+        // the first session opens with the conversation: a free one, or credit for one
+        sessionBillingService.requireCanStart(user, user);
 
 
         /*
@@ -237,7 +238,6 @@ public class ChatRoomService {
                 chatRoomAgent
         );
 
-        agentAccessService.grantForNewRoom(user, chatRoom, agent, accessPlan);
         participationPauseService.startConsentGate(chatRoom, user);
 
 
@@ -762,31 +762,27 @@ public class ChatRoomService {
             ChatRoomResponse.ChatRoomResponseBuilder builder,
             ChatRoom chatRoom
     ) {
-        Long agentId = chatRoomAgentRepository
-                .findActiveAgentIds(chatRoom.getId())
-                .stream()
-                .findFirst()
-                .orElse(null);
-
         participationPauseService.expireStale(chatRoom);
-        boolean hasAccess = agentAccessService.hasValidAccess(chatRoom.getId(), agentId);
-        Long expiresAt = agentAccessService.findActive(chatRoom.getId(), agentId)
-                .map(access -> access.getExpiresAt() == null
-                        ? null
-                        : access.getExpiresAt()
-                        .atZone(java.time.ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli())
-                .orElse(null);
 
+        // sessions are paid one by one (SessionBillingService); the counselor is always there
         return builder
-                .hasActiveAgentAccess(hasAccess)
-                .agentAccessExpiresAt(expiresAt)
+                .hasActiveAgentAccess(true)
+                .agentAccessExpiresAt(null)
                 .sessionEnded(chatRoom.getStatus() != ChatRoomStatus.ACTIVE)
                 .endedBy(chatRoom.getEndedBy())
                 .session(sessionLifecycleService.describe(sessionLifecycleService.refresh(chatRoom)))
                 .counselorStateAvailable(canSeeCounselorState())
+                .insightUnread(insightUnread(chatRoom))
                 .build();
+    }
+
+
+    private boolean insightUnread(ChatRoom chatRoom) {
+        try {
+            return relationshipInsightService.unreadFor(chatRoom, currentUserService.getCurrentUser());
+        } catch (RuntimeException noUser) {
+            return false;
+        }
     }
 
 

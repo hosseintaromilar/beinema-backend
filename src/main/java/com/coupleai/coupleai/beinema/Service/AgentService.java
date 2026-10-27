@@ -64,7 +64,7 @@ public class AgentService {
     @Transactional(readOnly = true)
     public AgentResponse getAgent(Long id) {
         Agent agent = agentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("ایجنت پیدا نشد"));
+                .orElseThrow(() -> new RuntimeException("این مشاور پیدا نشد."));
         if (agent.getStatus() != AgentStatus.ACTIVE) {
             throw new RuntimeException("این مشاور در حال حاضر فعال نیست");
         }

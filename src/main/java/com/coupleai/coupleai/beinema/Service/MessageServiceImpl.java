@@ -72,7 +72,6 @@ public class MessageServiceImpl implements MessageService {
 
     private final ObjectMapper objectMapper;
 
-    private final AgentAccessService agentAccessService;
 
     private final ParticipationPauseService participationPauseService;
 
@@ -161,9 +160,6 @@ public class MessageServiceImpl implements MessageService {
         // the first session waits while someone who just opened the room reads the rules
         sessionLifecycleService.markEntered(chatRoom, user);
         Long agentId = resolveAgentId(chatRoom.getId());
-        if (!agentAccessService.hasValidAccess(chatRoom.getId(), agentId)) {
-            return;
-        }
         // the clock first: a session that is over is closed before anyone is greeted into it
         chatRoom = sessionLifecycleService.refresh(chatRoom);
         boolean sessionOpen = sessionLifecycleService.isActive(chatRoom);
@@ -394,8 +390,6 @@ public class MessageServiceImpl implements MessageService {
         chatRoom = sessionLifecycleService.refresh(chatRoom);
         sessionLifecycleService.requireCanWrite(chatRoom, user);
 
-        Long roomAgentId = resolveAgentId(chatRoom.getId());
-        agentAccessService.requireValidAccess(chatRoom.getId(), roomAgentId);
         if (counselorSessionService.usesNewBrain(chatRoom)) {
             return orchestratedStream(chatRoom, user, request);
         }
@@ -750,7 +744,7 @@ public class MessageServiceImpl implements MessageService {
                                 SseEmitter.event()
                                         .name("error")
                                         .data(
-                                                "خطا در دریافت پاسخ از هوش مصنوعی"
+                                                "مشاور الان نتوانست جواب بدهد. چند لحظه بعد دوباره بفرست."
                                         )
                         );
 
@@ -871,7 +865,7 @@ public class MessageServiceImpl implements MessageService {
             try {
                 emitter.send(ok
                         ? SseEmitter.event().name("done").data("DONE")
-                        : SseEmitter.event().name("error").data("خطا در دریافت پاسخ از هوش مصنوعی"));
+                        : SseEmitter.event().name("error").data("مشاور الان نتوانست جواب بدهد. چند لحظه بعد دوباره بفرست."));
             } catch (IOException | IllegalStateException closed) {
                 emitterClosed.set(true);
             }

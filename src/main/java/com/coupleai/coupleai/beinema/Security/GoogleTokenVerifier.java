@@ -92,7 +92,7 @@ public class GoogleTokenVerifier {
 
     public GoogleIdentity verify(String idToken) {
         if (!isEnabled()) {
-            throw new IllegalArgumentException("ورود با گوگل فعال نیست.");
+            throw new IllegalArgumentException("ورود با گوگل فعلاً در دسترس نیست. با شماره موبایل وارد شوید.");
         }
         if (idToken == null || idToken.isBlank()) {
             throw new InvalidCredentialsException("ورود با گوگل ناموفق بود.");
@@ -105,7 +105,7 @@ public class GoogleTokenVerifier {
             // the reason (expired, wrong audience, keys unreachable...) goes to the log, never the token
             log.warn("Google token rejected: {}: {}", exception.getClass().getSimpleName(), exception.getMessage());
             if (String.valueOf(exception.getMessage()).contains("JWK")) {
-                throw new InvalidCredentialsException("ورود با گوگل الان ممکن نیست؛ سرور به گوگل دسترسی ندارد.");
+                throw new InvalidCredentialsException("ورود با گوگل الان ممکن نیست. با شماره موبایل وارد شوید یا کمی بعد دوباره امتحان کنید.");
             }
             throw new InvalidCredentialsException("ورود با گوگل ناموفق بود. دوباره تلاش کنید.");
         }

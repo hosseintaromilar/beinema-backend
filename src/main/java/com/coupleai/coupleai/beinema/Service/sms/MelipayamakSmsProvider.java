@@ -42,7 +42,7 @@ public class MelipayamakSmsProvider implements SmsProvider {
         String sender = trimToNull(senderNumber);
 
         if (key == null || sender == null) {
-            throw new SmsDeliveryException("تنظیمات پیامک کامل نیست.");
+            throw new SmsDeliveryException("ارسال پیامک الان ممکن نیست. کمی بعد دوباره تلاش کنید.");
         }
 
         String endpoint = apiUrl.replaceAll("/$", "") + "/" + key;

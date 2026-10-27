@@ -35,6 +35,10 @@ public class WalletService {
     @Value("${beinema.wallet.top-up-presets:100000,250000,500000,1000000}")
     private String topUpPresets;
 
+    /** Charging without paying (ManualPaymentProvider): local testing only; real top-ups are card-to-card receipts. */
+    @Value("${beinema.wallet.instant-top-up:false}")
+    private boolean instantTopUp;
+
     @Transactional
     public Wallet getOrCreate(User user) {
         return walletRepository.findByUser_Id(user.getId())
@@ -73,6 +77,9 @@ public class WalletService {
 
     @Transactional
     public WalletResponse topUp(String email, TopUpRequest request) {
+        if (!instantTopUp) {
+            throw new IllegalArgumentException("شارژ حساب با کارت به کارت انجام می‌شود؛ رسید واریز را در «اعتبار حساب» بفرست.");
+        }
         if (request == null || request.getAmount() == null || request.getAmount() < 10000) {
             throw new IllegalArgumentException("مبلغ شارژ باید حداقل ۱۰٬۰۰۰ تومان باشد");
         }

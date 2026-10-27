@@ -16,6 +16,8 @@ public class SessionOnBreakException extends RuntimeException {
     public static final String CLOSED = "ROOM_ENDED";
     /** This person left the conversation: they read, and can come back to write. */
     public static final String LEFT = "MEMBER_LEFT";
+    /** No free session left and not enough credit: the creator has to charge their wallet. */
+    public static final String PAYMENT = "SESSION_PAYMENT";
 
     private final String code;
 

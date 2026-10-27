@@ -309,7 +309,7 @@ public class ChatRealtimeService {
                 .stream()
                 .filter(name -> name != null && !name.isBlank())
                 .findFirst()
-                .orElse("دستیار");
+                .orElse("مشاور");
     }
 
     private MessageResponse toResponse(
@@ -336,7 +336,7 @@ public class ChatRealtimeService {
         }
 
         if (message.getSenderType() == MessageSenderType.AGENT) {
-            String name = agentName == null || agentName.isBlank() ? "دستیار" : agentName;
+            String name = agentName == null || agentName.isBlank() ? "مشاور" : agentName;
             response.setDisplayName(name);
             response.setSenderName(name);
             return response;

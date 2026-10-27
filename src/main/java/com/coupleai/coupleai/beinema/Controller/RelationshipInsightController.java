@@ -31,6 +31,16 @@ public class RelationshipInsightController {
         );
     }
 
+    /** They opened the path: the «1» on the room and its card goes away. */
+    @PostMapping("/{chatRoomId}/insight/seen")
+    public ResponseEntity<Void> markSeen(
+            @PathVariable Long chatRoomId,
+            Authentication authentication
+    ) {
+        relationshipInsightService.markSeen(authentication.getName(), chatRoomId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{chatRoomId}/insight/refresh")
     public ResponseEntity<RelationshipInsightResponse> refreshInsight(
             @PathVariable Long chatRoomId,
