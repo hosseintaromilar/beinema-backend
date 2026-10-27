@@ -40,6 +40,7 @@ public class AdminDashboardController {
     private final BlogPostRepository blogPostRepository;
     private final BlogCommentService commentService;
     private final BlogWriter blogWriter;
+    private final com.coupleai.coupleai.beinema.Service.SupportService supportService;
 
     @GetMapping
     public Map<String, Object> dashboard() {
@@ -85,6 +86,7 @@ public class AdminDashboardController {
         result.put("messages", messages);
         result.put("feedback", feedback);
         result.put("blog", blog);
+        result.put("support", Map.of("open", supportService.openCount()));
         return result;
     }
 

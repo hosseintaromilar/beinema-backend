@@ -133,7 +133,30 @@ public final class DirectorPacketBuilder {
             }
             out.append(" | when: ").append(lesson.when()).append('\n');
         }
+        out.append(teachingNote(m, taught));
         return out.toString();
+    }
+
+    /**
+     * Where teaching stands in this session, so the director weighs it like a
+     * real counselor would: how many lessons this session, and how far the talk
+     * has gone without one.
+     */
+    static String teachingNote(TurnMaterial m, java.util.Map<String, Integer> taught) {
+        int session = m.sessionNumber();
+        long thisSession = taught.values().stream().filter(value -> value != null && value == session).count();
+        Integer start = m.room() == null ? null : m.room().getSessionStartSequence();
+        long partnerMessages = m.recent().stream()
+                .filter(message -> message.getSenderType() == com.coupleai.coupleai.beinema.Enum.MessageSenderType.USER)
+                .filter(message -> start == null || (message.getSequenceNumber() != null && message.getSequenceNumber() >= start))
+                .count();
+        StringBuilder note = new StringBuilder("TEACHING THIS SESSION: ")
+                .append(thisSession).append(" of 2 lessons taught; ")
+                .append(partnerMessages).append(" partner messages in the recent window of this session.");
+        if (thisSession == 0 && partnerMessages >= 6) {
+            note.append(" No lesson yet: check analysis.teach_opportunity with care; if a pattern of [LESSONS] is showing, this is a good time to teach it.");
+        }
+        return note.append('\n').toString();
     }
 
     /** The name the couple gave the room: often a hint of why they came. */

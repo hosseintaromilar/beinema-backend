@@ -61,6 +61,10 @@ public class TurnOrchestrator {
     private final DirectorDecisionRecordRepository decisionRepository;
     private final TurnInbox inbox;
 
+    /** The lines shown while the counselor prepares its reply; optional (absent in the tests that build this by hand). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private StatusLineWriter statusLines;
+
     /** Typing pauses between the parts of a turn; off in tests. */
     boolean pacing = true;
 
@@ -110,6 +114,13 @@ public class TurnOrchestrator {
         }
         Long agentId = agentId(roomId);
         chatRealtimeService.publishAgentTyping(roomId, 9000, "thinking");
+        if (statusLines != null && trigger != null) {
+            // next to the real turn: two short lines about what was just written
+            statusLines.startFor(roomId, m.fresh().stream()
+                    .map(Message::getContent)
+                    .filter(text -> text != null && !text.isBlank())
+                    .collect(Collectors.joining("\n")));
+        }
 
         // 0. the session manager plans the session at its start and again every so often
         SessionPlanner.refresh(m, brain);

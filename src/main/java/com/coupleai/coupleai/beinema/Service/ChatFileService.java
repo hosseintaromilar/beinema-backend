@@ -47,6 +47,7 @@ public class ChatFileService {
 
     public static final long MAX_FILE_BYTES = 10L * 1024 * 1024;
     public static final int MAX_FILES_PER_MESSAGE = 4;
+    static final String DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private static final long ROOM_QUOTA_BYTES = 100L * 1024 * 1024;
     private static final long SUMMARY_WAIT_MILLIS = 30_000L;
 
@@ -129,9 +130,14 @@ public class ChatFileService {
         } catch (IOException exception) {
             throw new IllegalArgumentException("خواندن فایل ممکن نشد.");
         }
+        if (DocxText.isOldWord(bytes)) {
+            throw new IllegalArgumentException(
+                    "فایل Word قدیمی (.doc) خوانده نمی‌شود؛ آن را به PDF یا docx تبدیل کن و دوباره بفرست."
+            );
+        }
         Detected detected = detect(bytes)
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "فقط عکس (JPG، PNG، WEBP)، PDF و فایل متنی پذیرفته می‌شود."
+                        "فقط عکس (JPG، PNG، WEBP)، PDF، فایل Word (docx) و فایل متنی پذیرفته می‌شود."
                 ));
 
         String storedName = UUID.randomUUID() + detected.extension();
@@ -280,6 +286,16 @@ public class ChatFileService {
             if ("text/plain".equals(attachment.getContentType())) {
                 String text = new String(bytes, StandardCharsets.UTF_8).strip();
                 summary = text.length() > 1500 ? text.substring(0, 1500) + "..." : text;
+            } else if ("application/pdf".equals(attachment.getContentType())
+                    && PdfText.extract(bytes).isPresent()) {
+                // a PDF with real text: its own words; a scan goes to the model below
+                String text = PdfText.extract(bytes).orElse("");
+                summary = text.length() > 1500 ? text.substring(0, 1500) + "..." : text;
+            } else if (DOCX.equals(attachment.getContentType())) {
+                // a Word file: its own words, like a text file
+                String text = DocxText.extract(bytes).orElse("");
+                summary = text.isBlank() ? "(an empty Word document)"
+                        : text.length() > 1500 ? text.substring(0, 1500) + "..." : text;
             } else {
                 User uploader = userRepository.findById(uploaderId)
                         .orElseThrow(() -> new IllegalStateException("uploader missing"));
@@ -297,7 +313,7 @@ public class ChatFileService {
             attachment.setSummary(summary == null ? "" : summary.strip());
             attachment.setSummaryStatus(MessageAttachment.READY);
         } catch (Exception exception) {
-            log.warn("Could not read attachment {}: {}", attachmentId, exception.getMessage());
+            log.warn("Could not read attachment {}", attachmentId, exception);
             attachment.setSummaryStatus(MessageAttachment.FAILED);
         }
         attachmentRepository.save(attachment);
@@ -378,6 +394,12 @@ public class ChatFileService {
         }
         if (bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F') {
             return Optional.of(new Detected("application/pdf", ".pdf", "FILE"));
+        }
+        if (DocxText.isZip(bytes)) {
+            // a zip is accepted only when it is a Word document
+            return DocxText.extract(bytes).isPresent()
+                    ? Optional.of(new Detected(DOCX, ".docx", "FILE"))
+                    : Optional.empty();
         }
         // plain text: no NUL bytes and valid UTF-8 in the first 4 KB
         int sample = Math.min(bytes.length, 4096);
