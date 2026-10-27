@@ -182,6 +182,36 @@ public class TurnOrchestrator {
                 out = new VoiceOutputParser.Result("", null, Map.of(), false, "CALL_FAILED: " + exception.getMessage(), List.of());
             }
         }
+        // the reply must not hand their words back to them; if it does, the voice writes it once more
+        String echoNote = null;
+        if (out != null && !out.failed() && trigger != null) {
+            List<String> theirs = m.fresh().stream()
+                    .map(Message::getContent)
+                    .filter(text -> text != null && !text.isBlank())
+                    .toList();
+            java.util.Optional<String> echo = EchoGuard.echoed(out.text(), theirs);
+            if (echo.isPresent()) {
+                String warning = "your first draft repeated their words «" + echo.get() + "»: never repeat, paraphrase or "
+                        + "quote what they wrote or asked; go straight to the move; ";
+                String again = voicePacket.contains("must_not=")
+                        ? voicePacket.replaceFirst("must_not=", java.util.regex.Matcher.quoteReplacement("must_not=" + warning))
+                        : voicePacket.replaceFirst("length=", java.util.regex.Matcher.quoteReplacement("must_not=" + warning + "\nlength="));
+                try {
+                    BrainGateway.Reply reply = brain.voice(again);
+                    voiceMs += reply.millis();
+                    VoiceOutputParser.Result rewritten = VoiceOutputParser.parse(reply.text());
+                    boolean usable = !rewritten.failed()
+                            && (!rewritten.text().isBlank() || (rewritten.questionText() != null && !rewritten.questionText().isBlank()));
+                    if (usable) {
+                        out = rewritten;
+                        voiceRaw = reply.text();
+                        echoNote = "echo: rewritten (it repeated «" + echo.get() + "»)";
+                    }
+                } catch (RuntimeException exception) {
+                    log.warn("Voice rewrite failed in room {}: {}", roomId, exception.getMessage());
+                }
+            }
+        }
         if (out == null || out.failed()) {
             if (stored.questionId() != null) {
                 questionService.cancel(stored.questionId(), "the voice could not write it");
@@ -197,6 +227,9 @@ public class TurnOrchestrator {
 
         // 7. deliver
         List<String> notes = new ArrayList<>(out.notes());
+        if (echoNote != null) {
+            notes.add(echoNote);
+        }
         if (taught != null) {
             notes.add(taught.note() + " (" + taught.millis() + " ms)");
         }
