@@ -109,7 +109,7 @@ public class TurnOrchestrator {
             }
         }
         Long agentId = agentId(roomId);
-        chatRealtimeService.publishAgentTyping(roomId, 9000);
+        chatRealtimeService.publishAgentTyping(roomId, 9000, "thinking");
 
         // 0. the session manager plans the session at its start and again every so often
         SessionPlanner.refresh(m, brain);
@@ -152,7 +152,7 @@ public class TurnOrchestrator {
         LessonTeacher.Result taught = LessonTeacher.prepare(m, d, brain);
 
         // 6. the voice (still writing: keep the typing sign up for both partners)
-        chatRealtimeService.publishAgentTyping(roomId, 9000);
+        chatRealtimeService.publishAgentTyping(roomId, 9000, "writing");
         String voicePacket = VoicePacketBuilder.forDecision(m, d, stored.readings(), config.getVoiceRecentMessages());
         String voiceRaw = "";
         long voiceMs = 0;
@@ -228,7 +228,7 @@ public class TurnOrchestrator {
             long typing = item instanceof TextItem text
                     ? MessageServiceImpl.pacingMillis(text.segment())
                     : Math.min(5200L, 1200L + ((QuestionItem) item).text().length() * 30L);
-            chatRealtimeService.publishAgentTyping(outcome.roomId(), typing);
+            chatRealtimeService.publishAgentTyping(outcome.roomId(), typing, "continuing");
             if (pacing) {
                 sleep(typing);
             }

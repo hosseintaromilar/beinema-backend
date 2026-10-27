@@ -153,10 +153,19 @@ public class ChatRealtimeService {
      * multi-message reply. Purely a presentation hint; it carries no decision.
      */
     public void publishAgentTyping(Long chatRoomId, long durationMillis) {
+        publishAgentTyping(chatRoomId, durationMillis, "writing");
+    }
+
+    /**
+     * The same hint with the stage of the counselor's turn, so the page can say
+     * what is really happening: "thinking" (deciding what to do), "writing"
+     * (the reply is being written) or "continuing" (the next part of a reply).
+     */
+    public void publishAgentTyping(Long chatRoomId, long durationMillis, String phase) {
         chatRoomEventHub.publishNamed(
                 chatRoomId,
                 "agent_typing",
-                java.util.Map.of("durationMs", Math.max(500L, durationMillis))
+                java.util.Map.of("durationMs", Math.max(500L, durationMillis), "phase", phase == null ? "writing" : phase)
         );
     }
 
