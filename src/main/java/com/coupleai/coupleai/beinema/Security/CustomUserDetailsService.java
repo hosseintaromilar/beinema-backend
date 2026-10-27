@@ -94,16 +94,15 @@ public class CustomUserDetailsService
 
 
 
-    /** Marks a Google user whose phone number is not verified yet (see SecurityConfig). */
+    /**
+     * Once marked a Google user without a verified phone (see SecurityConfig).
+     * Signing in with Google is now a full way in, so no account carries it.
+     */
     public static final String PHONE_PENDING = "PHONE_PENDING";
 
 
     private static List<SimpleGrantedAuthority> authoritiesOf(User user) {
-        SimpleGrantedAuthority role = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
-        if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
-            return List.of(role, new SimpleGrantedAuthority(PHONE_PENDING));
-        }
-        return List.of(role);
+        return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
     }
 
 }

@@ -52,7 +52,8 @@ public class UserResponse {
 
                 .profileComplete(user.hasRegisteredName())
 
-                .phoneRequired(user.getPhoneNumber() == null || user.getPhoneNumber().isBlank())
+                // signing in with Google is a full way in; no phone number is asked for
+                .phoneRequired(false)
 
                 .avatarUrl(user.getAvatarUrl())
 

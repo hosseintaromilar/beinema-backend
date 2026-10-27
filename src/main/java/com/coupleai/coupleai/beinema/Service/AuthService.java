@@ -190,9 +190,9 @@ public class AuthService {
 
 
     /**
-     * Sign-in with a Google ID token. A new Google user gets an account without
-     * a phone number; the app then asks for the number once (requestPhoneLink /
-     * verifyPhoneLink), because partners and invitations are matched by phone.
+     * Sign-in with a Google ID token: one way in, like the phone number. A new
+     * Google user gets a complete account (wallet, referral reward) without a
+     * phone number; an invitation gives them the invited number when they accept it.
      */
     public AuthResponse signInWithGoogle(GoogleSignInRequest request) {
         GoogleIdentity identity = googleTokenVerifier.verify(
@@ -203,7 +203,7 @@ public class AuthService {
                 .or(() -> userRepository.findByEmail(identity.email())
                         .filter(existing -> existing.getGoogleSubject() == null
                                 && !existing.isDeleted()))
-                .orElseGet(() -> createGoogleUser(identity));
+                .orElseGet(() -> createGoogleUser(identity, request.getReferralCode()));
 
         if (!user.isActive()) {
             throw new UserNotActiveException("حساب کاربری شما فعال نیست");
@@ -457,7 +457,7 @@ public class AuthService {
     }
 
 
-    private User createGoogleUser(GoogleIdentity identity) {
+    private User createGoogleUser(GoogleIdentity identity, String referralCode) {
         if (userRepository.existsByEmail(identity.email())) {
             throw new IllegalArgumentException(
                     "این ایمیل به حساب دیگری وصل است. با شماره موبایل وارد شوید."
@@ -468,8 +468,7 @@ public class AuthService {
         String lastName = namePart(identity.familyName());
         boolean named = firstName != null && lastName != null;
 
-        // no wallet or referral reward yet: those wait for the verified phone number
-        return userRepository.save(User.builder()
+        User saved = userRepository.save(User.builder()
                 .name(named ? firstName + " " + lastName : "")
                 .firstName(named ? firstName : null)
                 .lastName(named ? lastName : null)
@@ -480,6 +479,9 @@ public class AuthService {
                 .role(UserRole.USER)
                 .emailVerified(true)
                 .build());
+        walletService.getOrCreate(saved);
+        referralService.rewardNewUser(saved, referralCode);
+        return saved;
     }
 
 
@@ -560,7 +562,8 @@ public class AuthService {
                 token,
                 user.hasRegisteredName(),
                 user.getRole().name(),
-                user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()
+                // a Google account is complete without a phone number
+                false
         );
     }
 

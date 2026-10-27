@@ -143,11 +143,14 @@ class AuthServiceGoogleTest {
     }
 
     @Test
-    void aNewGoogleUserHasNoPhoneAndNoWalletYet() {
+    void aNewGoogleUserIsCompleteWithoutAPhone() {
         when(users.findByGoogleSubject("sub-1")).thenReturn(Optional.empty());
         when(users.findByEmail("sara@example.com")).thenReturn(Optional.empty());
+        when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
+        GoogleSignInRequest request = googleRequest();
+        request.setReferralCode("FRIEND1");
 
-        AuthResponse response = service.signInWithGoogle(googleRequest());
+        AuthResponse response = service.signInWithGoogle(request);
 
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(users, org.mockito.Mockito.atLeastOnce()).save(saved.capture());
@@ -158,11 +161,12 @@ class AuthServiceGoogleTest {
         assertTrue(user.isEmailVerified());
         assertNull(user.getPhoneNumber());
 
-        assertTrue(response.isPhoneRequired());
+        // signing in with Google is a full way in: no phone step, wallet and referral at once
+        assertFalse(response.isPhoneRequired());
         assertTrue(response.isProfileComplete());
         assertEquals("token-for-sara@example.com", response.getToken());
-        verify(wallets, never()).getOrCreate(any());
-        verify(referrals, never()).rewardNewUser(any(), any());
+        verify(wallets).getOrCreate(any());
+        verify(referrals).rewardNewUser(any(), eq("FRIEND1"));
     }
 
     @Test
