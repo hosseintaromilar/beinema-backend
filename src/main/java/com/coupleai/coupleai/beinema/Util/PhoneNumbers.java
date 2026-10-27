@@ -15,7 +15,18 @@ public final class PhoneNumbers {
             );
         }
 
-        String digits = raw.replaceAll("[^0-9]", "");
+        // Persian (۰-۹) and Arabic (٠-٩) digits count as digits; a phone keyboard may type them
+        StringBuilder latin = new StringBuilder(raw.length());
+        for (char c : raw.toCharArray()) {
+            if (c >= '۰' && c <= '۹') {
+                latin.append((char) ('0' + (c - '۰')));
+            } else if (c >= '٠' && c <= '٩') {
+                latin.append((char) ('0' + (c - '٠')));
+            } else {
+                latin.append(c);
+            }
+        }
+        String digits = latin.toString().replaceAll("[^0-9]", "");
 
         if (digits.startsWith("98") && digits.length() == 12) {
             digits = "0" + digits.substring(2);

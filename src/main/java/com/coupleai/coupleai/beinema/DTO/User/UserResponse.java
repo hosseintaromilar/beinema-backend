@@ -50,10 +50,11 @@ public class UserResponse {
 
                 .phoneNumber(user.getPhoneNumber())
 
-                .profileComplete(user.hasRegisteredName())
+                // the name and a mobile number (written down, not confirmed while SMS is off)
+                .profileComplete(user.hasRegisteredName() && user.hasPhoneNumber())
 
-                // signing in with Google is a full way in; no phone number is asked for
-                .phoneRequired(false)
+                // a Google account without a number gives it in the same step as the name
+                .phoneRequired(!user.hasPhoneNumber())
 
                 .avatarUrl(user.getAvatarUrl())
 

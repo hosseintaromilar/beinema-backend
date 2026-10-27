@@ -79,6 +79,8 @@ class AuthServiceGoogleTest {
         );
         ReflectionTestUtils.setField(service, "adminPhones", "");
         ReflectionTestUtils.setField(service, "otpBypassPhones", "");
+        // linking a number by SMS code is off in production for now; kept working for when it is back
+        ReflectionTestUtils.setField(service, "smsLogin", true);
 
         when(encoder.encode(anyString())).thenReturn("hash");
         when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));

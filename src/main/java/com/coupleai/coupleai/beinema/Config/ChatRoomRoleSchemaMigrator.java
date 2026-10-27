@@ -68,5 +68,17 @@ public class ChatRoomRoleSchemaMigrator implements ApplicationRunner {
         } catch (Exception exception) {
             log.warn("Could not migrate wallet_transactions.type: {}", exception.getMessage());
         }
+
+        // an invitation link the owner shares has no phone number (the column was NOT NULL)
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "ALTER TABLE chat_room_invitations "
+                            + "MODIFY COLUMN phone_number VARCHAR(20) NULL"
+            );
+            log.info("chat_room_invitations.phone_number may be empty");
+        } catch (Exception exception) {
+            log.warn("Could not migrate chat_room_invitations.phone_number: {}", exception.getMessage());
+        }
     }
 }

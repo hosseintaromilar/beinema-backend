@@ -72,6 +72,47 @@ public class InvitationService {
     @Value("${beinema.otp-bypass-phones:}")
     private String directAddPhones;
 
+    /** The invitation link the owner shares with any app they like (no SMS for now). */
+    public record InviteLink(String token, String link, Long expiresAt, String chatRoomTitle, String inviterName) {
+    }
+
+    /**
+     * A link for the partner: the waiting one if there is one, otherwise a new
+     * one. Whoever opens it signs up (number and password, or Google), gives
+     * the name and number, and joins; one person can use it.
+     */
+    @Transactional
+    public InviteLink inviteLink(Long chatRoomId) {
+        User inviter = currentUserService.getCurrentUser();
+        ChatRoom chatRoom = getAuthorizedChatRoom(chatRoomId, inviter);
+        if (chatRoom.getStatus() != ChatRoomStatus.ACTIVE) {
+            throw new IllegalArgumentException(
+                    "این گفتگو پایان یافته است و نمی‌توان کسی را به آن دعوت کرد."
+            );
+        }
+        if (participantRepository.countByChatRoom(chatRoom) >= MAX_HUMAN_PARTICIPANTS) {
+            throw new IllegalArgumentException("این گفتگو در حال حاضر دو نفره است.");
+        }
+
+        ChatRoomInvitation invitation = invitationRepository
+                .findFirstByChatRoomAndPhoneNumberIsNullAndStatusOrderByIdDesc(chatRoom, InvitationStatus.PENDING)
+                .filter(item -> !isExpired(item))
+                .orElseGet(() -> invitationRepository.save(
+                        ChatRoomInvitation.builder()
+                                .chatRoom(chatRoom)
+                                .invitedBy(inviter)
+                                .token(newToken())
+                                .status(InvitationStatus.PENDING)
+                                .expiresAt(LocalDateTime.now().plusHours(invitationExpiryHours))
+                                .build()
+                ));
+
+        Long expires = invitation.getExpiresAt() == null ? null
+                : invitation.getExpiresAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return new InviteLink(invitation.getToken(), inviteLink(invitation.getToken()), expires,
+                chatRoom.getTitle(), inviter.visibleName());
+    }
+
     @Transactional
     public InvitePartnerResponse invitePartner(Long chatRoomId, String rawPhone) {
         User inviter = currentUserService.getCurrentUser();
@@ -251,15 +292,18 @@ public class InvitationService {
             throw new IllegalArgumentException("برای ورود به گروه، قوانین گروه و چارچوب جلسه را بپذیر.");
         }
 
-        if (user.getPhoneNumber() != null
-                && !user.getPhoneNumber().isBlank()
-                && !user.getPhoneNumber().equals(invitation.getPhoneNumber())) {
+        // a shared link has no number: who opens it gives theirs (the name step asks for it)
+        if (invitation.getPhoneNumber() == null) {
+            if (!user.hasPhoneNumber()) {
+                throw new IllegalArgumentException("قبل از ادامه، شماره موبایلت را ثبت کن.");
+            }
+        } else if (user.hasPhoneNumber() && !user.getPhoneNumber().equals(invitation.getPhoneNumber())) {
             throw new IllegalArgumentException(
                     "این دعوت برای شماره دیگری است."
             );
         }
 
-        if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
+        if (!user.hasPhoneNumber()) {
             userRepository.findByPhoneNumber(invitation.getPhoneNumber())
                     .ifPresent(owner -> {
                         if (!owner.getId().equals(user.getId())) {

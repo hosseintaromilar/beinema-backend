@@ -61,8 +61,20 @@ public class AuthService {
 
     static final String PHONE_EMAIL_SUFFIX = "@users.beinema";
 
-    private static final String PHONE_ONLY =
-            "ثبت‌نام و ورود فقط با شماره موبایل انجام می‌شود.";
+    private static final String SMS_OFF =
+            "ورود با کد پیامکی فعلاً فعال نیست؛ با شماره موبایل و رمز وارد شو یا ثبت‌نام کن.";
+
+    private static final String NO_RECOVERY =
+            "بازیابی رمز فعلاً ممکن نیست؛ اگر حسابت به گوگل وصل است، با گوگل وارد شو.";
+
+    private static final String WRONG_LOGIN = "شماره موبایل یا رمز درست نیست.";
+
+    static final int MIN_PASSWORD = 8;
+
+    private static final int MAX_PASSWORD = 72;
+
+    /** Wrong passwords for one number in a quarter of an hour before it waits. */
+    private static final int LOGIN_MAX_FAILURES = 8;
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -112,28 +124,102 @@ public class AuthService {
     /** Wrong fixed codes per phone in the last hour. */
     private final Map<String, Deque<Instant>> bypassFailures = new ConcurrentHashMap<>();
 
+    /** Wrong passwords per phone in the last quarter of an hour. */
+    private final Map<String, Deque<Instant>> loginFailures = new ConcurrentHashMap<>();
 
+    /**
+     * Signing in with an SMS code. Off for now: people sign up with the number
+     * and a password (or Google), and the number is written down without a code.
+     */
+    @Value("${beinema.auth.sms-login:false}")
+    private boolean smsLogin;
+
+
+    /**
+     * Sign-up with the mobile number and a password. The number is written down,
+     * not confirmed (no SMS for now); the name is asked in the next step.
+     */
     public AuthResponse register(RegisterRequest request) {
-        throw new InvalidCredentialsException(PHONE_ONLY);
+        String phone = PhoneNumbers.normalize(request == null ? null : request.getPhoneNumber());
+        String password = requirePassword(request == null ? null : request.getPassword());
+        if (userRepository.findByPhoneNumber(phone).isPresent()
+                || userRepository.existsByEmail(phone + PHONE_EMAIL_SUFFIX)) {
+            throw new IllegalArgumentException("با این شماره قبلاً حساب ساخته شده؛ وارد شو.");
+        }
+
+        User saved = userRepository.save(User.builder()
+                .name("")
+                .email(phone + PHONE_EMAIL_SUFFIX)
+                .phoneNumber(phone)
+                .phoneVerified(false)
+                .password(passwordEncoder.encode(password))
+                .status(UserStatus.ACTIVE)
+                .role(UserRole.USER)
+                .emailVerified(false)
+                .build());
+        walletService.getOrCreate(saved);
+        referralService.rewardNewUser(saved, request.getReferralCode());
+        return openSession(saved, phone);
     }
 
 
+    /** Sign-in with the mobile number and the password; a few wrong tries make the number wait. */
     public AuthResponse login(LoginRequest request) {
-        throw new InvalidCredentialsException(PHONE_ONLY);
+        String phone = PhoneNumbers.normalize(request == null ? null : request.getPhoneNumber());
+        String password = request == null || request.getPassword() == null ? "" : request.getPassword();
+        Deque<Instant> failures = loginFailures.computeIfAbsent(phone, key -> new ConcurrentLinkedDeque<>());
+        Instant now = Instant.now();
+        failures.removeIf(at -> at.isBefore(now.minus(Duration.ofMinutes(15))));
+        if (failures.size() >= LOGIN_MAX_FAILURES) {
+            throw new InvalidCredentialsException("چند بار رمز اشتباه وارد شد؛ ربع ساعت دیگر دوباره امتحان کن.");
+        }
+
+        User user = userRepository.findByPhoneNumber(phone).orElse(null);
+        if (user == null || user.isDeleted() || !passwordEncoder.matches(password, user.getPassword())) {
+            failures.add(now);
+            throw new InvalidCredentialsException(WRONG_LOGIN);
+        }
+        if (!user.isActive()) {
+            throw new UserNotActiveException("حساب کاربری شما فعال نیست");
+        }
+        failures.clear();
+        return openSession(user, phone);
     }
 
 
     public LogoutResponse forgotPassword(ForgotPasswordRequest request) {
-        throw new InvalidCredentialsException(PHONE_ONLY);
+        throw new InvalidCredentialsException(NO_RECOVERY);
     }
 
 
     public LogoutResponse resetPassword(ResetPasswordRequest request) {
-        throw new InvalidCredentialsException(PHONE_ONLY);
+        throw new InvalidCredentialsException(NO_RECOVERY);
+    }
+
+
+    private static String requirePassword(String password) {
+        if (password == null || password.length() < MIN_PASSWORD) {
+            throw new IllegalArgumentException("رمز باید دست‌کم ۸ نویسه باشد.");
+        }
+        if (password.length() > MAX_PASSWORD) {
+            throw new IllegalArgumentException("رمز خیلی طولانی است؛ حداکثر ۷۲ نویسه.");
+        }
+        if (password.isBlank()) {
+            throw new IllegalArgumentException("رمز نمی‌تواند فقط فاصله باشد.");
+        }
+        return password;
+    }
+
+
+    private void requireSmsLogin() {
+        if (!smsLogin) {
+            throw new InvalidCredentialsException(SMS_OFF);
+        }
     }
 
 
     public OtpRequestResponse requestOtp(OtpPhoneRequest request) {
+        requireSmsLogin();
         String phone = PhoneNumbers.normalize(
                 request == null ? null : request.getPhoneNumber()
         );
@@ -170,6 +256,7 @@ public class AuthService {
 
 
     public AuthResponse verifyOtp(OtpVerifyRequest request) {
+        requireSmsLogin();
         String phone = PhoneNumbers.normalize(
                 request == null ? null : request.getPhoneNumber()
         );
@@ -221,6 +308,7 @@ public class AuthService {
 
 
     public OtpRequestResponse requestPhoneLink(OtpPhoneRequest request) {
+        requireSmsLogin();
         User user = requireUserWithoutPhone();
         String phone = PhoneNumbers.normalize(
                 request == null ? null : request.getPhoneNumber()
@@ -257,6 +345,7 @@ public class AuthService {
 
 
     public AuthResponse verifyPhoneLink(OtpVerifyRequest request) {
+        requireSmsLogin();
         User user = requireUserWithoutPhone();
         String phone = PhoneNumbers.normalize(
                 request == null ? null : request.getPhoneNumber()

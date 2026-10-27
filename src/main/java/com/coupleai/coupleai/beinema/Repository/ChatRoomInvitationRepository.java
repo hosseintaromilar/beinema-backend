@@ -28,5 +28,11 @@ public interface ChatRoomInvitationRepository
             InvitationStatus status
     );
 
+    /** The newest link the owner shares (no phone number) that is still waiting. */
+    Optional<ChatRoomInvitation> findFirstByChatRoomAndPhoneNumberIsNullAndStatusOrderByIdDesc(
+            ChatRoom chatRoom,
+            InvitationStatus status
+    );
+
     void deleteAllByChatRoom(ChatRoom chatRoom);
 }

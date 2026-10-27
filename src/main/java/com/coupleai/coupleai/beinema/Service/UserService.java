@@ -5,6 +5,7 @@ import com.coupleai.coupleai.beinema.DTO.User.UserResponse;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Exception.InvalidCredentialsException;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
+import com.coupleai.coupleai.beinema.Util.PhoneNumbers;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -41,22 +42,33 @@ public class UserService {
             CompleteNameRequest request
     ) {
         User user = loadByAuthentication(authentication);
-        if (user.hasRegisteredName()) {
-            return UserResponse.from(user);
+
+        if (!user.hasRegisteredName()) {
+            String firstName = normalizeName(
+                    request == null ? null : request.getFirstName(),
+                    "نام"
+            );
+            String lastName = normalizeName(
+                    request == null ? null : request.getLastName(),
+                    "نام خانوادگی"
+            );
+            user.setFirstName(firstName);
+            user.setLastName(lastName);
+            user.setName(firstName + " " + lastName);
         }
 
-        String firstName = normalizeName(
-                request == null ? null : request.getFirstName(),
-                "نام"
-        );
-        String lastName = normalizeName(
-                request == null ? null : request.getLastName(),
-                "نام خانوادگی"
-        );
+        // a Google account gives its number here; it is written down, not confirmed (no SMS for now)
+        if (!user.hasPhoneNumber()) {
+            String phone = PhoneNumbers.normalize(request == null ? null : request.getPhoneNumber());
+            userRepository.findByPhoneNumber(phone).ifPresent(other -> {
+                if (!other.getId().equals(user.getId())) {
+                    throw new IllegalArgumentException("این شماره برای حساب دیگری ثبت شده است.");
+                }
+            });
+            user.setPhoneNumber(phone);
+            user.setPhoneVerified(false);
+        }
 
-        user.setFirstName(firstName);
-        user.setLastName(lastName);
-        user.setName(firstName + " " + lastName);
         userRepository.save(user);
         return UserResponse.from(user);
     }

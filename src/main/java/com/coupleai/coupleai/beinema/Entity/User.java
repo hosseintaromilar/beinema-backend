@@ -180,6 +180,17 @@ public class User extends BaseEntity {
     @Column(name = "free_sessions_used")
     private Integer freeSessionsUsed;
 
+    /**
+     * The number was confirmed with an SMS code. While sign-up is by password,
+     * numbers are only written down (false), to be confirmed once SMS is back.
+     */
+    @Column(name = "phone_verified")
+    private Boolean phoneVerified;
+
+    public boolean hasPhoneNumber() {
+        return phoneNumber != null && !phoneNumber.isBlank();
+    }
+
     public boolean hasRegisteredName() {
         return name != null && !name.isBlank();
     }

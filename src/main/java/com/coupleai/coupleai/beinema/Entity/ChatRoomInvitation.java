@@ -23,7 +23,8 @@ public class ChatRoomInvitation extends BaseEntity {
     @JoinColumn(name = "invited_by_user_id", nullable = false)
     private User invitedBy;
 
-    @Column(nullable = false, length = 20)
+    /** The invited number, for an SMS invitation; null for a link the owner shares themselves. */
+    @Column(length = 20)
     private String phoneNumber;
 
     @Column(nullable = false, unique = true, length = 128)

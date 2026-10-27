@@ -54,6 +54,8 @@ class AuthServiceBypassTest {
         ReflectionTestUtils.setField(service, "adminPhones", "09914816794,09379736278");
         ReflectionTestUtils.setField(service, "otpBypassPhones", "09914816794, 09379736278");
         ReflectionTestUtils.setField(service, "otpBypassCode", "");
+        // the SMS path is off in production for now; these tests keep it working for when it is back
+        ReflectionTestUtils.setField(service, "smsLogin", true);
 
         User admin = User.builder().name("حسین").email(ADMIN + "@users.beinema").phoneNumber(ADMIN)
                 .password("x").status(UserStatus.ACTIVE).role(UserRole.USER).build();

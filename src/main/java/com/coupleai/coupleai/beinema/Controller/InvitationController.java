@@ -15,6 +15,12 @@ public class InvitationController {
 
     private final InvitationService invitationService;
 
+    /** The invitation link to share with the partner through any app (no SMS for now). */
+    @PostMapping("/api/chat-rooms/{chatRoomId}/invitations/link")
+    public InvitationService.InviteLink inviteLink(@PathVariable Long chatRoomId) {
+        return invitationService.inviteLink(chatRoomId);
+    }
+
     @PostMapping("/api/chat-rooms/{chatRoomId}/invitations")
     public ResponseEntity<InvitePartnerResponse> invitePartner(
             @PathVariable Long chatRoomId,
