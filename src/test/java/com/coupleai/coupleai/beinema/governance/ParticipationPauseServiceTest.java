@@ -191,12 +191,12 @@ class ParticipationPauseServiceTest {
 
         service.acceptSessionConsent(room, sara);
         verify(chatRealtimeService).saveAgentAndPublish(eq(44L), eq(0L),
-                org.mockito.ArgumentMatchers.argThat(text -> text.startsWith("سارا، ممنونم که با چارچوب جلسه موافقت کردی")
+                org.mockito.ArgumentMatchers.argThat(text -> text.startsWith("سارا، خوشحالم که این مسیر را با هم شروع می‌کنیم")
                         && text.contains("چه چیزی تو را به بین‌ما آورده")));
 
         service.acceptSessionConsent(room, ali);
         verify(chatRealtimeService).saveAgentAndPublish(eq(44L), eq(0L),
-                org.mockito.ArgumentMatchers.argThat(text -> text.startsWith("علی، ممنونم")
+                org.mockito.ArgumentMatchers.argThat(text -> text.startsWith("علی، خوشحالم")
                         && text.contains("هر دو نفرتان اینجا هستید")));
     }
 

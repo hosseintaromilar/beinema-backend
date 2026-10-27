@@ -10,4 +10,7 @@ public class CreateChatRoomRequest {
         private Long agentId;
         private String title;
 
+        /** The creator ticked «I accept the rules»; without it no room is made. */
+        private Boolean rulesAccepted;
+
 }

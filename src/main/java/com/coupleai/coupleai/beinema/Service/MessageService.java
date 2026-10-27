@@ -37,4 +37,7 @@ public interface MessageService {
     );
 
     void announceEntry(Long chatRoomId);
+
+    /** The rules box on the chat page was accepted: the short welcome and the entry follow. */
+    void acceptRules(Long chatRoomId);
 }

@@ -710,7 +710,9 @@ public class SessionLifecycleService {
             return;
         }
         String note = "[SYSTEM | SESSION] PARTNER_CONSENTED session=" + number(room) + "\n"
-                + "Agreed to the rules just now: " + label(person) + ".\n"
+                + "First entry of " + label(person) + ": they accepted the rules before entering, and a short fixed "
+                + "welcome (greeting by name and who you are) was just shown. Do not greet again, introduce yourself "
+                + "or thank them for agreeing; go straight to the opening question.\n"
                 + (partnerAlreadyIn
                 ? "The other partner had agreed before; this person joins a conversation of two.\n"
                 : "Nobody else has agreed yet.\n");
@@ -972,6 +974,11 @@ public class SessionLifecycleService {
     /** The most sessions a room may hold in 24 hours. */
     public int maxSessions() {
         return maxSessions;
+    }
+
+    /** The length of a session in a new room, in minutes. */
+    public int defaultSessionMinutes() {
+        return Math.max(1, defaultMinutes);
     }
 
     private static int number(ChatRoom room) {

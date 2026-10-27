@@ -65,6 +65,45 @@ public final class WelcomeGuide {
     }
 
     /**
+     * The short welcome of someone who accepted the rules before entering (on
+     * the create-room or invitation page): greeting, who the counselor is, and
+     * for the room creator how to bring the partner in. No rules, no consent card.
+     */
+    public static String shortWelcome(Facts facts) {
+        Map<String, String> s = sections();
+        String others = blank(facts.otherMembers()) ? "" : facts.otherMembers().trim();
+        String text;
+        if (facts.roomCreator()) {
+            String partner = others.isEmpty() ? s.get("owner_invite") : s.get("welcome_partner_here");
+            text = s.get("welcome_owner").replace("{partner}", partner);
+        } else {
+            String started = facts.conversationStarted() ? s.get("welcome_started") : "";
+            text = s.get("welcome_partner").replace("{started}", started);
+        }
+        return text
+                .replace("{name}", blank(facts.name()) ? "" : facts.name().trim())
+                .replace("{intro}", introduction(facts.agentName()))
+                .replace("{inviter}", others.isEmpty() ? "پارتنرت" : others)
+                .trim();
+    }
+
+    /**
+     * How the work goes and the rules, for the page where a person accepts them
+     * before creating or joining a room.
+     */
+    public static String rules(int sessionMinutes, int breakMinutes, int overtimeMinutes, int maxSessions,
+                               boolean relationshipCounselor) {
+        Map<String, String> s = sections();
+        String process = s.get("process")
+                .replace("{framework}", s.get(relationshipCounselor ? "framework_relationship" : "framework_general"))
+                .replace("{minutes}", persianDigits(sessionMinutes))
+                .replace("{break_minutes}", persianDigits(breakMinutes))
+                .replace("{overtime_minutes}", persianDigits(overtimeMinutes))
+                .replace("{max_sessions}", persianDigits(maxSessions));
+        return (process + "\n\n" + s.get("rules")).trim();
+    }
+
+    /**
      * The counselor's first sentence, from the agent's name as the admin wrote
      * it. A plain name or role gets the brand after it; a name that already says
      * who the agent is (with a comma, or the brand) is used as it is.
@@ -142,7 +181,8 @@ public final class WelcomeGuide {
         if (current != null) {
             parsed.put(current, trimBlankLines(body.toString()));
         }
-        for (String required : new String[]{"owner", "owner_invite", "owner_partner_here", "partner", "partner_started",
+        for (String required : new String[]{"welcome_owner", "welcome_partner", "welcome_partner_here", "welcome_started",
+                "owner", "owner_invite", "owner_partner_here", "partner", "partner_started",
                 "process", "rules", "framework_relationship", "framework_general", "consented_first", "consented_joined"}) {
             if (!parsed.containsKey(required)) {
                 throw new IllegalStateException(FILE + " has no [[" + required + "]] section");

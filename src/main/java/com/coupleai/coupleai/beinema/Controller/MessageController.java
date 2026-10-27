@@ -73,4 +73,10 @@ public class MessageController {
     public void announceEntry(@PathVariable Long chatRoomId) {
         messageService.announceEntry(chatRoomId);
     }
+
+    /** The rules box on the chat page (someone added without the invitation page, or an older room). */
+    @PostMapping("/{chatRoomId}/rules-accept")
+    public void acceptRules(@PathVariable Long chatRoomId) {
+        messageService.acceptRules(chatRoomId);
+    }
 }

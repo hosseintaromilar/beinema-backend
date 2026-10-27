@@ -71,7 +71,9 @@ class WelcomeGuideTest {
     @Test
     void afterConsentTheCounselorThanksAndAsksWhatBroughtThem() {
         String first = WelcomeGuide.afterConsent("افسانه", false);
-        assertTrue(first.startsWith("افسانه، ممنونم که با چارچوب جلسه موافقت کردی"));
+        // the rules are accepted before entering, so nobody is thanked for agreeing
+        assertTrue(first.startsWith("افسانه، خوشحالم"));
+        assertFalse(first.contains("موافقت کردی"));
         assertTrue(first.contains("خوشحالم که این مسیر را با هم شروع می‌کنیم"));
         assertTrue(first.contains("چه چیزی تو را به بین‌ما آورده"));
         assertTrue(first.contains("امیدواری این گفتگوها به چه تغییری برسد"));
@@ -81,6 +83,29 @@ class WelcomeGuideTest {
         assertTrue(joined.contains("خوشحالم که حالا هر دو نفرتان اینجا هستید"));
         assertTrue(joined.contains("نگاه تو هم به همان اندازه برایم مهم است"));
         assertFalse(joined.contains("{"));
+    }
+
+    @Test
+    void theShortWelcomeHasNoRulesAndTheRulesPageHasThemAll() {
+        String owner = WelcomeGuide.shortWelcome(new WelcomeGuide.Facts(
+                "افسانه", "نادر", true, "", false, 45, 15, true, 15, 3));
+        assertTrue(owner.startsWith("سلام افسانه، به بین‌ما خوش اومدی."));
+        assertTrue(owner.contains("من نادر هستم"));
+        assertTrue(owner.contains("افزودن پارتنر"), "the creator learns how to bring the partner in");
+        assertFalse(owner.contains("قوانین گفتگو"));
+        assertFalse(owner.contains("موافقم"));
+
+        String partner = WelcomeGuide.shortWelcome(new WelcomeGuide.Facts(
+                "حسین", "نادر", false, "افسانه", true, 45, 15, true, 15, 3));
+        assertTrue(partner.contains("افسانه تو را به این گروه دعوت کرده"));
+        assertTrue(partner.contains("پیام‌های قبلی را می‌بینی"));
+        assertFalse(partner.contains("{"));
+
+        String rules = WelcomeGuide.rules(45, 15, 15, 3, true);
+        assertTrue(rules.contains("قوانین گفتگو"));
+        assertTrue(rules.contains("ایمنی"));
+        assertTrue(rules.contains("۴۵ دقیقه"));
+        assertFalse(rules.contains("{"));
     }
 
     @Test

@@ -79,6 +79,14 @@ public class ChatRoomParticipant extends BaseEntity {
     private Boolean consentOffered = false;
 
     /**
+     * When this person accepted the rules before entering (the checkbox on the
+     * create-room or invitation page). Then the chat shows only a short welcome
+     * and their first entry counts as the consent; null = the older in-chat consent card.
+     */
+    @Column(name = "rules_accepted_at")
+    private java.time.Instant rulesAcceptedAt;
+
+    /**
      * When this person entered the current session (the consent in the first session,
      * the start button in later ones). Null = not in the session. Cleared when a session ends.
      */

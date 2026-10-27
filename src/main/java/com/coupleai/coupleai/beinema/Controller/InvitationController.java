@@ -35,10 +35,13 @@ public class InvitationController {
         return ResponseEntity.ok(invitationService.preview(token));
     }
 
+    /** Body: { "rulesAccepted": true } from the checkbox on the invitation page. */
     @PostMapping("/api/invitations/{token}/accept")
     public ResponseEntity<AcceptInvitationResponse> accept(
-            @PathVariable String token
+            @PathVariable String token,
+            @RequestBody(required = false) java.util.Map<String, Object> body
     ) {
-        return ResponseEntity.ok(invitationService.accept(token));
+        boolean rulesAccepted = body != null && Boolean.TRUE.equals(body.get("rulesAccepted"));
+        return ResponseEntity.ok(invitationService.accept(token, rulesAccepted));
     }
 }

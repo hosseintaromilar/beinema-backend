@@ -188,6 +188,8 @@ public class SecurityConfig {
 
                                 "/api/blog/*/comments",
 
+                                "/api/rules",
+
                                 "/uploads/**"
 
                         )

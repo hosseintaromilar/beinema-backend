@@ -140,6 +140,21 @@ public class MessageServiceImpl implements MessageService {
 
 
     @Override
+    public void acceptRules(Long chatRoomId) {
+        ChatRoom chatRoom = getAuthorizedChatRoom(chatRoomId);
+        User user = currentUserService.getCurrentUser();
+        participantRepository.findByChatRoomAndUser(chatRoom, user).ifPresent(me -> {
+            if (me.getRulesAcceptedAt() == null) {
+                me.setRulesAcceptedAt(Instant.now());
+                participantRepository.save(me);
+            }
+        });
+        // the page already announced the entry while the rules box was open; greet now
+        entryGreetedAt.remove(chatRoom.getId() + ":" + user.getId());
+        announceEntry(chatRoomId);
+    }
+
+    @Override
     public void announceEntry(Long chatRoomId) {
         ChatRoom chatRoom = getAuthorizedChatRoom(chatRoomId);
         User user = currentUserService.getCurrentUser();
@@ -204,22 +219,22 @@ public class MessageServiceImpl implements MessageService {
                 .orElse("");
 
         /*
-         * First entry of this person: the complete, fixed welcome (who the
-         * counselor is, how Beinema works and its framework, how to invite the
-         * partner, the rules and safety) with the consent card. Only once; until
-         * they agree, that card is all they need, so nothing else is said. Also
-         * between two sessions: someone new must be able to agree before the start button.
+         * First entry of this person. The rules were accepted before the chat
+         * (the checkbox on the create-room or invitation page, or the rules box
+         * on the chat page), so the counselor only welcomes them briefly and the
+         * entry counts as the consent: the counselor then asks the opening
+         * question. Someone who has not accepted the rules yet sees the rules box
+         * on the chat page; nothing is said to them until they accept.
          */
         boolean needsConsent = me != null
                 && me.getUser() != null
                 && Boolean.FALSE.equals(me.getSessionConsented());
         if (needsConsent) {
-            boolean consentAlreadyOffered = history.stream().anyMatch(message ->
-                    ReentryCommitment.KIND_CONSENT.equals(ReentryCommitment.kind(message.getContent()))
-                            && user.getId().equals(ReentryCommitment.userId(message.getContent()))
-            );
-            if (!consentAlreadyOffered) {
-                String welcome = WelcomeGuide.firstEntry(new WelcomeGuide.Facts(
+            if (me.getRulesAcceptedAt() == null) {
+                return;
+            }
+            {
+                String welcome = WelcomeGuide.shortWelcome(new WelcomeGuide.Facts(
                         user.visibleName(),
                         chatRoomAgentRepository.findActiveAgentNames(chatRoom.getId()).stream()
                                 .filter(name -> name != null && !name.isBlank())
@@ -237,12 +252,9 @@ public class MessageServiceImpl implements MessageService {
                 // like the counselor's other messages: a short "typing" pause first
                 chatRealtimeService.publishAgentTyping(chatRoom.getId(), WELCOME_TYPING_MILLIS);
                 sleepQuietly(WELCOME_TYPING_MILLIS);
-                chatRealtimeService.saveAgentAndPublish(
-                        chatRoom.getId(),
-                        agentId,
-                        ReentryCommitment.consentMarker(user.getId()) + "\n" + welcome
-                );
+                chatRealtimeService.saveAgentAndPublish(chatRoom.getId(), agentId, welcome);
             }
+            participationPauseService.acceptSessionConsent(chatRoom, user);
             return;
         }
 

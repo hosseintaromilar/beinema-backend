@@ -27,4 +27,7 @@ public class ParticipantSummary {
 
     /** When they left (epoch millis), or null. */
     private Long leftAt;
+
+    /** They accepted the rules before entering (else the chat page shows the rules box). */
+    private Boolean rulesAccepted;
 }

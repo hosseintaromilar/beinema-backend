@@ -194,6 +194,11 @@ public class InvitationService {
 
     @Transactional
     public AcceptInvitationResponse accept(String token) {
+        return accept(token, false);
+    }
+
+    /** rulesAccepted: the invited person ticked «I accept the rules» on the invitation page. */
+    public AcceptInvitationResponse accept(String token, boolean rulesAccepted) {
         User user = currentUserService.getCurrentUser();
         if (!user.hasRegisteredName()) {
             throw new IllegalArgumentException(
@@ -231,6 +236,10 @@ public class InvitationService {
             throw new IllegalArgumentException("ظرفیت این گفتگو تکمیل شده است.");
         }
 
+        if (!rulesAccepted) {
+            throw new IllegalArgumentException("برای ورود به گروه، قوانین گروه و چارچوب جلسه را بپذیر.");
+        }
+
         if (user.getPhoneNumber() != null
                 && !user.getPhoneNumber().isBlank()
                 && !user.getPhoneNumber().equals(invitation.getPhoneNumber())) {
@@ -252,7 +261,7 @@ public class InvitationService {
             userRepository.save(user);
         }
 
-        addMember(chatRoom, user);
+        addMember(chatRoom, user, java.time.Instant.now());
         markAccepted(invitation, user);
         announceJoin(chatRoom, user);
         participationPauseService.startConsentGate(chatRoom, user);
@@ -265,6 +274,11 @@ public class InvitationService {
     }
 
     private void addMember(ChatRoom chatRoom, User user) {
+        addMember(chatRoom, user, null);
+    }
+
+    /** rulesAcceptedAt: set when the rules were accepted before joining (then the first entry is the consent). */
+    private void addMember(ChatRoom chatRoom, User user, java.time.Instant rulesAcceptedAt) {
         if (participantRepository.existsByChatRoomAndUser(chatRoom, user)) {
             return;
         }
@@ -276,6 +290,7 @@ public class InvitationService {
                         .role(ParticipantRole.MEMBER)
                         .sessionConsented(false)
                         .consentOffered(false)
+                        .rulesAcceptedAt(rulesAcceptedAt)
                         .build()
         );
     }

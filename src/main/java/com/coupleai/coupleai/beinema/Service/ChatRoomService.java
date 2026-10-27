@@ -74,6 +74,10 @@ public class ChatRoomService {
                         )
                 );
 
+        if (request == null || !Boolean.TRUE.equals(request.getRulesAccepted())) {
+            throw new IllegalArgumentException("برای ساختن گروه، قوانین گروه و چارچوب جلسه را بپذیر.");
+        }
+
 
         Agent agent = agentRepository
 
@@ -189,6 +193,9 @@ public class ChatRoomService {
                         .sessionConsented(false)
 
                         .consentOffered(false)
+
+                        // the rules were accepted on the create page; the first entry is the consent
+                        .rulesAcceptedAt(java.time.Instant.now())
 
                         .build();
 
@@ -807,6 +814,7 @@ public class ChatRoomService {
                             .reentryPending(Boolean.TRUE.equals(item.getReentryPending()))
                             .left(!item.isActiveMember())
                             .leftAt(item.getLeftAt() == null ? null : item.getLeftAt().toEpochMilli())
+                            .rulesAccepted(item.getRulesAcceptedAt() != null)
                             .sessionConsented(item.getSessionConsented())
                             .build();
                 })
