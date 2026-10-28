@@ -45,7 +45,7 @@ public class CounselorEventVoice {
             String packet = VoicePacketBuilder.forEvent(m, cue, config.getVoiceRecentMessages());
             record.setPacketChars(packet.length());
             record.setRawOutput(TurnPersistence.clip(cue, 4000));
-            BrainGateway.Reply reply = brain.voice(packet);
+            BrainGateway.Reply reply = brain.forRoom(room).voice(packet);
             record.setVoiceMs(reply.millis());
             record.setVoiceOutput(TurnPersistence.clip(reply.text(), 20000));
             VoiceOutputParser.Result out = VoiceOutputParser.parse(reply.text());

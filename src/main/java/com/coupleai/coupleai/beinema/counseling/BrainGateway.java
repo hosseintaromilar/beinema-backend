@@ -13,6 +13,11 @@ public interface BrainGateway {
 
     Reply director(String packet);
 
+    /** The brain of this room's companion; every lane of a turn goes through it. */
+    default BrainGateway forRoom(com.coupleai.coupleai.beinema.Entity.ChatRoom room) {
+        return this;
+    }
+
     Reply voice(String packet);
 
     /** The session manager lane: the plan of the session (JSON). Empty when there is no such lane. */

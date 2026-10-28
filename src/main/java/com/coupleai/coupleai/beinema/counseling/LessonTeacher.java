@@ -51,7 +51,7 @@ public final class LessonTeacher {
         }
         Result result;
         try {
-            BrainGateway.Reply reply = brain.teacher(packet(m, d, lesson));
+            BrainGateway.Reply reply = brain.forRoom(m.room()).teacher(packet(m, d, lesson));
             String script = script(reply.text(), lesson);
             result = script == null
                     ? new Result(fallback(lesson), false, reply.millis(), "teacher: unusable reply, the lesson's own text was used")

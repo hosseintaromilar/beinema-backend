@@ -22,6 +22,14 @@ public class CounselingConfig {
     @Value("${beinema.brain.workflow-id:}")
     private String workflowId = "";
 
+    /**
+     * The v3 workflows of the other companions (finance, parenting...), comma-separated
+     * Metis ids. Each is its own copy of the v3 workflow with its own domain; a room whose
+     * companion uses one of them runs on it, every other room on workflow-id.
+     */
+    @Value("${beinema.brain.companion-workflow-ids:}")
+    private String companionWorkflowIds = "";
+
     @Value("${beinema.brain.recent-messages:16}")
     private int recentMessages = 16;
 
@@ -44,6 +52,24 @@ public class CounselingConfig {
 
     public boolean orchestrated() {
         return mode != null && "orchestrated".equalsIgnoreCase(mode.trim());
+    }
+
+    /** True when this Metis id is one of the companions' own v3 workflows. */
+    public boolean isCompanionWorkflow(String botId) {
+        if (botId == null || botId.isBlank() || companionWorkflowIds == null) {
+            return false;
+        }
+        for (String id : companionWorkflowIds.split(",")) {
+            if (id.trim().equals(botId.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The workflow a room's companion runs on: its own when it has one, else the couple counselor's. */
+    public String workflowFor(String agentBotId) {
+        return isCompanionWorkflow(agentBotId) ? agentBotId.trim() : workflowId;
     }
 
     /** One lock per room, shared by message turns, answers and platform events. */

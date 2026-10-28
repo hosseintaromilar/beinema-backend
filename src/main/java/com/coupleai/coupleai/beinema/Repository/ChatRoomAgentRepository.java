@@ -24,6 +24,13 @@ public interface ChatRoomAgentRepository
             + "and link.active = true")
     List<String> findActiveAgentNames(@Param("chatRoomId") Long chatRoomId);
 
+    /** The Metis bot of the room's companion; read as a value, so it works outside a transaction too. */
+    @Query("select agent.aiBotId from ChatRoomAgent link "
+            + "join link.agent agent "
+            + "where link.chatRoom.id = :chatRoomId "
+            + "and link.active = true")
+    List<String> findActiveAgentBotIds(@Param("chatRoomId") Long chatRoomId);
+
     @Query("select agent.id from ChatRoomAgent link "
             + "join link.agent agent "
             + "where link.chatRoom.id = :chatRoomId "

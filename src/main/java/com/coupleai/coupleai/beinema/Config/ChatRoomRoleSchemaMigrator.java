@@ -69,6 +69,18 @@ public class ChatRoomRoleSchemaMigrator implements ApplicationRunner {
             log.warn("Could not migrate wallet_transactions.type: {}", exception.getMessage());
         }
 
+        // a database made by a newer Hibernate has an ENUM here, which rejects PARENTING
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "ALTER TABLE agents "
+                            + "MODIFY COLUMN type VARCHAR(32) NOT NULL"
+            );
+            log.info("agents.type is VARCHAR(32)");
+        } catch (Exception exception) {
+            log.warn("Could not migrate agents.type: {}", exception.getMessage());
+        }
+
         // an invitation link the owner shares has no phone number (the column was NOT NULL)
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {

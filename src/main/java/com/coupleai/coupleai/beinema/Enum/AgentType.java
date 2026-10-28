@@ -7,6 +7,7 @@ public enum AgentType {
     MENTAL_HEALTH,
 
     FINANCIAL,
+    PARENTING,
 
     SEXOLOGY
 

@@ -74,6 +74,15 @@ public class AgentContentSeeder implements ApplicationRunner {
     }
 
     private Profile profileFor(Agent agent) {
+        if (agent.getType() != null && agent.getName() != null && !agent.getName().isBlank()) {
+            // the type decides; a name like «همراه مالی زوج‌ها» must not become the couple counselor
+            return switch (agent.getType()) {
+                case RELATIONSHIP -> profileForName("زوج");
+                case MENTAL_HEALTH -> profileForName("روان");
+                case FINANCIAL -> profileForName("مالی");
+                case SEXOLOGY, PARENTING -> null;
+            };
+        }
         String name = agent.getName() == null ? "" : agent.getName();
         if (name.contains("زوج")) {
             return new Profile(
@@ -107,6 +116,7 @@ public class AgentContentSeeder implements ApplicationRunner {
                 case RELATIONSHIP -> profileForName("زوج");
                 case MENTAL_HEALTH -> profileForName("روان");
                 case FINANCIAL -> profileForName("مالی");
+                case PARENTING -> null;
                 case SEXOLOGY -> new Profile(
                         "صمیمیت را با احترام و گفتگوی امن باز کنید",
                         "این همراه برای زوج‌هایی است که می‌خواهند درباره صمیمیت، نیازها و فاصله جسمی یا عاطفی با زبانی محترمانه حرف بزنند. هدف، فشار یا شرم نیست؛ فهمیدن یکدیگر و ساختن نزدیکی سالم‌تر است.",
@@ -125,7 +135,7 @@ public class AgentContentSeeder implements ApplicationRunner {
 
     private boolean isCoupleAgent(Agent agent) {
         String name = agent.getName() == null ? "" : agent.getName();
-        return name.contains("زوج") || agent.getType() == AgentType.RELATIONSHIP;
+        return agent.getType() == AgentType.RELATIONSHIP || (agent.getType() == null && name.contains("زوج"));
     }
 
     private Profile profileForName(String token) {

@@ -170,7 +170,7 @@ public class TurnOrchestrator {
         VoiceOutputParser.Result out = null;
         for (int attempt = 0; attempt < 2 && (out == null || out.failed()); attempt++) {
             try {
-                BrainGateway.Reply reply = brain.voice(voicePacket);
+                BrainGateway.Reply reply = brain.forRoom(m.room()).voice(voicePacket);
                 voiceRaw = reply.text();
                 voiceMs += reply.millis();
                 out = VoiceOutputParser.parse(voiceRaw);
@@ -197,7 +197,7 @@ public class TurnOrchestrator {
                         ? voicePacket.replaceFirst("must_not=", java.util.regex.Matcher.quoteReplacement("must_not=" + warning))
                         : voicePacket.replaceFirst("length=", java.util.regex.Matcher.quoteReplacement("must_not=" + warning + "\nlength="));
                 try {
-                    BrainGateway.Reply reply = brain.voice(again);
+                    BrainGateway.Reply reply = brain.forRoom(m.room()).voice(again);
                     voiceMs += reply.millis();
                     VoiceOutputParser.Result rewritten = VoiceOutputParser.parse(reply.text());
                     boolean usable = !rewritten.failed()
@@ -290,12 +290,12 @@ public class TurnOrchestrator {
         StringBuilder raw = new StringBuilder();
         long millis = 0;
         try {
-            BrainGateway.Reply reply = brain.director(packet);
+            BrainGateway.Reply reply = brain.forRoom(m.room()).director(packet);
             raw.append(reply.text());
             millis += reply.millis();
             DirectorOutputParser.Result parsed = DirectorOutputParser.parse(reply.text());
             if (!parsed.ok() && !"DIRECTOR_FAILED".equals(parsed.error())) {
-                BrainGateway.Reply repair = brain.director(DirectorPacketBuilder.build(m,
+                BrainGateway.Reply repair = brain.forRoom(m.room()).director(DirectorPacketBuilder.build(m,
                         "REPAIR: " + parsed.error() + ". Return the same decision as one valid JSON object. Your previous output was:\n"
                                 + clip(reply.text(), 6000)));
                 raw.append("\n----- repair -----\n").append(repair.text());
@@ -311,7 +311,7 @@ public class TurnOrchestrator {
                 String cues = m.screen().cues().stream()
                         .map(cue -> cue.category() + " \"" + cue.phrase() + "\" in #" + cue.messageId())
                         .collect(Collectors.joining("; "));
-                BrainGateway.Reply review = brain.director(DirectorPacketBuilder.build(m,
+                BrainGateway.Reply review = brain.forRoom(m.room()).director(DirectorPacketBuilder.build(m,
                         "SAFETY_REVIEW: the screen found " + cues + " and your decision set safety level NONE. "
                                 + "Look at those messages again. If it is a real signal, decide with the safety rules; "
                                 + "if it is not, keep your decision and say why in safety.note."));

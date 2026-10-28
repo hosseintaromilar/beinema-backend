@@ -53,7 +53,7 @@ public final class SessionPlanner {
             return;
         }
         try {
-            BrainGateway.Reply reply = brain.planner(packet(m));
+            BrainGateway.Reply reply = brain.forRoom(m.room()).planner(packet(m));
             CounselingSnapshot.SessionPlan plan = parse(reply.text(), m);
             if (plan != null) {
                 m.snapshot().sessionPlan = plan;

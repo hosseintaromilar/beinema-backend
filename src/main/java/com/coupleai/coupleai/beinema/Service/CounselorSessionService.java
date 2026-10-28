@@ -85,15 +85,27 @@ public class CounselorSessionService {
      * couple counselor. Other agents keep their own Metis bot, exactly as before.
      */
     public boolean usesNewBrain(ChatRoom chatRoom) {
-        return counselingConfig.orchestrated() && chatRoom != null && isRelationshipCounselor(chatRoom);
+        return counselingConfig.orchestrated() && chatRoom != null
+                && (isRelationshipCounselor(chatRoom) || hasOwnV3Workflow(chatRoom));
+    }
+
+    /** A companion (finance, parenting...) whose Metis bot is its own copy of the v3 workflow. */
+    public boolean hasOwnV3Workflow(ChatRoom chatRoom) {
+        try {
+            return counselingConfig.isCompanionWorkflow(requireActiveAgent(chatRoom).getAiBotId());
+        } catch (RuntimeException noAgent) {
+            return false;
+        }
     }
 
     /** True for the couple counselor, whose welcome describes Reality Therapy. */
     public boolean isRelationshipCounselor(ChatRoom chatRoom) {
         try {
             Agent agent = requireActiveAgent(chatRoom);
+            // by type: other companions may have «زوج» in their name (همراه مالی زوج‌ها)
             String name = agent.getName() == null ? "" : agent.getName();
-            return agent.getType() == com.coupleai.coupleai.beinema.Enum.AgentType.RELATIONSHIP || name.contains("زوج");
+            return agent.getType() == com.coupleai.coupleai.beinema.Enum.AgentType.RELATIONSHIP
+                    || (agent.getType() == null && name.contains("زوج"));
         } catch (RuntimeException noAgent) {
             return false;
         }
