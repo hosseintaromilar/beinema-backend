@@ -156,11 +156,26 @@ class SessionBillingServiceTest {
     }
 
     @Test
-    void biggerBundlesCostLessPerSessionAndTheStruckPriceIsTheUsualOne() {
+    void biggerBundlesCostLessPerSessionAndTheStruckPriceIsAtMostTwiceThePrice() {
         List<SessionBillingService.PackageOffer> offers = billing.packageOffers();
-        assertEquals(List.of(75_000L, 70_000L, 62_500L), offers.stream().map(SessionBillingService.PackageOffer::perSession).toList());
-        assertEquals(List.of(2_000_000L, 5_000_000L, 12_000_000L), offers.stream().map(SessionBillingService.PackageOffer::listPrice).toList());
+        assertEquals(List.of(75_000L, 70_000L, 62_500L, 55_000L),
+                offers.stream().map(SessionBillingService.PackageOffer::perSession).toList());
+        assertEquals(List.of(600_000L, 1_400_000L, 3_000_000L, 4_400_000L),
+                offers.stream().map(SessionBillingService.PackageOffer::listPrice).toList());
+        assertEquals(List.of(2, 3, 4, 6), offers.stream().map(SessionBillingService.PackageOffer::dailySessions).toList());
         assertTrue(offers.stream().allMatch(offer -> offer.validDays() == 30));
+    }
+
+    @Test
+    void theBestActiveBundleDecidesTheDailyLimit() {
+        ReflectionTestUtils.setField(billing, "dailySessionsWithoutBundle", 1);
+        assertEquals(1, billing.dailyLimitFor(1L), "no bundle");
+
+        SessionPackage bronze = bundle(4, 0);
+        SessionPackage gold = bundle(24, 3);
+        gold.setTier("GOLD");
+        when(packages.findUsable(eq(1L), any())).thenReturn(List.of(bronze, gold));
+        assertEquals(4, billing.dailyLimitFor(1L));
     }
 
     @Test

@@ -53,9 +53,13 @@ public class SessionBillingService {
     @Value("${beinema.billing.session-price:100000}")
     private long sessionPrice;
 
-    /** The usual price, shown struck through while the launch price is on. */
-    @Value("${beinema.billing.session-list-price:500000}")
+    /** The usual price, shown struck through while the launch price is on (at most twice the price). */
+    @Value("${beinema.billing.session-list-price:200000}")
     private long sessionListPrice;
+
+    /** Sessions a conversation may hold in 24 hours when its owner has no bundle. */
+    @Value("${beinema.billing.daily-sessions:1}")
+    private int dailySessionsWithoutBundle;
 
     @Value("${beinema.billing.card-number:6037997135935907}")
     private String cardNumber;
@@ -72,12 +76,12 @@ public class SessionBillingService {
      */
     public record Offer(int freeSessions, int freeLeft, long sessionPrice, long sessionListPrice, long balance,
                         boolean nextIsFree, boolean canStart, String cardNumber, String cardHolder, String bankName,
-                        List<PackageOffer> packages, List<OwnedPackage> myPackages) {
+                        List<PackageOffer> packages, List<OwnedPackage> myPackages, int dailySessions) {
     }
 
-    /** A bundle on sale; listPrice is its sessions at the usual single price, struck through. */
+    /** A bundle on sale; listPrice (struck through) is twice the price, a discount of at most 50%. */
     public record PackageOffer(String tier, String title, int sessions, long price, long listPrice,
-                               long perSession, int validDays) {
+                               long perSession, int validDays, int dailySessions, String perk) {
     }
 
     /** A bundle someone bought that still has sessions and time left. */
@@ -85,18 +89,46 @@ public class SessionBillingService {
     }
 
     /** The public part, for the counselor pages: free sessions, the price and the bundles. */
-    public record Prices(int freeSessions, long sessionPrice, long sessionListPrice, List<PackageOffer> packages) {
+    public record Prices(int freeSessions, long sessionPrice, long sessionListPrice, int dailySessions,
+                         List<PackageOffer> packages) {
     }
 
     public Prices prices() {
-        return new Prices(freeSessions, sessionPrice, sessionListPrice, packageOffers());
+        return new Prices(freeSessions, sessionPrice, sessionListPrice, dailySessionsWithoutBundle, packageOffers());
     }
 
     public List<PackageOffer> packageOffers() {
         return Arrays.stream(SessionPackageTier.values())
                 .map(tier -> new PackageOffer(tier.name(), tier.title(), tier.sessions(), tier.price(),
-                        tier.sessions() * sessionListPrice, tier.price() / tier.sessions(), SessionPackageTier.VALID_DAYS))
+                        tier.price() * SessionPackageTier.LIST_PRICE_FACTOR, tier.price() / tier.sessions(),
+                        SessionPackageTier.VALID_DAYS, tier.dailySessions(), tier.perk()))
                 .toList();
+    }
+
+    /** Sessions a day without a bundle (the rules and the welcome say it). */
+    public int dailySessionsWithoutBundle() {
+        return dailySessionsWithoutBundle;
+    }
+
+    /**
+     * Sessions a conversation may hold in 24 hours: the best active bundle of
+     * its owner decides, and without one the plain limit.
+     */
+    @Transactional(readOnly = true)
+    public int dailyLimitFor(Long ownerId) {
+        if (ownerId == null) {
+            return dailySessionsWithoutBundle;
+        }
+        return packageRepository.findUsable(ownerId, Instant.now()).stream()
+                .map(item -> {
+                    try {
+                        return SessionPackageTier.valueOf(item.getTier()).dailySessions();
+                    } catch (IllegalArgumentException unknown) {
+                        return dailySessionsWithoutBundle;
+                    }
+                })
+                .max(Integer::compare)
+                .orElse(dailySessionsWithoutBundle);
     }
 
     @Transactional
@@ -109,7 +141,7 @@ public class SessionBillingService {
                 .toList();
         return new Offer(freeSessions, left, sessionPrice, sessionListPrice, balance,
                 left > 0, left > 0 || !mine.isEmpty() || balance >= sessionPrice, cardNumber, cardHolder, bankName,
-                packageOffers(), mine);
+                packageOffers(), mine, dailySessionsWithoutBundle);
     }
 
     /** Buys a bundle with the wallet's credit; it can be used for a month. */

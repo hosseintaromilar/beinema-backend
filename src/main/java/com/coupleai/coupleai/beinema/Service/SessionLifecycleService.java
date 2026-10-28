@@ -141,7 +141,10 @@ public class SessionLifecycleService {
     @Value("${beinema.session.overtime-minutes:15}")
     private int overtimeMinutes;
 
-    /** The most sessions a room may hold in the window (0 = no limit). */
+    /**
+     * The most sessions a room may hold in the window (0 = no limit) when the
+     * plan says nothing; the owner's plan decides it (dailyLimit).
+     */
     @Value("${beinema.session.max-sessions:3}")
     private int maxSessions;
 
@@ -233,7 +236,7 @@ public class SessionLifecycleService {
                 .ready(ready)
                 .limitReached(limit.reached())
                 .limitUntil(limit.until() == null ? null : limit.until().toEpochMilli())
-                .sessionLimit(maxSessions)
+                .sessionLimit(dailyLimit(room))
                 .completedSessions(Math.max(0, active ? number - 1 : number))
                 .waitMinutes(partnerWaitMinutes)
                 .overtimeMinutes(overtimeMinutes)
@@ -415,7 +418,7 @@ public class SessionLifecycleService {
                 Limit limit = limit(room, now);
                 if (limit.reached()) {
                     throw new SessionOnBreakException(SessionOnBreakException.LIMIT, String.format(LIMIT_TEXT,
-                            persianDigits(windowHours), persianDigits(maxSessions), clockText(limit.until())));
+                            persianDigits(windowHours), persianDigits(dailyLimit(room)), clockText(limit.until())));
                 }
                 Instant ended = room.getSessionEndedAt();
                 if (ended != null && now.isBefore(ended.plusSeconds(minBreakMinutes * 60L))) {
@@ -867,8 +870,9 @@ public class SessionLifecycleService {
 
     private String closingText(Closing closing) {
         if (closing.limitedUntil() != null) {
+            int daily = chatRoomRepository.findById(closing.roomId()).map(this::dailyLimit).orElse(maxSessions);
             return String.format(CLOSING_LIMITED_TEXT, ordinal(closing.number()), persianDigits(windowHours),
-                    persianDigits(maxSessions), clockText(closing.limitedUntil()));
+                    persianDigits(daily), clockText(closing.limitedUntil()));
         }
         Instant next = closing.endedAt().plusSeconds(minBreakMinutes * 60L);
         if (!next.isAfter(clock.instant())) {
@@ -923,7 +927,8 @@ public class SessionLifecycleService {
      * oldest of them leaves the window.
      */
     private Limit limit(ChatRoom room, Instant now) {
-        if (maxSessions <= 0 || room.getId() == null) {
+        int daily = dailyLimit(room);
+        if (daily <= 0 || room.getId() == null) {
             return Limit.NONE;
         }
         Duration window = Duration.ofHours(windowHours);
@@ -935,10 +940,10 @@ public class SessionLifecycleService {
         recent.stream().filter(record -> record.getEndedAt() == null).reduce((first, second) -> second)
                 .ifPresent(held::add);
         held.sort(Comparator.comparing(SessionRecord::getOpenedAt));
-        if (held.size() < maxSessions) {
+        if (held.size() < daily) {
             return Limit.NONE;
         }
-        return new Limit(true, held.get(held.size() - maxSessions).getOpenedAt().plus(window));
+        return new Limit(true, held.get(held.size() - daily).getOpenedAt().plus(window));
     }
 
     // ---------------------------------------------------------------- the previous brief and summaries
@@ -991,9 +996,16 @@ public class SessionLifecycleService {
         return overtimeMinutes;
     }
 
-    /** The most sessions a room may hold in 24 hours. */
+    /** The most sessions a room may hold in 24 hours without a bundle (the rules and the welcome say it). */
     public int maxSessions() {
-        return maxSessions;
+        int plain = sessionBillingService.dailySessionsWithoutBundle();
+        return plain > 0 ? plain : maxSessions;
+    }
+
+    /** The sessions this room may hold in 24 hours: its owner's plan, otherwise the setting. */
+    public int dailyLimit(ChatRoom room) {
+        int byPlan = room == null ? 0 : sessionBillingService.dailyLimitFor(room.getCreatedBy());
+        return byPlan > 0 ? byPlan : maxSessions;
     }
 
     /** The length of a session in a new room, in minutes. */
