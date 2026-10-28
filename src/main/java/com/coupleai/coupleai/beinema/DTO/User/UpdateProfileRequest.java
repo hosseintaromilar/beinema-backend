@@ -3,7 +3,7 @@ package com.coupleai.coupleai.beinema.DTO.User;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Editing one's own profile: the name and the mobile number. */
+/** Editing one's own profile: the name and the username. */
 @Getter
 @Setter
 public class UpdateProfileRequest {
@@ -12,5 +12,5 @@ public class UpdateProfileRequest {
 
     private String lastName;
 
-    private String phoneNumber;
+    private String username;
 }

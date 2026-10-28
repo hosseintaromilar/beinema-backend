@@ -11,6 +11,8 @@ public interface UserRepository
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
     Optional<User> findByPhoneNumber(String phoneNumber);
+    Optional<User> findByUsername(String username);
+    boolean existsByUsername(String username);
     Optional<User> findByGoogleSubject(String googleSubject);
     boolean existsByPhoneNumber(String phoneNumber);
     Optional<User> findByReferralCode(String referralCode);

@@ -12,5 +12,4 @@ public class CompleteNameRequest {
 
     private String lastName;
 
-    private String phoneNumber;
 }

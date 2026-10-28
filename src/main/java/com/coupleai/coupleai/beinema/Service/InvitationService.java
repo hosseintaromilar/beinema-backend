@@ -292,29 +292,7 @@ public class InvitationService {
             throw new IllegalArgumentException("برای ورود به گروه، قوانین گروه و چارچوب جلسه را بپذیر.");
         }
 
-        // a shared link has no number: who opens it gives theirs (the name step asks for it)
-        if (invitation.getPhoneNumber() == null) {
-            if (!user.hasPhoneNumber()) {
-                throw new IllegalArgumentException("قبل از ادامه، شماره موبایلت را ثبت کن.");
-            }
-        } else if (user.hasPhoneNumber() && !user.getPhoneNumber().equals(invitation.getPhoneNumber())) {
-            throw new IllegalArgumentException(
-                    "این دعوت برای شماره دیگری است."
-            );
-        }
-
-        if (!user.hasPhoneNumber()) {
-            userRepository.findByPhoneNumber(invitation.getPhoneNumber())
-                    .ifPresent(owner -> {
-                        if (!owner.getId().equals(user.getId())) {
-                            throw new IllegalArgumentException(
-                                    "این دعوت مربوط به حساب دیگری است. با همان شماره وارد شوید."
-                            );
-                        }
-                    });
-            user.setPhoneNumber(invitation.getPhoneNumber());
-            userRepository.save(user);
-        }
+        // the link itself is the invitation: whoever the owner shared it with may join
 
         addMember(chatRoom, user, java.time.Instant.now());
         markAccepted(invitation, user);

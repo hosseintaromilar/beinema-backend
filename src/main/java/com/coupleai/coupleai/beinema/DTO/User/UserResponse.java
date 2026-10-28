@@ -20,10 +20,10 @@ public class UserResponse {
 
     private String phoneNumber;
 
-    private boolean profileComplete;
+    /** The sign-in name; older accounts made with a mobile number may have none. */
+    private String username;
 
-    // signed in with Google, phone number not verified yet
-    private boolean phoneRequired;
+    private boolean profileComplete;
 
     private String avatarUrl;
 
@@ -56,11 +56,10 @@ public class UserResponse {
 
                 .phoneNumber(user.getPhoneNumber())
 
-                // the name and a mobile number (written down, not confirmed while SMS is off)
-                .profileComplete(user.hasRegisteredName() && user.hasPhoneNumber())
+                .username(user.getUsername())
 
-                // a Google account without a number gives it in the same step as the name
-                .phoneRequired(!user.hasPhoneNumber())
+                // only the name is asked after signing up
+                .profileComplete(user.hasRegisteredName())
 
                 .avatarUrl(user.getAvatarUrl())
 

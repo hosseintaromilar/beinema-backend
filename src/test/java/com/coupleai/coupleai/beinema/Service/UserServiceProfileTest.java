@@ -48,14 +48,15 @@ class UserServiceProfileTest {
         auth = new UsernamePasswordAuthenticationToken(EMAIL, null, List.of());
         when(users.findByEmail(EMAIL)).thenReturn(Optional.of(me));
         when(users.findByPhoneNumber(anyString())).thenReturn(Optional.empty());
+        when(users.findByUsername(anyString())).thenReturn(Optional.empty());
         when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
     }
 
-    private static UpdateProfileRequest profile(String first, String last, String phone) {
+    private static UpdateProfileRequest profile(String first, String last, String username) {
         UpdateProfileRequest request = new UpdateProfileRequest();
         request.setFirstName(first);
         request.setLastName(last);
-        request.setPhoneNumber(phone);
+        request.setUsername(username);
         return request;
     }
 
@@ -67,22 +68,26 @@ class UserServiceProfileTest {
     }
 
     @Test
-    void theNameAndANewNumberAreSavedTheNumberUnconfirmed() {
-        me.setPhoneVerified(null);
-        UserResponse response = service.updateProfile(auth, profile("سارا", "کریمی", "۰۹۳۵۱۱۱۲۲۳۳"));
+    void theNameAndAUsernameAreSavedAndAnEmptyUsernameKeepsTheOldOne() {
+        UserResponse response = service.updateProfile(auth, profile("سارا", "کریمی", "Sara.K"));
         assertEquals("سارا کریمی", response.getName());
-        assertEquals("09351112233", me.getPhoneNumber());
-        assertEquals(Boolean.FALSE, me.getPhoneVerified(), "a typed number proves nothing until SMS is back");
+        assertEquals("sara.k", me.getUsername());
+        assertEquals("sara.k", response.getUsername());
+
+        service.updateProfile(auth, profile("سارا", "کریمی", ""));
+        assertEquals("sara.k", me.getUsername());
+        assertEquals("09121234567", me.getPhoneNumber(), "the old number stays for signing in");
     }
 
     @Test
-    void aNumberOfAnotherAccountOrABadNameIsRefused() {
-        User other = User.builder().email("x@users.beinema").phoneNumber("09351112233").build();
+    void aUsernameOfAnotherAccountOrABadNameIsRefused() {
+        User other = User.builder().email("x@users.beinema").username("taken").build();
         other.setId(9L);
-        when(users.findByPhoneNumber("09351112233")).thenReturn(Optional.of(other));
-        assertThrows(IllegalArgumentException.class, () -> service.updateProfile(auth, profile("سارا", "کریمی", "09351112233")));
-        assertThrows(IllegalArgumentException.class, () -> service.updateProfile(auth, profile("س", "کریمی", "09121234567")));
-        assertEquals("09121234567", me.getPhoneNumber());
+        when(users.findByUsername("taken")).thenReturn(Optional.of(other));
+        assertThrows(IllegalArgumentException.class, () -> service.updateProfile(auth, profile("سارا", "کریمی", "taken")));
+        assertThrows(IllegalArgumentException.class, () -> service.updateProfile(auth, profile("سارا", "کریمی", "سارا")));
+        assertThrows(IllegalArgumentException.class, () -> service.updateProfile(auth, profile("س", "کریمی", "")));
+        assertEquals(null, me.getUsername());
     }
 
     @Test
@@ -112,12 +117,16 @@ class UserServiceProfileTest {
     }
 
     @Test
-    void withoutANumberThereIsNothingToSignInWith() {
+    void withoutAUsernameOrANumberThereIsNothingToSignInWith() {
         me.setPasswordSet(null);
         me.setPhoneNumber(null);
-        IllegalArgumentException noPhone = assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException nothing = assertThrows(IllegalArgumentException.class,
                 () -> service.changePassword(auth, password(null, "my-first-pass")));
-        assertTrue(noPhone.getMessage().contains("شماره"));
+        assertTrue(nothing.getMessage().contains("نام کاربری"));
         assertFalse(Boolean.TRUE.equals(me.getPasswordSet()));
+
+        me.setUsername("sara");
+        service.changePassword(auth, password(null, "my-first-pass"));
+        assertTrue(encoder.matches("my-first-pass", me.getPassword()));
     }
 }

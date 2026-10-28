@@ -80,6 +80,11 @@ public class User extends BaseEntity {
     private String phoneNumber;
 
 
+    /** The sign-in name (lower case); accounts made with a mobile number before it have none. */
+    @Column(unique = true, length = 30)
+    private String username;
+
+
     @Column(length = 50)
     private String firstName;
 

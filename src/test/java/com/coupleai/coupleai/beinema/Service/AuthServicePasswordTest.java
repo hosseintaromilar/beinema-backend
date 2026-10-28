@@ -25,6 +25,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,7 +35,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Sign-up and sign-in with the mobile number and a password, while SMS codes are off. */
+/** Sign-up and sign-in with a username and a password; older accounts sign in with their number. */
 class AuthServicePasswordTest {
 
     private static final String PHONE = "09121234567";
@@ -57,41 +58,42 @@ class AuthServicePasswordTest {
         ReflectionTestUtils.setField(service, "otpBypassPhones", "");
         ReflectionTestUtils.setField(service, "otpBypassCode", "");
         when(users.findByPhoneNumber(anyString())).thenReturn(Optional.empty());
+        when(users.findByUsername(anyString())).thenReturn(Optional.empty());
         when(users.save(any(User.class))).thenAnswer(call -> call.getArgument(0));
         when(jwt.generateToken(any(), anyString())).thenReturn("token");
     }
 
-    private static RegisterRequest signUp(String phone, String password) {
+    private static RegisterRequest signUp(String username, String password) {
         RegisterRequest request = new RegisterRequest();
-        request.setPhoneNumber(phone);
+        request.setUsername(username);
         request.setPassword(password);
         return request;
     }
 
-    private static LoginRequest signIn(String phone, String password) {
+    private static LoginRequest signIn(String username, String password) {
         LoginRequest request = new LoginRequest();
-        request.setPhoneNumber(phone);
+        request.setUsername(username);
         request.setPassword(password);
         return request;
     }
 
-    private User existing(String password) {
-        User user = User.builder().name("").email(PHONE + "@users.beinema").phoneNumber(PHONE)
+    private User existing(String username, String password) {
+        User user = User.builder().name("").email(username + "@users.beinema").username(username)
                 .password(encoder.encode(password)).passwordSet(true)
                 .status(UserStatus.ACTIVE).role(UserRole.USER).build();
-        when(users.findByPhoneNumber(PHONE)).thenReturn(Optional.of(user));
+        when(users.findByUsername(username)).thenReturn(Optional.of(user));
         return user;
     }
 
     @Test
-    void signingUpWritesTheNumberDownUnconfirmedWithAHashedPasswordAndNoSms() throws Exception {
-        AuthResponse response = service.register(signUp("۰۹۱۲۱۲۳۴۵۶۷", "secret-pass"));
+    void signingUpKeepsTheUsernameInLowerCaseWithAHashedPasswordAndNoNumber() throws Exception {
+        AuthResponse response = service.register(signUp("  Sara_M ", "secret-pass"));
 
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(users, org.mockito.Mockito.atLeastOnce()).save(saved.capture());
         User user = saved.getAllValues().get(0);
-        assertEquals(PHONE, user.getPhoneNumber(), "Persian digits become the usual number");
-        assertEquals(Boolean.FALSE, user.getPhoneVerified());
+        assertEquals("sara_m", user.getUsername());
+        assertNull(user.getPhoneNumber(), "no mobile number is asked");
         assertTrue(encoder.matches("secret-pass", user.getPassword()));
         assertFalse(user.hasRegisteredName(), "the name is asked in the next step");
         assertEquals("token", response.getToken());
@@ -99,83 +101,72 @@ class AuthServicePasswordTest {
     }
 
     @Test
-    void aShortPasswordOrATakenNumberIsRefused() {
+    void aShortPasswordABadNameOrATakenNameIsRefused() {
         IllegalArgumentException shortOne = assertThrows(IllegalArgumentException.class,
-                () -> service.register(signUp(PHONE, "1234567")));
+                () -> service.register(signUp("sara", "1234567")));
         assertTrue(shortOne.getMessage().contains("۸"), shortOne.getMessage());
 
-        existing("whatever-1");
+        for (String bad : new String[]{"سارا", "1sara", "sa", "sara m", "sara-m"}) {
+            assertThrows(IllegalArgumentException.class, () -> service.register(signUp(bad, "secret-pass")), bad);
+        }
+
+        when(users.existsByUsername("sara")).thenReturn(true);
         IllegalArgumentException taken = assertThrows(IllegalArgumentException.class,
-                () -> service.register(signUp(PHONE, "secret-pass")));
-        assertTrue(taken.getMessage().contains("وارد شو"), taken.getMessage());
+                () -> service.register(signUp("Sara", "secret-pass")));
+        assertTrue(taken.getMessage().contains("گرفته شده"), taken.getMessage());
     }
 
     @Test
-    void anOldSmsAccountGetsItsPasswordOnceAndKeepsItsHistory() {
+    void anAccountMadeWithANumberSignsInWithThatNumber() {
         User old = User.builder().name("حسین").email(PHONE + "@users.beinema").phoneNumber(PHONE)
-                .password(encoder.encode("random-uuid")).status(UserStatus.ACTIVE).role(UserRole.ADMIN).build();
-        old.setId(7L);
+                .password(encoder.encode("old-secret-1")).passwordSet(true)
+                .status(UserStatus.ACTIVE).role(UserRole.USER).build();
         when(users.findByPhoneNumber(PHONE)).thenReturn(Optional.of(old));
 
-        assertEquals("token", service.register(signUp(PHONE, "new-secret-1")).getToken());
-        assertTrue(encoder.matches("new-secret-1", old.getPassword()));
-        assertEquals(Boolean.TRUE, old.getPasswordSet());
-        assertEquals("حسین", old.getName(), "the same account, not a new one");
-        assertEquals("token", service.login(signIn(PHONE, "new-secret-1")).getToken());
-
-        IllegalArgumentException twice = assertThrows(IllegalArgumentException.class,
-                () -> service.register(signUp(PHONE, "someone-else-2")));
-        assertTrue(twice.getMessage().contains("وارد شو"), "once claimed, the number is closed");
+        assertEquals("token", service.login(signIn("۰۹۱۲۱۲۳۴۵۶۷", "old-secret-1")).getToken());
+        LoginRequest olderClient = new LoginRequest();
+        olderClient.setPhoneNumber(PHONE);
+        olderClient.setPassword("old-secret-1");
+        assertEquals("token", service.login(olderClient).getToken(), "an older page still sends phoneNumber");
     }
 
     @Test
-    void anAdminNumberTypedAtSignUpDoesNotMakeAnAdmin() {
-        ReflectionTestUtils.setField(service, "adminPhones", PHONE);
-        service.register(signUp(PHONE, "pretend-admin"));
-        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
-        verify(users, org.mockito.Mockito.atLeastOnce()).save(saved.capture());
-        assertEquals(UserRole.USER, saved.getValue().getRole(), "the number was only typed, not confirmed");
-
+    void aNumberConfirmedBySmsBeforeStillMakesAnAdmin() {
         User confirmedBySms = User.builder().name("حسین").email("09351112233@users.beinema").phoneNumber("09351112233")
                 .password(encoder.encode("p-4-sms-user")).passwordSet(true)
                 .status(UserStatus.ACTIVE).role(UserRole.USER).build();
         when(users.findByPhoneNumber("09351112233")).thenReturn(Optional.of(confirmedBySms));
         ReflectionTestUtils.setField(service, "adminPhones", "09351112233");
         service.login(signIn("09351112233", "p-4-sms-user"));
-        assertEquals(UserRole.ADMIN, confirmedBySms.getRole(), "a number confirmed by SMS before still counts");
-    }
+        assertEquals(UserRole.ADMIN, confirmedBySms.getRole());
 
-    @Test
-    void aGoogleAccountsNumberCannotBeClaimedBySigningUp() {
-        User google = User.builder().name("سارا").email("sara@gmail.com").phoneNumber(PHONE).googleSubject("g-1")
-                .password(encoder.encode("random-uuid")).status(UserStatus.ACTIVE).role(UserRole.USER).build();
-        when(users.findByPhoneNumber(PHONE)).thenReturn(Optional.of(google));
-
-        assertThrows(IllegalArgumentException.class, () -> service.register(signUp(PHONE, "take-over-1")));
-        assertTrue(encoder.matches("random-uuid", google.getPassword()));
+        ReflectionTestUtils.setField(service, "adminPhones", "09121234567");
+        User fresh = existing("pretend", "pretend-admin");
+        service.login(signIn("pretend", "pretend-admin"));
+        assertEquals(UserRole.USER, fresh.getRole(), "a username account has no number to be an admin by");
     }
 
     @Test
     void theRightPasswordSignsInAndAWrongOneDoesNot() {
-        existing("secret-pass");
-        assertEquals("token", service.login(signIn(PHONE, "secret-pass")).getToken());
+        existing("sara", "secret-pass");
+        assertEquals("token", service.login(signIn("SARA", "secret-pass")).getToken());
 
         InvalidCredentialsException wrong = assertThrows(InvalidCredentialsException.class,
-                () -> service.login(signIn(PHONE, "secret-pasS")));
-        assertEquals("شماره موبایل یا رمز درست نیست.", wrong.getMessage());
+                () -> service.login(signIn("sara", "secret-pasS")));
+        assertEquals("نام کاربری یا رمز درست نیست.", wrong.getMessage());
         InvalidCredentialsException unknown = assertThrows(InvalidCredentialsException.class,
-                () -> service.login(signIn("09351112233", "secret-pass")));
-        assertEquals(wrong.getMessage(), unknown.getMessage(), "no hint whether the number has an account");
+                () -> service.login(signIn("nobody", "secret-pass")));
+        assertEquals(wrong.getMessage(), unknown.getMessage(), "no hint whether the name has an account");
     }
 
     @Test
-    void manyWrongPasswordsMakeTheNumberWaitEvenForTheRightOne() {
-        existing("secret-pass");
+    void manyWrongPasswordsMakeTheNameWaitEvenForTheRightOne() {
+        existing("sara", "secret-pass");
         for (int i = 0; i < 8; i++) {
-            assertThrows(InvalidCredentialsException.class, () -> service.login(signIn(PHONE, "nope-nope")));
+            assertThrows(InvalidCredentialsException.class, () -> service.login(signIn("sara", "nope-nope")));
         }
         InvalidCredentialsException waiting = assertThrows(InvalidCredentialsException.class,
-                () -> service.login(signIn(PHONE, "secret-pass")));
+                () -> service.login(signIn("sara", "secret-pass")));
         assertTrue(waiting.getMessage().contains("ربع ساعت"), waiting.getMessage());
     }
 

@@ -28,6 +28,7 @@ import com.coupleai.coupleai.beinema.Security.JwtService;
 import com.coupleai.coupleai.beinema.Security.TokenBlacklistService;
 import com.coupleai.coupleai.beinema.Service.sms.SmsProvider;
 import com.coupleai.coupleai.beinema.Util.PhoneNumbers;
+import com.coupleai.coupleai.beinema.Util.Usernames;
 
 import lombok.RequiredArgsConstructor;
 
@@ -67,7 +68,7 @@ public class AuthService {
     private static final String NO_RECOVERY =
             "بازیابی رمز فعلاً ممکن نیست؛ اگر حسابت به گوگل وصل است، با گوگل وارد شو.";
 
-    private static final String WRONG_LOGIN = "شماره موبایل یا رمز درست نیست.";
+    private static final String WRONG_LOGIN = "نام کاربری یا رمز درست نیست.";
 
     static final int MIN_PASSWORD = 8;
 
@@ -136,28 +137,20 @@ public class AuthService {
 
 
     /**
-     * Sign-up with the mobile number and a password. The number is written down,
-     * not confirmed (no SMS for now); the name is asked in the next step.
+     * Sign-up with a username and a password; nothing else is asked here, the
+     * name comes in the next step.
      */
     public AuthResponse register(RegisterRequest request) {
-        String phone = PhoneNumbers.normalize(request == null ? null : request.getPhoneNumber());
+        String username = Usernames.normalize(request == null ? null : request.getUsername());
         String password = requirePassword(request == null ? null : request.getPassword());
-        User existing = userRepository.findByPhoneNumber(phone).orElse(null);
-        if (existing != null && claimsOldSmsAccount(existing)) {
-            // an account made by SMS code before passwords: its number gets the password once
-            existing.setPassword(passwordEncoder.encode(password));
-            existing.setPasswordSet(true);
-            return openSession(userRepository.save(existing), phone);
-        }
-        if (existing != null || userRepository.existsByEmail(phone + PHONE_EMAIL_SUFFIX)) {
-            throw new IllegalArgumentException("با این شماره قبلاً حساب ساخته شده؛ وارد شو.");
+        if (userRepository.existsByUsername(username) || userRepository.existsByEmail(username + PHONE_EMAIL_SUFFIX)) {
+            throw new IllegalArgumentException("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
         }
 
         User saved = userRepository.save(User.builder()
                 .name("")
-                .email(phone + PHONE_EMAIL_SUFFIX)
-                .phoneNumber(phone)
-                .phoneVerified(false)
+                .email(username + PHONE_EMAIL_SUFFIX)
+                .username(username)
                 .password(passwordEncoder.encode(password))
                 .passwordSet(true)
                 .status(UserStatus.ACTIVE)
@@ -166,22 +159,31 @@ public class AuthService {
                 .build());
         walletService.getOrCreate(saved);
         referralService.rewardNewUser(saved, request.getReferralCode());
-        return openSession(saved, phone);
+        return openSession(saved, null);
     }
 
 
-    /** Sign-in with the mobile number and the password; a few wrong tries make the number wait. */
+    /**
+     * Sign-in with the username and the password. An account made with a mobile
+     * number before usernames signs in with that number. A few wrong tries make
+     * the name wait.
+     */
     public AuthResponse login(LoginRequest request) {
-        String phone = PhoneNumbers.normalize(request == null ? null : request.getPhoneNumber());
+        String typed = request == null ? null
+                : request.getUsername() != null && !request.getUsername().isBlank() ? request.getUsername()
+                : request.getPhoneNumber();
+        String identifier = Usernames.lenient(typed);
         String password = request == null || request.getPassword() == null ? "" : request.getPassword();
-        Deque<Instant> failures = loginFailures.computeIfAbsent(phone, key -> new ConcurrentLinkedDeque<>());
+        Deque<Instant> failures = loginFailures.computeIfAbsent(identifier, key -> new ConcurrentLinkedDeque<>());
         Instant now = Instant.now();
         failures.removeIf(at -> at.isBefore(now.minus(Duration.ofMinutes(15))));
         if (failures.size() >= LOGIN_MAX_FAILURES) {
             throw new InvalidCredentialsException("چند بار رمز اشتباه وارد شد؛ ربع ساعت دیگر دوباره امتحان کن.");
         }
 
-        User user = userRepository.findByPhoneNumber(phone).orElse(null);
+        User user = userRepository.findByUsername(identifier)
+                .or(() -> asPhone(identifier).flatMap(userRepository::findByPhoneNumber))
+                .orElse(null);
         if (user == null || user.isDeleted() || !passwordEncoder.matches(password, user.getPassword())) {
             failures.add(now);
             throw new InvalidCredentialsException(WRONG_LOGIN);
@@ -190,7 +192,16 @@ public class AuthService {
             throw new UserNotActiveException("حساب کاربری شما فعال نیست");
         }
         failures.clear();
-        return openSession(user, phone);
+        return openSession(user, user.getPhoneNumber());
+    }
+
+
+    private static java.util.Optional<String> asPhone(String typed) {
+        try {
+            return java.util.Optional.of(PhoneNumbers.normalize(typed));
+        } catch (RuntimeException notAPhone) {
+            return java.util.Optional.empty();
+        }
     }
 
 
@@ -201,21 +212,6 @@ public class AuthService {
 
     public LogoutResponse resetPassword(ResetPasswordRequest request) {
         throw new InvalidCredentialsException(NO_RECOVERY);
-    }
-
-
-    /**
-     * The few accounts made by SMS code before sign-up had passwords: their
-     * number was confirmed by a code, they have no password of their own and
-     * no Google login (a Google account's number is only written down, so it
-     * can never be claimed this way). Once claimed, passwordSet closes it.
-     */
-    private static boolean claimsOldSmsAccount(User user) {
-        return !Boolean.TRUE.equals(user.getPasswordSet())
-                && user.getGoogleSubject() == null
-                && !user.isDeleted()
-                && user.getEmail() != null
-                && user.getEmail().endsWith(PHONE_EMAIL_SUFFIX);
     }
 
 

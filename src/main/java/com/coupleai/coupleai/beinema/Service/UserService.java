@@ -7,7 +7,7 @@ import com.coupleai.coupleai.beinema.DTO.User.UserResponse;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Exception.InvalidCredentialsException;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
-import com.coupleai.coupleai.beinema.Util.PhoneNumbers;
+import com.coupleai.coupleai.beinema.Util.Usernames;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,25 +31,26 @@ public class UserService {
 
 
     /**
-     * The person edits their own profile: the name and the mobile number. A new
-     * number is written down unconfirmed (no SMS for now) and must not belong to
-     * another account.
+     * The person edits their own profile: the name and the username. Leaving
+     * the username empty keeps it as it is (an older account may have none).
      */
     @Transactional
     public UserResponse updateProfile(Authentication authentication, UpdateProfileRequest request) {
         User user = loadByAuthentication(authentication);
         String firstName = normalizeName(request == null ? null : request.getFirstName(), "نام");
         String lastName = normalizeName(request == null ? null : request.getLastName(), "نام خانوادگی");
-        String phone = PhoneNumbers.normalize(request == null ? null : request.getPhoneNumber());
+        String typed = request == null ? null : request.getUsername();
 
-        if (!phone.equals(user.getPhoneNumber())) {
-            userRepository.findByPhoneNumber(phone).ifPresent(other -> {
-                if (!other.getId().equals(user.getId())) {
-                    throw new IllegalArgumentException("این شماره برای حساب دیگری ثبت شده است.");
-                }
-            });
-            user.setPhoneNumber(phone);
-            user.setPhoneVerified(false);
+        if (typed != null && !typed.isBlank()) {
+            String username = Usernames.normalize(typed);
+            if (!username.equals(user.getUsername())) {
+                userRepository.findByUsername(username).ifPresent(other -> {
+                    if (!other.getId().equals(user.getId())) {
+                        throw new IllegalArgumentException("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
+                    }
+                });
+                user.setUsername(username);
+            }
         }
         user.setFirstName(firstName);
         user.setLastName(lastName);
@@ -63,7 +64,7 @@ public class UserService {
      * Sets or changes the password. With a password of their own the current
      * one is asked; a Google account (or an old SMS one) sets its first
      * password without it, being signed in already. Then they can also sign in
-     * with the number and this password.
+     * with the username and this password.
      */
     @Transactional
     public UserResponse changePassword(Authentication authentication, ChangePasswordRequest request) {
@@ -75,8 +76,8 @@ public class UserService {
                 throw new IllegalArgumentException("رمز فعلی درست نیست.");
             }
         }
-        if (!user.hasPhoneNumber()) {
-            throw new IllegalArgumentException("اول شماره موبایلت را در پروفایل ثبت کن؛ ورود با رمز با همان شماره است.");
+        if (user.getUsername() == null && !user.hasPhoneNumber()) {
+            throw new IllegalArgumentException("اول در پروفایل یک نام کاربری بگذار؛ ورود با رمز با همان نام کاربری است.");
         }
         user.setPassword(passwordEncoder.encode(next));
         user.setPasswordSet(true);
@@ -114,18 +115,6 @@ public class UserService {
             user.setFirstName(firstName);
             user.setLastName(lastName);
             user.setName(firstName + " " + lastName);
-        }
-
-        // a Google account gives its number here; it is written down, not confirmed (no SMS for now)
-        if (!user.hasPhoneNumber()) {
-            String phone = PhoneNumbers.normalize(request == null ? null : request.getPhoneNumber());
-            userRepository.findByPhoneNumber(phone).ifPresent(other -> {
-                if (!other.getId().equals(user.getId())) {
-                    throw new IllegalArgumentException("این شماره برای حساب دیگری ثبت شده است.");
-                }
-            });
-            user.setPhoneNumber(phone);
-            user.setPhoneVerified(false);
         }
 
         userRepository.save(user);

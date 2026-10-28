@@ -174,7 +174,10 @@ public class RelationshipInsightService {
                 ));
 
         String transcript = buildTranscript(chatRoom, messages);
-        String prompt = buildPrompt(transcript);
+        RelationshipInsight previous = insightRepository.findByChatRoom(chatRoom)
+                .filter(earlier -> earlier.getAnalyzedAt() != null && !isBlank(earlier.getWhereWeAre()))
+                .orElse(null);
+        String prompt = buildPrompt(transcript, previous == null ? null : previous.getWhereWeAre());
 
         try {
             MetisConversationResponse session = metisService.createConversation(
@@ -255,18 +258,16 @@ public class RelationshipInsightService {
 
         StringBuilder transcript = new StringBuilder();
         for (Message message : recent) {
+            // only what the two people and the companion said; system notices are noise here
             if (message.getContent() == null || message.getContent().isBlank()
-                    || message.getVisibleToUserId() != null) {
+                    || message.getVisibleToUserId() != null
+                    || (message.getSenderType() != MessageSenderType.USER
+                        && message.getSenderType() != MessageSenderType.AGENT)) {
                 continue;
             }
-            String speaker;
-            if (message.getSenderType() == MessageSenderType.USER) {
-                speaker = names.getOrDefault(message.getSenderId(), "شریک");
-            } else if (message.getSenderType() == MessageSenderType.AGENT) {
-                speaker = "ایجنت";
-            } else {
-                speaker = "سیستم";
-            }
+            String speaker = message.getSenderType() == MessageSenderType.USER
+                    ? names.getOrDefault(message.getSenderId(), "شریک")
+                    : "همراه";
             transcript.append(speaker)
                     .append(": ")
                     .append(trimTo(com.coupleai.coupleai.beinema.counseling.MessageTexts.visible(message).replace('\n', ' '), MAX_MESSAGE_CHARS))
@@ -275,20 +276,39 @@ public class RelationshipInsightService {
         return transcript.toString();
     }
 
-    private String buildPrompt(String transcript) {
+    /**
+     * The path is a plain summary of this very conversation, read by both
+     * people: nothing guessed, nothing from outside it, empty where the
+     * conversation says nothing.
+     */
+    private String buildPrompt(String transcript, String lastSummary) {
+        String before = lastSummary == null
+                ? """
+                  این اولین جمع‌بندی این گفتگوست: whereWeWere را "" بگذار و status را starting.
+                  """
+                : "جمع‌بندی جلسهٔ قبل (whereWeWere را از همین بنویس و status را با مقایسه با آن انتخاب کن):\n"
+                  + lastSummary + "\n";
         return """
-                تو آینهٔ رابطه هستی، نه قاضی و نه درمانگر.
-                طرف رابطه را بگیر، نه افراد را. مقصر مشخص نکن. نمره، درصد، لیگ یا برچسب بالینی نده.
-                از گفتگوی مشترک زیر، فقط JSON معتبر برگردان. هیچ متن دیگری ننویس.
+                تو جمع‌بندی‌نویس گفتگوی دو نفر در یک رابطه هستی. خروجی تو را هر دو نفر می‌خوانند.
+
+                قواعد:
+                - فقط از گفتگوی زیر استفاده کن. چیزی را که در گفتگو گفته نشده حدس نزن و از خودت اضافه نکن.
+                - اگر برای کلیدی چیزی در گفتگو نیست، آن را خالی بگذار ("" یا []).
+                - طرف رابطه باش، نه یکی از دو نفر. کسی را مقصر نکن. نمره، درصد یا برچسب روان‌شناختی نده.
+                - فارسی ساده و روزمره، با زبان «ما». بدون اصطلاح تخصصی، شعر، استعاره یا جملهٔ کلیشه‌ای.
+                - هر جمله کوتاه باشد و به موضوع مشخص همین گفتگو اشاره کند.
+                - فقط JSON معتبر برگردان، بدون هیچ متن دیگری.
 
                 کلیدها:
-                whereWeWere: یک یا دو جمله درباره الگوی قبلی رابطه به زبان «ما»
-                whereWeAre: یک یا دو جمله درباره وضعیت فعلی به زبان «ما»
-                status: فقط یکی از starting, softer, same, returned
-                needs: آرایه حداکثر ۳ نیاز رابطه مثل شنیده شدن، امنیت، احترام
-                patterns: آرایه حداکثر ۳ الگوی تکراری بدون نام بردن مقصر
-                nextStep: یک قدم کوچک برای ۷ روز آینده که هر دو بتوانند انجام دهند
-                dailySentence: یک جمله کوتاه، گرم و غیرآمرانه برای امروز این رابطه
+                whereWeWere: یک جمله دربارهٔ جلسهٔ قبل، یا ""
+                whereWeAre: یک یا دو جمله: در این جلسه دربارهٔ چه حرف زدیم و به کجا رسیدیم
+                status: یکی از starting (اولین جلسه)، softer (لحن آرام‌تر شد یا به تفاهم نزدیک‌تر شدیم)، same (بحث همان‌جا ماند)، returned (مشکلی که بهتر شده بود دوباره پیش آمد)
+                needs: حداکثر ۳ نیازی که خود ما در گفتگو گفتیم، هر کدام در چند کلمه
+                patterns: حداکثر ۳ الگوی تکراری که در همین گفتگو روشن دیده شد، بدون نام بردن از کسی؛ اگر روشن نیست []
+                nextStep: قدمی که در جلسه رویش توافق کردیم؛ اگر توافقی نشد، یک قدم کوچک و عملی که مستقیم از موضوع همین گفتگو بیاید
+                dailySentence: یک جملهٔ کوتاه که نکتهٔ اصلی همین جلسه را یادمان بیاورد
+
+                """ + before + """
 
                 گفتگو:
                 """ + transcript;
