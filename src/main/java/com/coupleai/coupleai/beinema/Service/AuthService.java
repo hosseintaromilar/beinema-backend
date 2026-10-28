@@ -142,8 +142,14 @@ public class AuthService {
     public AuthResponse register(RegisterRequest request) {
         String phone = PhoneNumbers.normalize(request == null ? null : request.getPhoneNumber());
         String password = requirePassword(request == null ? null : request.getPassword());
-        if (userRepository.findByPhoneNumber(phone).isPresent()
-                || userRepository.existsByEmail(phone + PHONE_EMAIL_SUFFIX)) {
+        User existing = userRepository.findByPhoneNumber(phone).orElse(null);
+        if (existing != null && claimsOldSmsAccount(existing)) {
+            // an account made by SMS code before passwords: its number gets the password once
+            existing.setPassword(passwordEncoder.encode(password));
+            existing.setPasswordSet(true);
+            return openSession(userRepository.save(existing), phone);
+        }
+        if (existing != null || userRepository.existsByEmail(phone + PHONE_EMAIL_SUFFIX)) {
             throw new IllegalArgumentException("با این شماره قبلاً حساب ساخته شده؛ وارد شو.");
         }
 
@@ -153,6 +159,7 @@ public class AuthService {
                 .phoneNumber(phone)
                 .phoneVerified(false)
                 .password(passwordEncoder.encode(password))
+                .passwordSet(true)
                 .status(UserStatus.ACTIVE)
                 .role(UserRole.USER)
                 .emailVerified(false)
@@ -194,6 +201,21 @@ public class AuthService {
 
     public LogoutResponse resetPassword(ResetPasswordRequest request) {
         throw new InvalidCredentialsException(NO_RECOVERY);
+    }
+
+
+    /**
+     * The few accounts made by SMS code before sign-up had passwords: their
+     * number was confirmed by a code, they have no password of their own and
+     * no Google login (a Google account's number is only written down, so it
+     * can never be claimed this way). Once claimed, passwordSet closes it.
+     */
+    private static boolean claimsOldSmsAccount(User user) {
+        return !Boolean.TRUE.equals(user.getPasswordSet())
+                && user.getGoogleSubject() == null
+                && !user.isDeleted()
+                && user.getEmail() != null
+                && user.getEmail().endsWith(PHONE_EMAIL_SUFFIX);
     }
 
 

@@ -187,6 +187,13 @@ public class User extends BaseEntity {
     @Column(name = "phone_verified")
     private Boolean phoneVerified;
 
+    /**
+     * The person chose this password (sign-up by number + password). Accounts
+     * made by SMS code or Google carry a random one: null here.
+     */
+    @Column(name = "password_set")
+    private Boolean passwordSet;
+
     public boolean hasPhoneNumber() {
         return phoneNumber != null && !phoneNumber.isBlank();
     }

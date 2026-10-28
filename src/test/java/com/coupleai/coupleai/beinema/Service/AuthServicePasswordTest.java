@@ -77,7 +77,8 @@ class AuthServicePasswordTest {
 
     private User existing(String password) {
         User user = User.builder().name("").email(PHONE + "@users.beinema").phoneNumber(PHONE)
-                .password(encoder.encode(password)).status(UserStatus.ACTIVE).role(UserRole.USER).build();
+                .password(encoder.encode(password)).passwordSet(true)
+                .status(UserStatus.ACTIVE).role(UserRole.USER).build();
         when(users.findByPhoneNumber(PHONE)).thenReturn(Optional.of(user));
         return user;
     }
@@ -107,6 +108,34 @@ class AuthServicePasswordTest {
         IllegalArgumentException taken = assertThrows(IllegalArgumentException.class,
                 () -> service.register(signUp(PHONE, "secret-pass")));
         assertTrue(taken.getMessage().contains("وارد شو"), taken.getMessage());
+    }
+
+    @Test
+    void anOldSmsAccountGetsItsPasswordOnceAndKeepsItsHistory() {
+        User old = User.builder().name("حسین").email(PHONE + "@users.beinema").phoneNumber(PHONE)
+                .password(encoder.encode("random-uuid")).status(UserStatus.ACTIVE).role(UserRole.ADMIN).build();
+        old.setId(7L);
+        when(users.findByPhoneNumber(PHONE)).thenReturn(Optional.of(old));
+
+        assertEquals("token", service.register(signUp(PHONE, "new-secret-1")).getToken());
+        assertTrue(encoder.matches("new-secret-1", old.getPassword()));
+        assertEquals(Boolean.TRUE, old.getPasswordSet());
+        assertEquals("حسین", old.getName(), "the same account, not a new one");
+        assertEquals("token", service.login(signIn(PHONE, "new-secret-1")).getToken());
+
+        IllegalArgumentException twice = assertThrows(IllegalArgumentException.class,
+                () -> service.register(signUp(PHONE, "someone-else-2")));
+        assertTrue(twice.getMessage().contains("وارد شو"), "once claimed, the number is closed");
+    }
+
+    @Test
+    void aGoogleAccountsNumberCannotBeClaimedBySigningUp() {
+        User google = User.builder().name("سارا").email("sara@gmail.com").phoneNumber(PHONE).googleSubject("g-1")
+                .password(encoder.encode("random-uuid")).status(UserStatus.ACTIVE).role(UserRole.USER).build();
+        when(users.findByPhoneNumber(PHONE)).thenReturn(Optional.of(google));
+
+        assertThrows(IllegalArgumentException.class, () -> service.register(signUp(PHONE, "take-over-1")));
+        assertTrue(encoder.matches("random-uuid", google.getPassword()));
     }
 
     @Test
