@@ -129,6 +129,23 @@ class AuthServicePasswordTest {
     }
 
     @Test
+    void anAdminNumberTypedAtSignUpDoesNotMakeAnAdmin() {
+        ReflectionTestUtils.setField(service, "adminPhones", PHONE);
+        service.register(signUp(PHONE, "pretend-admin"));
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(users, org.mockito.Mockito.atLeastOnce()).save(saved.capture());
+        assertEquals(UserRole.USER, saved.getValue().getRole(), "the number was only typed, not confirmed");
+
+        User confirmedBySms = User.builder().name("حسین").email("09351112233@users.beinema").phoneNumber("09351112233")
+                .password(encoder.encode("p-4-sms-user")).passwordSet(true)
+                .status(UserStatus.ACTIVE).role(UserRole.USER).build();
+        when(users.findByPhoneNumber("09351112233")).thenReturn(Optional.of(confirmedBySms));
+        ReflectionTestUtils.setField(service, "adminPhones", "09351112233");
+        service.login(signIn("09351112233", "p-4-sms-user"));
+        assertEquals(UserRole.ADMIN, confirmedBySms.getRole(), "a number confirmed by SMS before still counts");
+    }
+
+    @Test
     void aGoogleAccountsNumberCannotBeClaimedBySigningUp() {
         User google = User.builder().name("سارا").email("sara@gmail.com").phoneNumber(PHONE).googleSubject("g-1")
                 .password(encoder.encode("random-uuid")).status(UserStatus.ACTIVE).role(UserRole.USER).build();

@@ -33,6 +33,12 @@ public class UserResponse {
 
     private boolean emailVerified;
 
+    /** They chose a password; changing it asks for the current one. */
+    private boolean passwordSet;
+
+    /** Signs in with Google too. */
+    private boolean googleLinked;
+
 
     public static UserResponse from(User user) {
 
@@ -63,6 +69,10 @@ public class UserResponse {
                 .status(user.getStatus().name())
 
                 .emailVerified(user.isEmailVerified())
+
+                .passwordSet(Boolean.TRUE.equals(user.getPasswordSet()))
+
+                .googleLinked(user.getGoogleSubject() != null)
 
                 .build();
 

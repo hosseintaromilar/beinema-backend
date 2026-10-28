@@ -1,6 +1,8 @@
 package com.coupleai.coupleai.beinema.Controller;
 
+import com.coupleai.coupleai.beinema.DTO.User.ChangePasswordRequest;
 import com.coupleai.coupleai.beinema.DTO.User.CompleteNameRequest;
+import com.coupleai.coupleai.beinema.DTO.User.UpdateProfileRequest;
 import com.coupleai.coupleai.beinema.DTO.User.UserResponse;
 import com.coupleai.coupleai.beinema.Service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,24 @@ public class UserController {
             @RequestBody CompleteNameRequest request
     ) {
         return userService.completeName(authentication, request);
+    }
+
+    /** Body: firstName, lastName, phoneNumber. */
+    @PutMapping("/me")
+    public UserResponse updateProfile(
+            Authentication authentication,
+            @RequestBody UpdateProfileRequest request
+    ) {
+        return userService.updateProfile(authentication, request);
+    }
+
+    /** Body: currentPassword (when one is set), newPassword. */
+    @PutMapping("/me/password")
+    public UserResponse changePassword(
+            Authentication authentication,
+            @RequestBody ChangePasswordRequest request
+    ) {
+        return userService.changePassword(authentication, request);
     }
 
     @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -219,7 +219,7 @@ public class AuthService {
     }
 
 
-    private static String requirePassword(String password) {
+    static String requirePassword(String password) {
         if (password == null || password.length() < MIN_PASSWORD) {
             throw new IllegalArgumentException("رمز باید دست‌کم ۸ نویسه باشد.");
         }
@@ -320,7 +320,7 @@ public class AuthService {
         if (user.getGoogleSubject() == null) {
             user.setGoogleSubject(identity.subject());
         }
-        if (user.getPhoneNumber() != null && isListedPhone(adminPhones, user.getPhoneNumber())) {
+        if (adminByPhone(user, user.getPhoneNumber())) {
             user.setRole(UserRole.ADMIN);
         }
         user.updateLastLogin();
@@ -656,8 +656,21 @@ public class AuthService {
     }
 
 
+    /**
+     * An admin number makes the account an admin only when the number was
+     * confirmed by an SMS code. A number typed in at sign-up or in the profile
+     * (phoneVerified false, while SMS is off) proves nothing, so anyone could
+     * otherwise become an admin by typing an admin's number.
+     */
+    private boolean adminByPhone(User user, String phone) {
+        return phone != null
+                && isListedPhone(adminPhones, phone)
+                && !Boolean.FALSE.equals(user.getPhoneVerified());
+    }
+
+
     private AuthResponse openSession(User user, String phone) {
-        if (isListedPhone(adminPhones, phone)) {
+        if (adminByPhone(user, phone)) {
             user.setRole(UserRole.ADMIN);
         }
         user.updateLastLogin();
