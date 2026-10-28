@@ -24,7 +24,7 @@ import java.util.Objects;
 
 /**
  * Who pays for a session: the person who created the conversation. Their first
- * sessions are free (two, across all their conversations); then a session
+ * session is free (one, once, across all their conversations); then a session
  * comes from a bundle they bought (SessionPackageTier, valid for a month), and
  * otherwise costs the single session price from their wallet, which they charge
  * by card-to-card (TopUpReceiptService). A session is settled when it closes
@@ -47,7 +47,7 @@ public class SessionBillingService {
     private final WalletService walletService;
     private final SessionPackageRepository packageRepository;
 
-    @Value("${beinema.billing.free-sessions:2}")
+    @Value("${beinema.billing.free-sessions:1}")
     private int freeSessions;
 
     @Value("${beinema.billing.session-price:100000}")
