@@ -80,7 +80,7 @@ public class AgentContentSeeder implements ApplicationRunner {
                 case RELATIONSHIP -> profileForName("زوج");
                 case MENTAL_HEALTH -> profileForName("روان");
                 case FINANCIAL -> profileForName("مالی");
-                case SEXOLOGY, PARENTING -> null;
+                case SEXOLOGY, PARENTING, PREMARITAL, IN_LAWS -> null;
             };
         }
         String name = agent.getName() == null ? "" : agent.getName();
@@ -116,7 +116,7 @@ public class AgentContentSeeder implements ApplicationRunner {
                 case RELATIONSHIP -> profileForName("زوج");
                 case MENTAL_HEALTH -> profileForName("روان");
                 case FINANCIAL -> profileForName("مالی");
-                case PARENTING -> null;
+                case PARENTING, PREMARITAL, IN_LAWS -> null;
                 case SEXOLOGY -> new Profile(
                         "صمیمیت را با احترام و گفتگوی امن باز کنید",
                         "این همراه برای زوج‌هایی است که می‌خواهند درباره صمیمیت، نیازها و فاصله جسمی یا عاطفی با زبانی محترمانه حرف بزنند. هدف، فشار یا شرم نیست؛ فهمیدن یکدیگر و ساختن نزدیکی سالم‌تر است.",

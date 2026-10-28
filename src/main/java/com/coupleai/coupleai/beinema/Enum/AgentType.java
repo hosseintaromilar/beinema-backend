@@ -8,6 +8,8 @@ public enum AgentType {
 
     FINANCIAL,
     PARENTING,
+    PREMARITAL,
+    IN_LAWS,
 
     SEXOLOGY
 
