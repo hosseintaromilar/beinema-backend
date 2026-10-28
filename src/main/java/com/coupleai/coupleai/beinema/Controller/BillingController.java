@@ -42,6 +42,12 @@ public class BillingController {
         return billingService.prices();
     }
 
+    /** Body: tier (BRONZE, SILVER or GOLD); paid from the wallet's credit. */
+    @PostMapping("/api/billing/packages")
+    public SessionBillingService.OwnedPackage buyPackage(@RequestBody Map<String, String> body) {
+        return billingService.buyPackage(currentUserService.getCurrentUser(), body == null ? null : body.get("tier"));
+    }
+
     @GetMapping("/api/billing/receipts")
     public List<TopUpReceiptService.ReceiptView> myReceipts() {
         return receiptService.mine();

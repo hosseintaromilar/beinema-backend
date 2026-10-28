@@ -6,5 +6,6 @@ public enum WalletTransactionType {
     REFUND,
     REFERRAL_BONUS,
     SESSION_FEE,
-    CARD_TOP_UP
+    CARD_TOP_UP,
+    PACKAGE_PURCHASE
 }

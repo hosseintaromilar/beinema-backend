@@ -1,10 +1,13 @@
 package com.coupleai.coupleai.beinema.Service;
 
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
+import com.coupleai.coupleai.beinema.Entity.SessionPackage;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Entity.Wallet;
+import com.coupleai.coupleai.beinema.Enum.SessionPackageTier;
 import com.coupleai.coupleai.beinema.Enum.WalletTransactionType;
 import com.coupleai.coupleai.beinema.Exception.SessionOnBreakException;
+import com.coupleai.coupleai.beinema.Repository.SessionPackageRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -13,15 +16,20 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
  * Who pays for a session: the person who created the conversation. Their first
- * sessions are free (two, across all their conversations); after that each
- * session costs the session price from their wallet, which they charge by
- * card-to-card (TopUpReceiptService). A session is settled when it closes with
- * a conversation in it, so an empty session costs nothing; before one opens,
- * the creator must have a free session left or enough credit for it.
+ * sessions are free (two, across all their conversations); then a session
+ * comes from a bundle they bought (SessionPackageTier, valid for a month), and
+ * otherwise costs the single session price from their wallet, which they charge
+ * by card-to-card (TopUpReceiptService). A session is settled when it closes
+ * with a conversation in it, so an empty session costs nothing; before one
+ * opens, the creator must have a free session, a bundle or credit for it.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,9 +40,12 @@ public class SessionBillingService {
     public static final String FREE = "FREE";
     public static final String PAID = "PAID";
     public static final String UNPAID = "UNPAID";
+    /** Taken from a session bundle (SessionPackage). */
+    public static final String PACKAGE = "PACKAGE";
 
     private final UserRepository userRepository;
     private final WalletService walletService;
+    private final SessionPackageRepository packageRepository;
 
     @Value("${beinema.billing.free-sessions:2}")
     private int freeSessions;
@@ -55,25 +66,88 @@ public class SessionBillingService {
     @Value("${beinema.billing.bank-name:بانک ملی}")
     private String bankName;
 
-    /** What the wallet page shows: free sessions left, the price, and where to pay. */
+    /**
+     * What the wallet page shows: free sessions left, the price, the bundles
+     * on sale and the ones bought, and where to pay.
+     */
     public record Offer(int freeSessions, int freeLeft, long sessionPrice, long sessionListPrice, long balance,
-                        boolean nextIsFree, boolean canStart, String cardNumber, String cardHolder, String bankName) {
+                        boolean nextIsFree, boolean canStart, String cardNumber, String cardHolder, String bankName,
+                        List<PackageOffer> packages, List<OwnedPackage> myPackages) {
     }
 
-    /** The public part, for the counselor pages: free sessions and the price. */
-    public record Prices(int freeSessions, long sessionPrice, long sessionListPrice) {
+    /** A bundle on sale; listPrice is its sessions at the usual single price, struck through. */
+    public record PackageOffer(String tier, String title, int sessions, long price, long listPrice,
+                               long perSession, int validDays) {
+    }
+
+    /** A bundle someone bought that still has sessions and time left. */
+    public record OwnedPackage(Long id, String tier, String title, int sessionsLeft, int sessionsTotal, long expiresAt) {
+    }
+
+    /** The public part, for the counselor pages: free sessions, the price and the bundles. */
+    public record Prices(int freeSessions, long sessionPrice, long sessionListPrice, List<PackageOffer> packages) {
     }
 
     public Prices prices() {
-        return new Prices(freeSessions, sessionPrice, sessionListPrice);
+        return new Prices(freeSessions, sessionPrice, sessionListPrice, packageOffers());
+    }
+
+    public List<PackageOffer> packageOffers() {
+        return Arrays.stream(SessionPackageTier.values())
+                .map(tier -> new PackageOffer(tier.name(), tier.title(), tier.sessions(), tier.price(),
+                        tier.sessions() * sessionListPrice, tier.price() / tier.sessions(), SessionPackageTier.VALID_DAYS))
+                .toList();
     }
 
     @Transactional
     public Offer offerFor(User user) {
         int left = freeLeft(user);
         long balance = walletService.getOrCreate(user).getBalance();
+        List<OwnedPackage> mine = packageRepository.findUsable(user.getId(), Instant.now()).stream()
+                .map(item -> new OwnedPackage(item.getId(), item.getTier(), titleOf(item.getTier()),
+                        item.sessionsLeft(), item.getSessionsTotal(), item.getExpiresAt().toEpochMilli()))
+                .toList();
         return new Offer(freeSessions, left, sessionPrice, sessionListPrice, balance,
-                left > 0, left > 0 || balance >= sessionPrice, cardNumber, cardHolder, bankName);
+                left > 0, left > 0 || !mine.isEmpty() || balance >= sessionPrice, cardNumber, cardHolder, bankName,
+                packageOffers(), mine);
+    }
+
+    /** Buys a bundle with the wallet's credit; it can be used for a month. */
+    @Transactional
+    public OwnedPackage buyPackage(User user, String tierName) {
+        SessionPackageTier tier;
+        try {
+            tier = SessionPackageTier.valueOf(String.valueOf(tierName).trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException unknown) {
+            throw new IllegalArgumentException("این بسته پیدا نشد.");
+        }
+        Wallet wallet = walletService.lockByUserId(user.getId());
+        if (wallet.getBalance() < tier.price()) {
+            throw new IllegalArgumentException("اعتبار حسابت برای بستهٔ " + tier.title() + " کافی نیست؛ "
+                    + toman(tier.price()) + " لازم است. اول حسابت را با کارت به کارت شارژ کن.");
+        }
+        walletService.debit(user, wallet, tier.price(), WalletTransactionType.PACKAGE_PURCHASE,
+                "خرید بستهٔ " + tier.title() + " (" + digits(String.valueOf(tier.sessions())) + " جلسه)",
+                "package:" + user.getId() + ":" + System.currentTimeMillis(), null, null);
+
+        SessionPackage bought = new SessionPackage();
+        bought.setUserId(user.getId());
+        bought.setTier(tier.name());
+        bought.setSessionsTotal(tier.sessions());
+        bought.setSessionsUsed(0);
+        bought.setPrice(tier.price());
+        bought.setExpiresAt(Instant.now().plus(Duration.ofDays(SessionPackageTier.VALID_DAYS)));
+        SessionPackage saved = packageRepository.save(bought);
+        return new OwnedPackage(saved.getId(), saved.getTier(), tier.title(), saved.sessionsLeft(),
+                saved.getSessionsTotal(), saved.getExpiresAt().toEpochMilli());
+    }
+
+    private static String titleOf(String tier) {
+        try {
+            return SessionPackageTier.valueOf(tier).title();
+        } catch (IllegalArgumentException unknown) {
+            return tier;
+        }
     }
 
     public int freeLeft(User user) {
@@ -96,7 +170,9 @@ public class SessionBillingService {
 
     @Transactional
     public void requireCanStart(User owner, User asking) {
-        if (owner == null || freeLeft(owner) > 0 || walletService.getOrCreate(owner).getBalance() >= sessionPrice) {
+        if (owner == null || freeLeft(owner) > 0
+                || !packageRepository.findUsable(owner.getId(), Instant.now()).isEmpty()
+                || walletService.getOrCreate(owner).getBalance() >= sessionPrice) {
             return;
         }
         boolean mine = asking == null || Objects.equals(owner.getId(), asking.getId());
@@ -124,6 +200,14 @@ public class SessionBillingService {
             owner.setFreeSessionsUsed((owner.getFreeSessionsUsed() == null ? 0 : owner.getFreeSessionsUsed()) + 1);
             userRepository.save(owner);
             return FREE;
+        }
+        // then a bought bundle, the one that ends first
+        List<SessionPackage> bundles = packageRepository.findUsableForUpdate(owner.getId(), Instant.now());
+        if (!bundles.isEmpty()) {
+            SessionPackage bundle = bundles.get(0);
+            bundle.setSessionsUsed(bundle.getSessionsUsed() + 1);
+            packageRepository.save(bundle);
+            return PACKAGE;
         }
         Wallet wallet = walletService.lockByUserId(owner.getId());
         if (wallet.getBalance() < sessionPrice) {
