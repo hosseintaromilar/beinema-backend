@@ -53,7 +53,6 @@ public class BlogWriter {
     private volatile Long lastFinishedAt;
 
     private final BlogService blogService;
-    private final BlogImageGenerator imageGenerator;
     private final BlogPostRepository postRepository;
     private final ObjectMapper mapper;
     private final String baseUrl;
@@ -65,7 +64,6 @@ public class BlogWriter {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 
     public BlogWriter(BlogService blogService,
-                      BlogImageGenerator imageGenerator,
                       BlogPostRepository postRepository,
                       ObjectMapper mapper,
                       @Value("${metis.base-url}") String baseUrl,
@@ -73,7 +71,6 @@ public class BlogWriter {
                       @Value("${beinema.blog.writer-model:deepseek-v4-1-flash-1017}") String model,
                       @Value("${beinema.blog.daily-enabled:false}") boolean dailyEnabled) throws IOException {
         this.blogService = blogService;
-        this.imageGenerator = imageGenerator;
         this.postRepository = postRepository;
         this.mapper = mapper;
         this.baseUrl = baseUrl;
@@ -143,9 +140,7 @@ public class BlogWriter {
                 .append("Do not repeat these earlier titles or their angle:\n");
         recent.stream().limit(30).forEach(post -> user.append("- ").append(post.getTitle()).append('\n'));
         BlogService.Draft draft = ask(user.toString(), topic.key());
-        BlogPost post = blogService.createDraft(draft);
-        pictures(post.getId());
-        return post;
+        return blogService.createDraft(draft);
     }
 
     /** The rewrite after the admin's notes, in the background; a failure shows in {@link #status()}. */
@@ -172,18 +167,7 @@ public class BlogWriter {
                 + "Current title: " + current.getTitle() + "\n"
                 + "Current body:\n" + current.getBodyMarkdown();
         BlogService.Draft draft = ask(user, post.getTopicKey());
-        BlogPost revised = blogService.addRevision(postId, draft);
-        pictures(postId);
-        return revised;
-    }
-
-    /** Pictures are a bonus: a failure leaves the text and the admin can make them again. */
-    private void pictures(Long postId) {
-        try {
-            imageGenerator.generate(postId);
-        } catch (RuntimeException exception) {
-            log.warn("Pictures of blog post {} could not be made: {}", postId, exception.getMessage());
-        }
+        return blogService.addRevision(postId, draft);
     }
 
     /** Another column than the last post's, then the first subject of it not written yet (or written longest ago). */

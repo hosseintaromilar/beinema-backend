@@ -48,11 +48,22 @@ public class AgentContentSeeder implements ApplicationRunner {
                 }
                 continue;
             }
-            agent.setHeadline(profile.headline);
-            agent.setBio(profile.bio);
-            agent.setSpecialties(profile.specialties);
-            agent.setPhotoUrl(profile.photoUrl);
-            agent.setAvatar(profile.photoUrl);
+            // only fills what is empty: what the admin set in the panel survives every restart
+            if (isBlank(agent.getHeadline())) {
+                agent.setHeadline(profile.headline);
+            }
+            if (isBlank(agent.getBio())) {
+                agent.setBio(profile.bio);
+            }
+            if (isBlank(agent.getSpecialties())) {
+                agent.setSpecialties(profile.specialties);
+            }
+            if (isBlank(agent.getPhotoUrl())) {
+                agent.setPhotoUrl(profile.photoUrl);
+            }
+            if (isBlank(agent.getAvatar())) {
+                agent.setAvatar(agent.getPhotoUrl());
+            }
             if (agent.getDescription() == null || agent.getDescription().isBlank()
                     || agent.getDescription().contains("مبتنی بر هوش مصنوعی")) {
                 agent.setDescription(profile.description);
@@ -106,6 +117,10 @@ public class AgentContentSeeder implements ApplicationRunner {
             };
         }
         return null;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private boolean isCoupleAgent(Agent agent) {
