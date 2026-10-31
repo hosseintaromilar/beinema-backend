@@ -20,6 +20,10 @@ public class ChatRoom extends BaseEntity {
     @Column(nullable = false)
     private String title;
 
+    /** Optional: what the creator wrote about why they open this conversation. */
+    @Column(name = "creator_note", length = 500)
+    private String creatorNote;
+
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

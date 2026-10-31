@@ -34,7 +34,7 @@ public final class DirectorPacketBuilder {
                 .append(" speakers=").append(m.fresh().stream().map(m::roleOf).distinct().collect(Collectors.joining(",")))
                 .append('\n');
 
-        out.append("[ROOM]\n").append("title: ").append(roomTitle(m)).append('\n');
+        out.append("[ROOM]\n").append("title: ").append(roomTitle(m)).append('\n').append(creatorNote(m));
         out.append("[PARTICIPANTS]\n");
         for (TurnMaterial.Partner partner : m.partners()) {
             out.append(partner.role()).append('=').append(partner.name()).append(" (").append(partner.status()).append(")\n");
@@ -163,6 +163,14 @@ public final class DirectorPacketBuilder {
     static String roomTitle(TurnMaterial m) {
         String title = m.room() == null ? null : m.room().getTitle();
         return title == null || title.isBlank() ? "-" : "\"" + PersianText.clip(title, 120).replace('\n', ' ') + "\"";
+    }
+
+    /** Why the owner opened the room, in their words: a hint for the opening, not a confirmed want. */
+    static String creatorNote(TurnMaterial m) {
+        String note = m.room() == null ? null : m.room().getCreatorNote();
+        return note == null || note.isBlank() ? ""
+                : "owner_note (written by OWNER when opening the room; a hint, not a confirmed want): \""
+                        + PersianText.clip(note, 500).replace('\n', ' ') + "\"\n";
     }
 
     static String memory(TurnMaterial m) {

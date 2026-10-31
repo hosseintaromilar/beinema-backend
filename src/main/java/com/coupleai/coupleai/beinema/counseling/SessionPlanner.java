@@ -69,7 +69,7 @@ public final class SessionPlanner {
                 .append("session=").append(m.sessionNumber())
                 .append(" minute=").append(m.minutesUsed()).append('/').append(m.minutesPlanned())
                 .append(" (then at most 15 extra minutes for whoever goes on)\n");
-        out.append("[ROOM]\ntitle: ").append(DirectorPacketBuilder.roomTitle(m)).append('\n');
+        out.append("[ROOM]\ntitle: ").append(DirectorPacketBuilder.roomTitle(m)).append('\n').append(DirectorPacketBuilder.creatorNote(m));
         out.append("[PARTICIPANTS]\n");
         for (TurnMaterial.Partner partner : m.partners()) {
             out.append(partner.role()).append('=').append(partner.name()).append(" (").append(partner.status()).append(")\n");

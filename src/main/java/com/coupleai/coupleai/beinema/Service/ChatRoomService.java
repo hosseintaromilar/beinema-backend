@@ -151,6 +151,8 @@ public class ChatRoomService {
 
                 .title(title)
 
+                .creatorNote(cleanNote(request.getNote()))
+
                 .status(
                         ChatRoomStatus.ACTIVE
                 )
@@ -815,5 +817,13 @@ public class ChatRoomService {
                             .build();
                 })
                 .toList();
+    }
+
+    private static String cleanNote(String note) {
+        if (note == null || note.isBlank()) {
+            return null;
+        }
+        String clean = note.trim();
+        return clean.length() > 500 ? clean.substring(0, 500) : clean;
     }
 }
