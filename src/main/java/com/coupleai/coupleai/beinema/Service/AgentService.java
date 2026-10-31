@@ -100,7 +100,7 @@ public class AgentService {
                 .name(requireText(request == null ? null : request.getName(), "نام ایجنت"))
                 .type(requireType(request))
                 .description(clean(request.getDescription()))
-                .systemPrompt(requireText(request.getSystemPrompt(), "دستور سیستم"))
+                .systemPrompt(clean(request.getSystemPrompt()))
                 .avatar(avatarOf(request))
                 .headline(clean(request.getHeadline()))
                 .bio(clean(request.getBio()))
@@ -124,7 +124,7 @@ public class AgentService {
         agent.setName(requireText(request == null ? null : request.getName(), "نام ایجنت"));
         agent.setType(requireType(request));
         agent.setDescription(clean(request.getDescription()));
-        agent.setSystemPrompt(requireText(request.getSystemPrompt(), "دستور سیستم"));
+        agent.setSystemPrompt(clean(request.getSystemPrompt()));
         agent.setAvatar(avatarOf(request));
         agent.setHeadline(clean(request.getHeadline()));
         agent.setBio(clean(request.getBio()));
