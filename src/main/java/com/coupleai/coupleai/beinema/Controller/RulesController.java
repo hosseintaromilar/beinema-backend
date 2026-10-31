@@ -20,12 +20,13 @@ public class RulesController {
     private final SessionLifecycleService sessionLifecycleService;
 
     @GetMapping("/api/rules")
-    public Map<String, String> rules() {
+    public Map<String, String> rules(@org.springframework.web.bind.annotation.RequestParam(required = false) String agentType) {
         return Map.of("text", WelcomeGuide.rules(
                 sessionLifecycleService.defaultSessionMinutes(),
                 sessionLifecycleService.breakMinutes(),
                 sessionLifecycleService.overtimeMinutes(),
                 sessionLifecycleService.maxSessions(),
-                true));
+                // the framework of the couple counselor is hers alone; the others work by their own method
+                "RELATIONSHIP".equals(agentType)));
     }
 }

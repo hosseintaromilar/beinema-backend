@@ -35,7 +35,7 @@ public class CompanionAgentSeeder implements ApplicationRunner {
 
     private static final List<Companion> COMPANIONS = List.of(
             new Companion(
-                    "be7ef82f-15de-4e0d-82a9-19e0cccd560d",
+                    "5ffd2576-20df-422d-af61-f9d1dfff8d4a",
                     AgentType.FINANCIAL,
                     "همراه مالی زوج‌ها",
                     "پول را از موضوع دعوا به تصمیم مشترک تبدیل کنید",
@@ -47,7 +47,7 @@ public class CompanionAgentSeeder implements ApplicationRunner {
                     "/agents/finance-companion.webp"
             ),
             new Companion(
-                    "d5385904-1504-4a34-9898-a0e9d152d96a",
+                    "2df79424-556e-4215-92d5-28f51ffaff1f",
                     AgentType.PARENTING,
                     "همراه تربیت فرزند",
                     "برای تربیت بچه‌ها، یک راه مشترک پیدا کنید",
@@ -71,7 +71,7 @@ public class CompanionAgentSeeder implements ApplicationRunner {
                     "/agents/premarital-companion.webp"
             ),
             new Companion(
-                    "e337ebf5-b96b-48dc-9b32-bd8e36428ddc",
+                    "00f32c71-539e-4b87-871b-5dbb0f7bd59c",
                     AgentType.IN_LAWS,
                     "همراه رابطه با خانواده‌ها",
                     "با احترام به هر دو خانواده، یک تیم بمانید",
@@ -82,7 +82,7 @@ public class CompanionAgentSeeder implements ApplicationRunner {
                     "/agents/family-companion.webp"
             ),
             new Companion(
-                    "309faed0-908f-4a7d-b826-c11e605fe379",
+                    "2a31c5a8-503a-4590-bb5a-fbb3107278ce",
                     AgentType.SEXOLOGY,
                     "همراه صمیمیت",
                     "دربارهٔ نزدیکی، آرام و بی‌خجالت حرف بزنید",
@@ -97,7 +97,11 @@ public class CompanionAgentSeeder implements ApplicationRunner {
 
     /** A companion moved to a new workflow keeps its name, photo and texts: old id, new id. */
     private static final Map<String, String> MOVED = Map.of(
-            "1a3db484-876e-49e8-88fa-67410b6689da", "21f80899-1667-4fe3-8d69-b7e98a7d015c"
+            "1a3db484-876e-49e8-88fa-67410b6689da", "21f80899-1667-4fe3-8d69-b7e98a7d015c",
+            "be7ef82f-15de-4e0d-82a9-19e0cccd560d", "5ffd2576-20df-422d-af61-f9d1dfff8d4a",
+            "d5385904-1504-4a34-9898-a0e9d152d96a", "2df79424-556e-4215-92d5-28f51ffaff1f",
+            "e337ebf5-b96b-48dc-9b32-bd8e36428ddc", "00f32c71-539e-4b87-871b-5dbb0f7bd59c",
+            "309faed0-908f-4a7d-b826-c11e605fe379", "2a31c5a8-503a-4590-bb5a-fbb3107278ce"
     );
 
     private final AgentRepository agentRepository;
