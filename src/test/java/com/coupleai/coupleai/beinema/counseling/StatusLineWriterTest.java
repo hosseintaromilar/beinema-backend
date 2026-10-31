@@ -16,16 +16,27 @@ class StatusLineWriterTest {
             "https://example.invalid", "key", "model");
 
     @Test
-    void bothLinesComeCleanWithoutQuotesOrDots() throws Exception {
-        Map<String, String> lines = writer.parse("```json\n{\"thinking\": \"«دارم به حرفت درباره‌ی دعوای دیشب فکر می‌کنم»…\", "
-                + "\"writing\": \"دارم جوابمو آماده می‌کنم.\"}\n```");
+    void theLineComesCleanWithoutQuotesOrDots() throws Exception {
+        Map<String, String> lines = writer.parse("```json\n{\"thinking\": \"«دارم به حرفت درباره‌ی دعوای دیشب فکر می‌کنم»…\"}\n```");
         assertEquals("دارم به حرفت درباره‌ی دعوای دیشب فکر می‌کنم", lines.get("thinking"));
-        assertEquals("دارم جوابمو آماده می‌کنم", lines.get("writing"));
+    }
+
+    @Test
+    void onlyACardOrALessonIsAnnounced() {
+        DirectorDecision d = new DirectorDecision();
+        d.action = "ASK_CLARIFYING";
+        assertEquals("question", TurnOrchestrator.writingPhase(d));
+        d.action = "TEACH";
+        assertEquals("lesson", TurnOrchestrator.writingPhase(d));
+        d.action = "REFLECT";
+        assertEquals("writing", TurnOrchestrator.writingPhase(d));
+        d.action = "ASK_OPEN";
+        assertEquals("writing", TurnOrchestrator.writingPhase(d), "the voice may still answer first");
     }
 
     @Test
     void aMissingOrTooLongLineIsNotShown() throws Exception {
-        assertNull(writer.parse("{\"thinking\": \"دارم فکر می‌کنم\"}"));
-        assertNull(writer.parse("{\"thinking\": \"" + "خیلی ".repeat(30) + "\", \"writing\": \"دارم می‌نویسم\"}"));
+        assertNull(writer.parse("{}"));
+        assertNull(writer.parse("{\"thinking\": \"" + "خیلی ".repeat(30) + "\"}"));
     }
 }

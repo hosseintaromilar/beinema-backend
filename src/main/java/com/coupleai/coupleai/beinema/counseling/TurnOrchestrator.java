@@ -7,6 +7,7 @@ import com.coupleai.coupleai.beinema.Entity.ClientIntent;
 import com.coupleai.coupleai.beinema.Entity.DirectorDecisionRecord;
 import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Enum.DecisionStatus;
+import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository;
@@ -113,13 +114,16 @@ public class TurnOrchestrator {
             }
         }
         Long agentId = agentId(roomId);
-        chatRealtimeService.publishAgentTyping(roomId, 9000, "thinking");
-        if (statusLines != null && trigger != null) {
-            // next to the real turn: two short lines about what was just written
-            statusLines.startFor(roomId, m.fresh().stream()
-                    .map(Message::getContent)
-                    .filter(text -> text != null && !text.isBlank())
-                    .collect(Collectors.joining("\n")));
+        // what the page says must be true: without a person's message there is nothing being read
+        String written = m.fresh().stream()
+                .filter(message -> message.getSenderType() == MessageSenderType.USER)
+                .map(Message::getContent)
+                .filter(text -> text != null && !text.isBlank())
+                .collect(Collectors.joining("\n"));
+        chatRealtimeService.publishAgentTyping(roomId, 9000, written.isEmpty() ? "opening" : "thinking");
+        if (statusLines != null && !written.isEmpty()) {
+            // next to the real turn: a short line about what was just written
+            statusLines.startFor(roomId, written);
         }
 
         // 0. the session manager plans the session at its start and again every so often
@@ -163,7 +167,7 @@ public class TurnOrchestrator {
         LessonTeacher.Result taught = LessonTeacher.prepare(m, d, brain);
 
         // 6. the voice (still writing: keep the typing sign up for both partners)
-        chatRealtimeService.publishAgentTyping(roomId, 9000, "writing");
+        chatRealtimeService.publishAgentTyping(roomId, 9000, writingPhase(d));
         String voicePacket = VoicePacketBuilder.forDecision(m, d, stored.readings(), config.getVoiceRecentMessages());
         String voiceRaw = "";
         long voiceMs = 0;
@@ -272,7 +276,7 @@ public class TurnOrchestrator {
             long typing = item instanceof TextItem text
                     ? MessageServiceImpl.pacingMillis(text.segment())
                     : Math.min(5200L, 1200L + ((QuestionItem) item).text().length() * 30L);
-            chatRealtimeService.publishAgentTyping(outcome.roomId(), typing, "continuing");
+            chatRealtimeService.publishAgentTyping(outcome.roomId(), typing, item instanceof QuestionItem ? "question" : "continuing");
             if (pacing) {
                 sleep(typing);
             }
@@ -283,6 +287,15 @@ public class TurnOrchestrator {
     // ------------------------------------------------------------------ steps
 
     private record Decided(DirectorDecision decision, DecisionStatus status, String raw, long millis, String error) {
+    }
+
+    /** The stage shown while the voice writes, from what was really decided: only a card is surely a question. */
+    static String writingPhase(DirectorDecision d) {
+        return switch (d.action == null ? "" : d.action) {
+            case "ASK_CLARIFYING" -> "question";
+            case "TEACH" -> "lesson";
+            default -> "writing";
+        };
     }
 
     private Decided decide(TurnMaterial m, String packet) {

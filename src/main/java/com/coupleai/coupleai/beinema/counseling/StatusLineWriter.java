@@ -20,11 +20,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The two short lines the page shows while the counselor prepares its reply,
- * tied to what was just written: one while it thinks, one while it writes
- * («دارم به حرفت دربارهٔ دیر اومدن‌ها فکر می‌کنم»). A small fast model writes
- * them next to the real turn; if it is slow or fails, the page keeps its plain
- * line. They never answer, judge or advise.
+ * The short line the page shows while the counselor thinks about a message,
+ * tied to what was written («دارم به حرفت دربارهٔ دیر اومدن‌ها فکر می‌کنم»).
+ * A small fast model writes it next to the real turn; if it is slow or fails,
+ * the page keeps its plain line. It never answers, judges or advises, and it
+ * promises nothing about the reply: the next move is not decided yet.
  */
 @Component
 public class StatusLineWriter {
@@ -34,14 +34,13 @@ public class StatusLineWriter {
     private static final int MAX_INPUT = 700;
 
     private static final String PROMPT = """
-            You write two tiny status lines that a Persian couples counselor shows on screen while it prepares its reply
-            to the message below. Colloquial Persian, first person, warm and calm, each at most 8 words.
-            Each line names the topic of the message in two or three words, so it feels related to what was written,
-            but it never answers it, judges, interprets feelings or gives advice. No names, no quotes, no emoji.
-            "thinking" is shown while the counselor reads and decides, in the style of «دارم به حرفت درباره‌ی ... فکر می‌کنم».
-            "writing" is shown while it writes, in the style of «دارم جوابمو درباره‌ی ... آماده می‌کنم».
-            A greeting or a message without a topic gets plain lines: «دارم پیامتو می‌خونم» and «دارم جوابمو آماده می‌کنم».
-            Answer with JSON only: {"thinking": "...", "writing": "..."}
+            You write one tiny status line that a Persian companion shows on screen while it thinks about the message below.
+            Colloquial Persian, first person, warm and calm, at most 8 words, in the style of «دارم به حرفت درباره‌ی ... فکر می‌کنم».
+            It names the topic of the message in two or three words, so it feels related to what was written,
+            but it never answers it, judges, interprets feelings or gives advice, and it never promises a question, an answer or any next step.
+            No names, no quotes, no emoji.
+            A greeting or a message without a topic gets exactly: «دارم پیامتو می‌خونم».
+            Answer with JSON only: {"thinking": "..."}
             """;
 
     private final ChatRoomEventHub eventHub;
@@ -68,7 +67,7 @@ public class StatusLineWriter {
         this.model = model;
     }
 
-    /** In the background: write the two lines for these new messages and send them to the room. */
+    /** In the background: write the line for these new messages and send it to the room. */
     public void startFor(Long roomId, String newMessages) {
         if (roomId == null || newMessages == null || newMessages.isBlank()) {
             return;
@@ -118,15 +117,11 @@ public class StatusLineWriter {
         }
     }
 
-    /** Both lines, short and clean, or null. */
+    /** The line, short and clean, or null. */
     Map<String, String> parse(String content) throws java.io.IOException {
         JsonNode json = mapper.readTree(content.replaceAll("(?s)^```(json)?|```$", "").trim());
         String thinking = clean(json.path("thinking").asText(""));
-        String writing = clean(json.path("writing").asText(""));
-        if (thinking.isEmpty() || writing.isEmpty()) {
-            return null;
-        }
-        return Map.of("thinking", thinking, "writing", writing);
+        return thinking.isEmpty() ? null : Map.of("thinking", thinking);
     }
 
     private static String clean(String line) {
