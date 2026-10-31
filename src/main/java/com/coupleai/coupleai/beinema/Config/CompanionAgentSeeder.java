@@ -6,6 +6,7 @@ import com.coupleai.coupleai.beinema.Enum.AgentType;
 import com.coupleai.coupleai.beinema.Repository.AgentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
@@ -94,15 +95,32 @@ public class CompanionAgentSeeder implements ApplicationRunner {
     );
 
     private final AgentRepository agentRepository;
+    private final String coupleWorkflowId;
 
-    public CompanionAgentSeeder(AgentRepository agentRepository) {
+    public CompanionAgentSeeder(AgentRepository agentRepository,
+                                @Value("${metis.couple-workflow-id}") String coupleWorkflowId) {
         this.agentRepository = agentRepository;
+        this.coupleWorkflowId = coupleWorkflowId;
     }
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
         List<Agent> agents = agentRepository.findAll();
+        // a new database starts without the couple counselor
+        if (agents.stream().noneMatch(agent -> agent.getType() == AgentType.RELATIONSHIP)) {
+            agentRepository.save(Agent.builder()
+                    .name("نینا")
+                    .type(AgentType.RELATIONSHIP)
+                    .headline("فضای امن برای شنیده‌شدن هر دو نفر")
+                    .description("نینا همراه هوشمند زوج‌هاست؛ کمک می‌کند گفتگو از سرزنش فاصله بگیرد و به فهمیدن هم برسد.")
+                    .photoUrl("/agents/companion.webp")
+                    .avatar("/agents/companion.webp")
+                    .aiBotId(coupleWorkflowId)
+                    .status(AgentStatus.ACTIVE)
+                    .build());
+            log.info("Couple counselor added");
+        }
         for (Companion companion : COMPANIONS) {
             boolean present = agents.stream().anyMatch(agent -> companion.workflowId().equals(agent.getAiBotId()));
             if (present) {

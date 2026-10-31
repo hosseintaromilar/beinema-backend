@@ -1,0 +1,83 @@
+# Beinema on one server: MySQL, the backend, the site, the admin panel and Caddy
+# (HTTPS for beinema.ir and admin.beinema.ir). Lives in /opt/beinema on the server.
+#
+# The three app images are built by GitHub Actions and loaded here over SSH
+# (.github/workflows/deploy.yml in each repository), so this server never builds
+# anything and never needs Maven, npm or Docker Hub for a deploy.
+#
+# Secrets are in /opt/beinema/.env (DB_PASSWORD, DB_ROOT_PASSWORD) and
+# /opt/beinema/api.env (JWT_SECRET, METIS_API_KEY, ...); both are only on the server.
+
+name: beinema
+
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: beinema
+      MYSQL_USER: beinema
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      TZ: Asia/Tehran
+    # small server: a modest buffer pool, no performance schema
+    command:
+      - --innodb-buffer-pool-size=256M
+      - --max-connections=60
+      - --performance-schema=OFF
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  api:
+    image: beinema-api:latest
+    restart: always
+    env_file: api.env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/beinema?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: beinema
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      BEINEMA_UPLOAD_DIR: /app/uploads
+      JAVA_TOOL_OPTIONS: -Xms256m -Xmx1g -Duser.timezone=Asia/Tehran -Djava.awt.headless=true
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: beinema-web:latest
+    restart: always
+    environment:
+      BACKEND_URL: http://api:8080
+
+  admin:
+    image: beinema-admin:latest
+    restart: always
+    environment:
+      BACKEND_URL: http://api:8080
+
+  caddy:
+    image: caddy:2
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - admin
+
+volumes:
+  db:
+  caddy_data:
+  caddy_config:

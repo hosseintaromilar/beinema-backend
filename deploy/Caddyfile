@@ -1,0 +1,22 @@
+# HTTPS in front of the site and the admin panel; certificates come from
+# Let's Encrypt by themselves once the domains point at this server.
+# The site's own nginx forwards /api and /uploads to the backend.
+
+beinema.ir {
+	encode gzip
+	reverse_proxy web:80 {
+		# live chat (server-sent events) goes out as it comes
+		flush_interval -1
+	}
+}
+
+www.beinema.ir {
+	redir https://beinema.ir{uri} permanent
+}
+
+admin.beinema.ir {
+	encode gzip
+	reverse_proxy admin:80 {
+		flush_interval -1
+	}
+}

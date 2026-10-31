@@ -1,0 +1,44 @@
+# Deploys the backend to the Beinema server on every push to main: the image is
+# built here on GitHub (Maven and Docker Hub are out of reach from Iran), sent to
+# the server over SSH and started with docker compose (deploy/docker-compose.yml).
+# Needs one repository secret: DEPLOY_SSH_KEY, the private key the server trusts.
+name: Deploy to the server
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "deploy/**"
+      - "**.md"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  DEPLOY_HOST: 193.151.151.91
+  IMAGE: beinema-api:latest
+  SERVICE: api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t "$IMAGE" .
+
+      - name: Send it to the server and restart the service
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan -T 30 "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          SSH="ssh -i $HOME/.ssh/deploy -o ServerAliveInterval=30 root@$DEPLOY_HOST"
+          docker save "$IMAGE" | gzip | $SSH 'gunzip | docker load'
+          $SSH "cd /opt/beinema && docker compose up -d --no-deps $SERVICE"
