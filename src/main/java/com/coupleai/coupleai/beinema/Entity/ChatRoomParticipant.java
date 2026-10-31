@@ -120,6 +120,13 @@ public class ChatRoomParticipant extends BaseEntity {
      * When this person last opened the relationship path. A path written after
      * it (at the end of a session) shows them a «1» until they open it.
      */
+    /** How far this person has received and read the room (message sequence numbers). Written only by the receipt queries: saving a stale copy of this row must not put old numbers back. */
+    @Column(name = "delivered_seq", updatable = false)
+    private Integer deliveredSeq;
+
+    @Column(name = "read_seq", updatable = false)
+    private Integer readSeq;
+
     @Column(name = "insight_seen_at")
     private java.time.LocalDateTime insightSeenAt;
 

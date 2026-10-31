@@ -21,6 +21,10 @@ public class ChatRoomResponse {
 
     private List<ParticipantSummary> participants;
 
+    private Integer agentDeliveredSeq;
+
+    private Integer agentReadSeq;
+
     private Long lastActivityAt;
 
     private Long createdBy;

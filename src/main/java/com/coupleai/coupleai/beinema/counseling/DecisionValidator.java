@@ -95,6 +95,7 @@ public final class DecisionValidator {
         readMilestones(root.path("milestones"), d, ctx);
         readDecision(root.path("decision"), d, ctx);
         readLesson(root.path("lesson"), d);
+        d.kitTest = root.path("kit_test").isTextual() ? root.path("kit_test").asText().trim() : null;
         readQuestionUpdates(root.path("question_updates"), d, ctx);
         readBrief(root.path("brief"), d, ctx);
         d.reviewIf = strings(root.path("review_if"), 5, 240);

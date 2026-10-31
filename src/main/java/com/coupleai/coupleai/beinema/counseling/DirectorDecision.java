@@ -63,6 +63,9 @@ public class DirectorDecision {
     /** TEACH: what the teacher lane prepared for the voice (filled after validation). */
     public String lessonScript = "";
 
+    /** Rooms with the kit: the test to give in this turn. */
+    public String kitTest;
+
     public QuestionSpec question;
     public List<QuestionUpdate> questionUpdates = new ArrayList<>();
 

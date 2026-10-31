@@ -19,6 +19,7 @@ import com.coupleai.coupleai.beinema.governance.GovernanceDecision;
 import com.coupleai.coupleai.beinema.governance.GovernanceTarget;
 import com.coupleai.coupleai.beinema.governance.ParticipationPauseService;
 import com.coupleai.coupleai.beinema.governance.QuestionMarkers;
+import com.coupleai.coupleai.beinema.governance.KitMarkers;
 import com.coupleai.coupleai.beinema.governance.ReplySegments;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -62,15 +63,23 @@ public class TurnOrchestrator {
     private final DirectorDecisionRecordRepository decisionRepository;
     private final TurnInbox inbox;
 
+    /** Absent in tests; only rooms with the kit use it. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CoupleTestService coupleTests;
+
     /** The lines shown while the counselor prepares its reply; optional (absent in the tests that build this by hand). */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private StatusLineWriter statusLines;
+
+    /** The companion's ticks; optional (absent in the tests that build this by hand). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.Service.MessageReceiptService receipts;
 
     /** Typing pauses between the parts of a turn; off in tests. */
     boolean pacing = true;
 
     /** Something to deliver: a part of the counselor's words, or the structured question. */
-    public sealed interface Item permits TextItem, QuestionItem {
+    public sealed interface Item permits TextItem, QuestionItem, CardItem {
     }
 
     public record TextItem(ReplySegments.Segment segment, boolean replyToTrigger) implements Item {
@@ -78,6 +87,10 @@ public class TurnOrchestrator {
 
     public record QuestionItem(Long questionId, String publicId, String text, List<QuestionOptions.Option> options)
             implements Item {
+    }
+
+    /** A card of the kit: a test or a lesson. */
+    public record CardItem(String content) implements Item {
     }
 
     /** remaining: what is delivered after the sender is released, with typing pauses. */
@@ -114,6 +127,8 @@ public class TurnOrchestrator {
             }
         }
         Long agentId = agentId(roomId);
+        int lastSeen = m.fresh().stream().mapToInt(message -> message.getSequenceNumber() == null ? 0 : message.getSequenceNumber()).max().orElse(0);
+        markSeen(roomId, lastSeen, false);
         // what the page says must be true: without a person's message there is nothing being read
         String written = m.fresh().stream()
                 .filter(message -> message.getSenderType() == MessageSenderType.USER)
@@ -130,8 +145,13 @@ public class TurnOrchestrator {
         SessionPlanner.refresh(m, brain);
 
         // 1-2. decide
+        boolean kit = m.tags() != null && m.tags().contains(ElikaKit.TAG);
         String packet = DirectorPacketBuilder.build(m, null);
+        if (kit && coupleTests != null) {
+            packet += coupleTests.forDirector(m);
+        }
         Decided decided = decide(m, packet);
+        markSeen(roomId, lastSeen, true);
         DirectorDecision d = decided.decision();
         if (trigger == null && d.silent()) {
             // a moment of the session is never met with silence
@@ -143,6 +163,11 @@ public class TurnOrchestrator {
             if (d.briefDo.isBlank()) {
                 d.briefDo = "Welcome them briefly and say where the work stands.";
             }
+        }
+
+        if (!kit && d.lessonId != null && d.lessonId.startsWith(ElikaKit.LESSON_PREFIX)) {
+            d.action = "RESPOND";
+            d.lessonId = null;
         }
 
         // 3. store decision and memory
@@ -253,6 +278,9 @@ public class TurnOrchestrator {
             // the thank-you after consent is one paragraph, never a run of short messages
             items = oneParagraph(items);
         }
+        if (kit) {
+            addKitCards(m, d, items, notes);
+        }
         persistence.finish(stored.decisionId(), voiceRaw, voiceMs, notes);
         inbox.processed(roomId, trigger, m.notes());
         if (items.isEmpty()) {
@@ -275,7 +303,9 @@ public class TurnOrchestrator {
         for (Item item : outcome.remaining()) {
             long typing = item instanceof TextItem text
                     ? MessageServiceImpl.pacingMillis(text.segment())
-                    : Math.min(5200L, 1200L + ((QuestionItem) item).text().length() * 30L);
+                    : item instanceof QuestionItem question
+                    ? Math.min(5200L, 1200L + question.text().length() * 30L)
+                    : 1200L;
             chatRealtimeService.publishAgentTyping(outcome.roomId(), typing, item instanceof QuestionItem ? "question" : "continuing");
             if (pacing) {
                 sleep(typing);
@@ -287,6 +317,18 @@ public class TurnOrchestrator {
     // ------------------------------------------------------------------ steps
 
     private record Decided(DirectorDecision decision, DecisionStatus status, String raw, long millis, String error) {
+    }
+
+    /** Ticks never get in the way of a turn. */
+    private void markSeen(Long roomId, int sequence, boolean read) {
+        if (receipts == null || sequence <= 0) {
+            return;
+        }
+        try {
+            receipts.companionReached(roomId, sequence, read);
+        } catch (RuntimeException exception) {
+            log.warn("No receipt for room {}: {}", roomId, exception.toString());
+        }
     }
 
     /** The stage shown while the voice writes, from what was really decided: only a card is surely a question. */
@@ -447,7 +489,30 @@ public class TurnOrchestrator {
         return joined;
     }
 
+    /** A lesson's card comes before her words about it; a test's card after her invitation. */
+    private void addKitCards(TurnMaterial m, DirectorDecision d, List<Item> items, List<String> notes) {
+        if ("TEACH".equals(d.action) && d.lessonId != null) {
+            ElikaKit.lesson(d.lessonId).ifPresent(lesson -> items.add(0, new CardItem(
+                    KitMarkers.content(KitMarkers.LESSON, lesson.id(), "درس: " + lesson.faTitle()))));
+        }
+        if (d.kitTest == null || coupleTests == null) {
+            return;
+        }
+        if (!"NONE".equals(d.safetyLevel)) {
+            notes.add("kit: no test at safety level " + d.safetyLevel);
+            return;
+        }
+        ElikaKit.test(d.kitTest).ifPresentOrElse(test -> coupleTests.open(m.roomId(), test.key()).ifPresentOrElse(
+                opened -> items.add(new CardItem(KitMarkers.content(KitMarkers.TEST, opened.getPublicId(), "آزمون: " + test.title()))),
+                () -> notes.add("kit: " + test.key() + " was already given")),
+                () -> notes.add("kit: unknown test " + d.kitTest));
+    }
+
     private void deliver(Long roomId, Long agentId, Long triggerId, Item item) {
+        if (item instanceof CardItem card) {
+            chatRealtimeService.saveAgentAndPublish(roomId, agentId, card.content());
+            return;
+        }
         if (item instanceof TextItem text) {
             ReplySegments.Segment segment = text.segment();
             if (segment.isSticker()) {

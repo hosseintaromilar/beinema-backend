@@ -358,11 +358,16 @@ class CounselingCycleTest {
         DirectorDecisionRecord record = f.decisions.values().iterator().next();
         assertEquals("RESPOND", record.getAction(), "a moment of the session is never met with silence");
         assertNull(record.getTriggerMessageId());
-        assertNull(f.state.getLastProcessedMessageId(), "no partner message was consumed");
         Message last = f.counselorMessages().get(f.counselorMessages().size() - 1);
         assertTrue(last.getContent().startsWith("افسانه، خوش برگشتی"));
         assertTrue(f.inbox.peek(FakeRoom.ROOM).isEmpty(), "the moment is not decided twice");
         assertFalse(f.orchestrator.runTurn(FakeRoom.ROOM).delivered());
+
+        // someone wrote while the opening was being prepared: their message sits before the
+        // counselor's reply and must still be answered
+        Message writtenMeanwhile = f.say(f.afsaneh, AFSANEH_SAYS);
+        assertEquals(java.util.List.of(writtenMeanwhile),
+                TurnMaterialLoader.fresh(java.util.List.of(writtenMeanwhile, last), f.state.getLastProcessedMessageId()));
     }
 
     @Test

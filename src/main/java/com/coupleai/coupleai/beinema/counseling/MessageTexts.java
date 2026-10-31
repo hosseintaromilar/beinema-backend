@@ -23,7 +23,7 @@ public final class MessageTexts {
         }
         boolean question = QuestionMarkers.questionId(content) != null;
         boolean answer = QuestionMarkers.answerTo(content) != null;
-        String text = new GovernancePacketParser().strip(ReentryCommitment.visible(QuestionMarkers.strip(content)));
+        String text = new GovernancePacketParser().strip(ReentryCommitment.visible(QuestionMarkers.strip(com.coupleai.coupleai.beinema.governance.KitMarkers.strip(content))));
         if (question) {
             return "(structured question) " + text;
         }

@@ -63,6 +63,10 @@ public class MessageResponse {
 
     private String stickerName;
 
+    /** A card of the companion's kit shown by this message: TEST, RESULT or LESSON, and its id. */
+    private String kitKind;
+    private String kitRef;
+
     /** A structured clarifying question shown by this counselor message. */
     private QuestionResponse question;
 
@@ -144,6 +148,12 @@ public class MessageResponse {
                 .stickerName(
                         CounselorSignal.stickerName(message.getContent())
                 )
+                .kitKind(
+                        com.coupleai.coupleai.beinema.governance.KitMarkers.kind(message.getContent())
+                )
+                .kitRef(
+                        com.coupleai.coupleai.beinema.governance.KitMarkers.ref(message.getContent())
+                )
                 .answerToQuestionId(
                         QuestionMarkers.answerTo(message.getContent())
                 )
@@ -156,7 +166,7 @@ public class MessageResponse {
 
     private static String visibleContent(String content) {
         return new GovernancePacketParser().strip(
-                CounselorSignal.stripSticker(ReentryCommitment.visible(QuestionMarkers.strip(content)))
+                CounselorSignal.stripSticker(ReentryCommitment.visible(QuestionMarkers.strip(com.coupleai.coupleai.beinema.governance.KitMarkers.strip(content))))
         );
     }
 }

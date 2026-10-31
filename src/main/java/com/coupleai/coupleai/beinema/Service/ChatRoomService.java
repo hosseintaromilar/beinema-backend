@@ -437,6 +437,8 @@ public class ChatRoomService {
                 .title(chatRoom.getTitle())
 
                 .status(chatRoom.getStatus())
+                .agentDeliveredSeq(chatRoom.getAgentDeliveredSeq())
+                .agentReadSeq(chatRoom.getAgentReadSeq())
 
                 .agents(
 
@@ -563,6 +565,8 @@ public class ChatRoomService {
                             .id(chatRoom.getId())
                             .title(chatRoom.getTitle())
                             .status(chatRoom.getStatus())
+                            .agentDeliveredSeq(chatRoom.getAgentDeliveredSeq())
+                            .agentReadSeq(chatRoom.getAgentReadSeq())
                             .agents(agents)
                             .participants(toParticipantSummaries(chatRoom))
                             .lastActivityAt(lastActivityAt)
@@ -752,6 +756,8 @@ public class ChatRoomService {
                         .id(chatRoom.getId())
                         .title(chatRoom.getTitle())
                         .status(chatRoom.getStatus())
+                        .agentDeliveredSeq(chatRoom.getAgentDeliveredSeq())
+                        .agentReadSeq(chatRoom.getAgentReadSeq())
                         .agents(agents)
                         .participants(toParticipantSummaries(chatRoom))
                         .createdBy(chatRoom.getCreatedBy()),
@@ -814,6 +820,8 @@ public class ChatRoomService {
                             .leftAt(item.getLeftAt() == null ? null : item.getLeftAt().toEpochMilli())
                             .rulesAccepted(item.getRulesAcceptedAt() != null)
                             .sessionConsented(item.getSessionConsented())
+                            .deliveredSeq(item.getDeliveredSeq())
+                            .readSeq(item.getReadSeq())
                             .build();
                 })
                 .toList();

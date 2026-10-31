@@ -123,7 +123,8 @@ public final class DirectorPacketBuilder {
 
     /** What the counselor can teach (action TEACH), and what it already taught. */
     static String lessons(TurnMaterial m) {
-        if (m.tags() != null && m.tags().contains(OWN_METHOD)) {
+        boolean kit = m.tags() != null && m.tags().contains(ElikaKit.TAG);
+        if (!kit && m.tags() != null && m.tags().contains(OWN_METHOD)) {
             return "none\n";
         }
         java.util.Map<String, Integer> taught = new java.util.LinkedHashMap<>();
@@ -131,7 +132,7 @@ public final class DirectorPacketBuilder {
             taught.put(item.id, item.session);
         }
         StringBuilder out = new StringBuilder();
-        for (Lessons.Lesson lesson : Lessons.all()) {
+        for (Lessons.Lesson lesson : kit ? ElikaKit.lessons() : Lessons.all()) {
             out.append(lesson.id()).append(" | ").append(lesson.title());
             Integer session = taught.get(lesson.id());
             if (session != null) {

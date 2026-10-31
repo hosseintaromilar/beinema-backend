@@ -16,6 +16,7 @@ import java.util.List;
 public class MessageController {
 
     private final MessageService messageService;
+    private final com.coupleai.coupleai.beinema.Service.MessageReceiptService receiptService;
 
     @GetMapping("/{chatRoomId}/messages")
     public List<MessageResponse> getMessages(
@@ -67,6 +68,12 @@ public class MessageController {
     ) {
         boolean accepted = request != null && Boolean.TRUE.equals(request.getAccepted());
         messageService.submitSessionConsent(chatRoomId, accepted);
+    }
+
+    /** How far this page has received and read: the source of the other side's ticks. */
+    @PostMapping("/{chatRoomId}/receipts")
+    public void receipts(@PathVariable Long chatRoomId, @RequestBody java.util.Map<String, Integer> body) {
+        receiptService.acknowledge(chatRoomId, body.get("deliveredSeq"), body.get("readSeq"));
     }
 
     @PostMapping("/{chatRoomId}/entry")

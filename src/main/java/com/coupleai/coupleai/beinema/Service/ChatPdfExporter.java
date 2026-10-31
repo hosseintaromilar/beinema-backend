@@ -227,7 +227,7 @@ public class ChatPdfExporter {
     static String visibleText(MessageResponse message) {
         String raw = message.getContent() == null ? "" : message.getContent();
         String cleaned = new GovernancePacketParser().strip(ReentryCommitment.visible(
-                com.coupleai.coupleai.beinema.governance.QuestionMarkers.strip(raw)));
+                com.coupleai.coupleai.beinema.governance.QuestionMarkers.strip(com.coupleai.coupleai.beinema.governance.KitMarkers.strip(raw))));
         return cleaned == null ? "" : cleaned.trim();
     }
 

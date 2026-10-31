@@ -22,6 +22,10 @@ public class ParticipantSummary {
 
     private Boolean sessionConsented;
 
+    private Integer deliveredSeq;
+
+    private Integer readSeq;
+
     /** Left the conversation (reads, does not write; can come back). */
     private Boolean left;
 

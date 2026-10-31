@@ -37,6 +37,10 @@ public class CounselingConfig {
     @Value("${beinema.brain.own-method-workflow-ids:}")
     private String ownMethodWorkflowIds = "";
 
+    /** The workflows that also have the kit of kb/elika-kit.json: tests and visual lessons. */
+    @Value("${beinema.brain.kit-workflow-ids:}")
+    private String kitWorkflowIds = "";
+
     @Value("${beinema.brain.recent-messages:16}")
     private int recentMessages = 16;
 
@@ -69,6 +73,11 @@ public class CounselingConfig {
     /** True when this companion's workflow has its own method (see ownMethodWorkflowIds). */
     public boolean isOwnMethodWorkflow(String botId) {
         return listed(ownMethodWorkflowIds, botId);
+    }
+
+    /** True when this companion works with the kit (see kitWorkflowIds). */
+    public boolean isKitWorkflow(String botId) {
+        return listed(kitWorkflowIds, botId);
     }
 
     private static boolean listed(String list, String botId) {

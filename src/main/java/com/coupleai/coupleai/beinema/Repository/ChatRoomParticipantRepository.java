@@ -74,4 +74,9 @@ public interface ChatRoomParticipantRepository
             @Param("now") java.time.Instant now
     );
 
+
+    /** Only the two tick columns: a receipt must never write back an older copy of the rest of the row. */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("update ChatRoomParticipant p set p.deliveredSeq = :delivered, p.readSeq = :read where p.id = :id")
+    void updateReceipts(@Param("id") Long id, @Param("delivered") int delivered, @Param("read") int read);
 }

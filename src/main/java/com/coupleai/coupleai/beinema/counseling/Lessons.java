@@ -38,6 +38,9 @@ public final class Lessons {
     }
 
     public static Optional<Lesson> find(String id) {
+        if (id != null && id.trim().toUpperCase().startsWith(ElikaKit.LESSON_PREFIX)) {
+            return ElikaKit.lesson(id);
+        }
         return id == null ? Optional.empty() : Optional.ofNullable(loaded().get(id.trim().toUpperCase()));
     }
 

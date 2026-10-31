@@ -149,6 +149,9 @@ public class TurnPersistence {
 
         if (trigger != null) {
             state.setLastProcessedMessageId(trigger);
+        } else if (state.getLastProcessedMessageId() == null && m.messagesById() != null && !m.messagesById().isEmpty()) {
+            // an opening without a message: what someone writes while it is being prepared is still new afterwards
+            state.setLastProcessedMessageId(java.util.Collections.max(m.messagesById().keySet()));
         }
         state.setSessionNumber(m.sessionNumber());
         stateStore.save(state, snapshot);

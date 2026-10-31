@@ -190,6 +190,11 @@ public class TurnMaterialLoader {
             tags.add(DirectorPacketBuilder.OWN_METHOD);
         }
 
+        if (chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isKitWorkflow)) {
+            tags = new java.util.HashSet<>(tags);
+            tags.add(ElikaKit.TAG);
+        }
+
         return new TurnMaterial(room, sessionNumber, minutes, planned, partners, recent, fresh, notes, state, snapshot,
                 intents, open, answered, asked, lastTurns, screen, tags, cards, roleByUserId, roleByMessageId, looseTexts,
                 byId, files, milestoneRepository.findAllByChatRoomIdOrderByIdAsc(roomId),
