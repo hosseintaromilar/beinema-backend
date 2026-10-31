@@ -30,6 +30,13 @@ public class CounselingConfig {
     @Value("${beinema.brain.companion-workflow-ids:}")
     private String companionWorkflowIds = "";
 
+    /**
+     * The workflows among them that work by their own method, not by Reality Therapy: they
+     * get no choice-theory rules or lessons in the packet, only the safety cards.
+     */
+    @Value("${beinema.brain.own-method-workflow-ids:}")
+    private String ownMethodWorkflowIds = "";
+
     @Value("${beinema.brain.recent-messages:16}")
     private int recentMessages = 16;
 
@@ -56,10 +63,19 @@ public class CounselingConfig {
 
     /** True when this Metis id is one of the companions' own v3 workflows. */
     public boolean isCompanionWorkflow(String botId) {
-        if (botId == null || botId.isBlank() || companionWorkflowIds == null) {
+        return listed(companionWorkflowIds, botId);
+    }
+
+    /** True when this companion's workflow has its own method (see ownMethodWorkflowIds). */
+    public boolean isOwnMethodWorkflow(String botId) {
+        return listed(ownMethodWorkflowIds, botId);
+    }
+
+    private static boolean listed(String list, String botId) {
+        if (botId == null || botId.isBlank() || list == null) {
             return false;
         }
-        for (String id : companionWorkflowIds.split(",")) {
+        for (String id : list.split(",")) {
             if (id.trim().equals(botId.trim())) {
                 return true;
             }

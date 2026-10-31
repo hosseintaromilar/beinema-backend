@@ -24,6 +24,9 @@ public final class DirectorPacketBuilder {
     private DirectorPacketBuilder() {
     }
 
+    /** The tag of a room whose companion works by its own method: no choice-theory lessons. */
+    static final String OWN_METHOD = "OWN_METHOD";
+
     public static String build(TurnMaterial m, String review) {
         StringBuilder out = new StringBuilder(MODE).append('\n');
 
@@ -120,6 +123,9 @@ public final class DirectorPacketBuilder {
 
     /** What the counselor can teach (action TEACH), and what it already taught. */
     static String lessons(TurnMaterial m) {
+        if (m.tags() != null && m.tags().contains(OWN_METHOD)) {
+            return "none\n";
+        }
         java.util.Map<String, Integer> taught = new java.util.LinkedHashMap<>();
         for (CounselingSnapshot.Taught item : m.snapshot().lessons) {
             taught.put(item.id, item.session);

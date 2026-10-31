@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The companions that run on their own copy of the v3 workflow (finance, parenting,
@@ -58,7 +59,7 @@ public class CompanionAgentSeeder implements ApplicationRunner {
                     "/agents/parenting-companion.webp"
             ),
             new Companion(
-                    "1a3db484-876e-49e8-88fa-67410b6689da",
+                    "21f80899-1667-4fe3-8d69-b7e98a7d015c",
                     AgentType.PREMARITAL,
                     "همراه پیش از ازدواج",
                     "قبل از تصمیم، انتظارهایتان را روشن کنید",
@@ -94,6 +95,11 @@ public class CompanionAgentSeeder implements ApplicationRunner {
             )
     );
 
+    /** A companion moved to a new workflow keeps its name, photo and texts: old id, new id. */
+    private static final Map<String, String> MOVED = Map.of(
+            "1a3db484-876e-49e8-88fa-67410b6689da", "21f80899-1667-4fe3-8d69-b7e98a7d015c"
+    );
+
     private final AgentRepository agentRepository;
     private final String coupleWorkflowId;
 
@@ -107,6 +113,14 @@ public class CompanionAgentSeeder implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         List<Agent> agents = agentRepository.findAll();
+        for (Agent agent : agents) {
+            String moved = MOVED.get(agent.getAiBotId());
+            if (moved != null) {
+                agent.setAiBotId(moved);
+                agentRepository.save(agent);
+                log.info("Companion {} moved to its new workflow", agent.getName());
+            }
+        }
         // a new database starts without the couple counselor
         if (agents.stream().noneMatch(agent -> agent.getType() == AgentType.RELATIONSHIP)) {
             agentRepository.save(Agent.builder()

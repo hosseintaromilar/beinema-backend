@@ -182,6 +182,13 @@ public class TurnMaterialLoader {
                 speaker, freshTexts, freshRoles, recentRoles, snapshot, intents, !open.isEmpty(), answerKinds,
                 screen, notes, sessionNumber, minutes, planned, counselorTurns));
         List<KbCard> cards = retriever.retrieve(tags, config.getMaxRuleCards(), config.getMaxRuleChars());
+        boolean ownMethod = chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isOwnMethodWorkflow);
+        if (ownMethod) {
+            // this companion's method is in its workflow; only safety is shared
+            cards = cards.stream().filter(card -> card.type() == KbCard.Type.SAFETY).toList();
+            tags = new java.util.HashSet<>(tags);
+            tags.add(DirectorPacketBuilder.OWN_METHOD);
+        }
 
         return new TurnMaterial(room, sessionNumber, minutes, planned, partners, recent, fresh, notes, state, snapshot,
                 intents, open, answered, asked, lastTurns, screen, tags, cards, roleByUserId, roleByMessageId, looseTexts,
