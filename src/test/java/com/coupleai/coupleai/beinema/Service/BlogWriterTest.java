@@ -49,4 +49,11 @@ class BlogWriterTest {
                 .getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         assertEquals(28, BlogWriter.parseTopics(text).size());
     }
+
+    @org.junit.jupiter.api.Test
+    void aLinkToAPageThatDoesNotExistKeepsOnlyItsWords() {
+        String body = "این [گوش دادن](/blog/listen) و [پوریا](/agents/2) و [سایت دیگر](https://x.com) و [ساختگی](/blog/none)";
+        org.junit.jupiter.api.Assertions.assertEquals("این [گوش دادن](/blog/listen) و [پوریا](/agents/2) و سایت دیگر و ساختگی",
+                BlogWriter.keepKnownLinks(body, java.util.Set.of("/blog/listen", "/agents/2")));
+    }
 }

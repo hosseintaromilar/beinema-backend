@@ -4,6 +4,8 @@ Write in natural, warm, simple Persian for Iranian couples. Short paragraphs. No
 
 Length: about 700 to 1000 words. Structure the body in Markdown: an opening paragraph, 3 to 5 sections with "## " headings, a short list where it helps, and a closing paragraph. Do not repeat the title as a heading in the body.
 
+Internal links, for search engines and for the reader: in body_markdown, link to 2 to 4 pages from the list "Pages you may link to", written as [Persian words](/path), inside sentences where the page really helps the reader. Use only paths from the list, exactly as written, each at most once. At least one link goes to the companion whose field fits the subject, when one fits. The linked words describe the page they lead to, in natural Persian; never «اینجا» or «کلیک کنید». Never put a link in a heading. No outside links.
+
 Answer with one JSON object only, with these fields:
 - "title": a clear Persian title, at most 70 characters
 - "slug": a short English URL slug of 3 to 6 words, lowercase, dashes

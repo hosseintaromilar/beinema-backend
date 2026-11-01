@@ -54,6 +54,7 @@ public class BlogWriter {
 
     private final BlogService blogService;
     private final BlogPostRepository postRepository;
+    private final com.coupleai.coupleai.beinema.Repository.AgentRepository agentRepository;
     private final ObjectMapper mapper;
     private final String baseUrl;
     private final String apiKey;
@@ -65,6 +66,7 @@ public class BlogWriter {
 
     public BlogWriter(BlogService blogService,
                       BlogPostRepository postRepository,
+                      com.coupleai.coupleai.beinema.Repository.AgentRepository agentRepository,
                       ObjectMapper mapper,
                       @Value("${metis.base-url}") String baseUrl,
                       @Value("${metis.api-key}") String apiKey,
@@ -72,6 +74,7 @@ public class BlogWriter {
                       @Value("${beinema.blog.daily-enabled:false}") boolean dailyEnabled) throws IOException {
         this.blogService = blogService;
         this.postRepository = postRepository;
+        this.agentRepository = agentRepository;
         this.mapper = mapper;
         this.baseUrl = baseUrl;
         this.apiKey = apiKey;
@@ -139,7 +142,8 @@ public class BlogWriter {
                 .append("Subject (Persian): ").append(topic.subject()).append('\n')
                 .append("Do not repeat these earlier titles or their angle:\n");
         recent.stream().limit(30).forEach(post -> user.append("- ").append(post.getTitle()).append('\n'));
-        BlogService.Draft draft = ask(user.toString(), topic.key());
+        Map<String, String> pages = linkablePages(null);
+        BlogService.Draft draft = withKnownLinks(ask(user.append(linksBlock(pages)).toString(), topic.key()), pages);
         return blogService.createDraft(draft);
     }
 
@@ -166,8 +170,40 @@ public class BlogWriter {
                 + "Editor's notes (Persian):\n" + current.getAdminNote() + "\n\n"
                 + "Current title: " + current.getTitle() + "\n"
                 + "Current body:\n" + current.getBodyMarkdown();
-        BlogService.Draft draft = ask(user, post.getTopicKey());
+        Map<String, String> pages = linkablePages(post.getSlug());
+        BlogService.Draft draft = withKnownLinks(ask(user + linksBlock(pages), post.getTopicKey()), pages);
         return blogService.addRevision(postId, draft);
+    }
+
+    /** The pages a post may link to: published posts and the companions. Path to its title. */
+    private Map<String, String> linkablePages(String ownSlug) {
+        Map<String, String> pages = new java.util.LinkedHashMap<>();
+        postRepository.findAllByStatusOrderByPublishedAtDesc(BlogPostStatus.PUBLISHED).stream()
+                .filter(post -> !post.getSlug().equals(ownSlug))
+                .limit(40)
+                .forEach(post -> pages.put("/blog/" + post.getSlug(), post.getTitle()));
+        agentRepository.findAll().forEach(agent -> pages.put("/agents/" + agent.getId(), agent.getName()));
+        return pages;
+    }
+
+    private static String linksBlock(Map<String, String> pages) {
+        StringBuilder out = new StringBuilder("\nPages you may link to (path | title):\n");
+        pages.forEach((path, title) -> out.append(path).append(" | ").append(title).append('\n'));
+        return out.toString();
+    }
+
+    private static BlogService.Draft withKnownLinks(BlogService.Draft draft, Map<String, String> pages) {
+        return new BlogService.Draft(draft.title(), draft.slug(), draft.summary(),
+                keepKnownLinks(draft.bodyMarkdown(), pages.keySet()), draft.tags(), draft.imagePrompt(), draft.topicKey());
+    }
+
+    /** A link to a page that does not exist would hurt the site: only its words stay. */
+    static String keepKnownLinks(String body, Set<String> known) {
+        if (body == null) {
+            return null;
+        }
+        return java.util.regex.Pattern.compile("\\[([^\\]\\n]+)\\]\\(([^)\\s]+)\\)").matcher(body).replaceAll(match ->
+                java.util.regex.Matcher.quoteReplacement(known.contains(match.group(2)) ? match.group() : match.group(1)));
     }
 
     /** Another column than the last post's, then the first subject of it not written yet (or written longest ago). */
