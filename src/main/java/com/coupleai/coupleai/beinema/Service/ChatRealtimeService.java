@@ -320,7 +320,8 @@ public class ChatRealtimeService {
         MessageResponse response = MessageResponse.from(message);
         if (message.getReplyToMessageId() != null) {
             messageRepository.findById(message.getReplyToMessageId()).ifPresent(original -> {
-                String text = CounselorSignal.stripSticker(original.getContent());
+                String text = CounselorSignal.stripSticker(com.coupleai.coupleai.beinema.governance.QuestionMarkers.strip(
+                        com.coupleai.coupleai.beinema.governance.KitMarkers.strip(original.getContent())));
                 response.setReplyExcerpt(text.length() > 70 ? text.substring(0, 70) + "..." : text);
                 if (original.getSenderType() == MessageSenderType.AGENT) {
                     response.setReplyToSender(

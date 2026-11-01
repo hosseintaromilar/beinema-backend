@@ -63,6 +63,10 @@ public class TurnOrchestrator {
     private final DirectorDecisionRecordRepository decisionRepository;
     private final TurnInbox inbox;
 
+    static final String UNAVAILABLE_TEXT = "همراه الان موقتاً در دسترس نیست. پیام‌هاتون ذخیره شده؛ کمی بعد دوباره امتحان کنید.";
+    private static final long UNAVAILABLE_REPEAT_MILLIS = 10 * 60 * 1000L;
+    private final java.util.Map<Long, Long> unavailableToldAt = new java.util.concurrent.ConcurrentHashMap<>();
+
     /** Absent in tests; only rooms with the kit use it. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private CoupleTestService coupleTests;
@@ -260,6 +264,7 @@ public class TurnOrchestrator {
             }
             String error = out == null ? "VOICE_FAILED" : out.error();
             persistence.failVoice(roomId, stored.decisionId(), stored.previousProcessedMessageId(), voiceRaw, voiceMs, error);
+            tellUnavailable(roomId);
             if (trigger == null) {
                 // a moment is not tried again on every later turn
                 inbox.processed(roomId, null, m.notes());
@@ -306,6 +311,17 @@ public class TurnOrchestrator {
         }
         deliver(roomId, agentId, trigger, items.get(0));
         return new Outcome(roomId, agentId, trigger, new ArrayList<>(items.subList(1, items.size())), true, false, null);
+    }
+
+    /** People are not left guessing: once in a while, a line in the room that the companion cannot answer now. */
+    private void tellUnavailable(Long roomId) {
+        long now = System.currentTimeMillis();
+        Long last = unavailableToldAt.get(roomId);
+        if (last != null && now - last < UNAVAILABLE_REPEAT_MILLIS) {
+            return;
+        }
+        unavailableToldAt.put(roomId, now);
+        chatRealtimeService.saveSystemAndPublish(roomId, UNAVAILABLE_TEXT);
     }
 
     /** Ends the turn with the question on a card, with no director and no voice. */
