@@ -618,11 +618,14 @@ public class SessionLifecycleService {
         room.setAiConversationId(null);
         chatRoomRepository.save(room);
         for (ChatRoomParticipant participant : people) {
-            if (participant.getSessionReadyAt() != null || participant.getBreakVote() != null) {
-                participant.setSessionReadyAt(null);
-                participant.setBreakVote(null);
-                participantRepository.save(participant);
-            }
+            // a pause of the last session does not follow anyone into the new one
+            participant.setSessionReadyAt(null);
+            participant.setBreakVote(null);
+            participant.setPausedUntil(null);
+            participant.setReentryPending(false);
+            participant.setCommitmentOffered(false);
+            participant.setReentryHandshake(false);
+            participantRepository.save(participant);
         }
         currentRecord(room, now);
     }
