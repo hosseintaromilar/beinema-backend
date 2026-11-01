@@ -18,4 +18,6 @@ public interface ChatRoomRepository
     long countByStatus(com.coupleai.coupleai.beinema.Enum.ChatRoomStatus status);
 
     long countByCreatedAtAfter(java.time.LocalDateTime since);
+
+    java.util.List<ChatRoom> findAllBySessionActiveTrueAndStatus(com.coupleai.coupleai.beinema.Enum.ChatRoomStatus status);
 }
