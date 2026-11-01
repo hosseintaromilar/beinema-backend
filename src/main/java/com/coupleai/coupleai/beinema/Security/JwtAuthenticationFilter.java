@@ -103,7 +103,21 @@ public class JwtAuthenticationFilter
 
         String token = authHeader.substring(7);
 
-        if (tokenBlacklistService.isRevoked(token)) {
+        boolean revoked;
+
+        try {
+
+            revoked = tokenBlacklistService.isRevoked(token);
+
+        } catch (RuntimeException exception) {
+
+            // the database is busy: that says nothing about the sign-in, so nobody is logged out
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+
+            return;
+        }
+
+        if (revoked) {
 
             filterChain.doFilter(request, response);
 
@@ -142,9 +156,15 @@ public class JwtAuthenticationFilter
                         userDetailsService
                                 .loadUserByUsername(email);
 
-            } catch (Exception exception) {
+            } catch (org.springframework.security.core.userdetails.UsernameNotFoundException exception) {
 
                 filterChain.doFilter(request, response);
+
+                return;
+
+            } catch (RuntimeException exception) {
+
+                response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
 
                 return;
             }

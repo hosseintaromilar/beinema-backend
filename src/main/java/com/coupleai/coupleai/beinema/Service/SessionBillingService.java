@@ -46,6 +46,9 @@ public class SessionBillingService {
     private final UserRepository userRepository;
     private final WalletService walletService;
     private final SessionPackageRepository packageRepository;
+    private final com.coupleai.coupleai.beinema.Repository.ChatRoomRepository chatRoomRepository;
+
+    private static final Long NO_ROOM = -1L;
 
     @Value("${beinema.billing.free-sessions:1}")
     private int freeSessions;
@@ -133,7 +136,7 @@ public class SessionBillingService {
 
     @Transactional
     public Offer offerFor(User user) {
-        int left = freeLeft(user);
+        int left = freeAvailable(user, NO_ROOM);
         long balance = walletService.getOrCreate(user).getBalance();
         List<OwnedPackage> mine = packageRepository.findUsable(user.getId(), Instant.now()).stream()
                 .map(item -> new OwnedPackage(item.getId(), item.getTier(), titleOf(item.getTier()),
@@ -182,6 +185,14 @@ public class SessionBillingService {
         }
     }
 
+    /** A free session a running session will use is already spoken for, or one free session could open many rooms. */
+    private int freeAvailable(User user, Long room) {
+        if (user == null || user.getId() == null) {
+            return freeLeft(user);
+        }
+        return (int) Math.max(0, freeLeft(user) - chatRoomRepository.countRunningOf(user.getId(), room));
+    }
+
     public int freeLeft(User user) {
         int used = user == null || user.getFreeSessionsUsed() == null ? 0 : user.getFreeSessionsUsed();
         return Math.max(0, freeSessions - used);
@@ -197,12 +208,16 @@ public class SessionBillingService {
     public void requireCanStart(ChatRoom room, User asking) {
         User owner = room == null || room.getCreatedBy() == null ? asking
                 : userRepository.findById(room.getCreatedBy()).orElse(asking);
-        requireCanStart(owner, asking);
+        requireCanStart(owner, asking, room == null ? NO_ROOM : room.getId());
     }
 
     @Transactional
     public void requireCanStart(User owner, User asking) {
-        if (owner == null || freeLeft(owner) > 0
+        requireCanStart(owner, asking, NO_ROOM);
+    }
+
+    private void requireCanStart(User owner, User asking, Long room) {
+        if (owner == null || freeAvailable(owner, room) > 0
                 || !packageRepository.findUsable(owner.getId(), Instant.now()).isEmpty()
                 || walletService.getOrCreate(owner).getBalance() >= sessionPrice) {
             return;

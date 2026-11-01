@@ -46,7 +46,7 @@ class SessionBillingServiceTest {
         users = mock(UserRepository.class);
         wallets = mock(WalletService.class);
         packages = mock(SessionPackageRepository.class);
-        billing = new SessionBillingService(users, wallets, packages);
+        billing = new SessionBillingService(users, wallets, packages, org.mockito.Mockito.mock(com.coupleai.coupleai.beinema.Repository.ChatRoomRepository.class));
         ReflectionTestUtils.setField(billing, "freeSessions", 2);
         ReflectionTestUtils.setField(billing, "sessionPrice", 100_000L);
         ReflectionTestUtils.setField(billing, "sessionListPrice", 500_000L);

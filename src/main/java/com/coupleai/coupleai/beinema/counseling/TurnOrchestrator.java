@@ -150,13 +150,11 @@ public class TurnOrchestrator {
         }
 
         // the gate: has going on here become pointless? Then they are asked, and nothing else happens
-        if (trigger != null && !written.isEmpty() && endChecks != null
-                && !endChecks.askedInSession(roomId, m.sessionNumber())) {
-            ClosureGate.Verdict closing = ClosureGate.check(m, brain);
-            if (closing != null) {
-                return askToEnd(m, agentId, trigger, lastSeen, closing);
-            }
-        }
+        // it runs beside the director, so it adds no waiting
+        java.util.concurrent.CompletableFuture<ClosureGate.Verdict> gate = trigger != null && !written.isEmpty()
+                && endChecks != null && !endChecks.askedInSession(roomId, m.sessionNumber())
+                ? java.util.concurrent.CompletableFuture.supplyAsync(() -> ClosureGate.check(m, brain))
+                : null;
 
         // 0. the session manager plans the session at its start and again every so often
         SessionPlanner.refresh(m, brain);
@@ -169,6 +167,10 @@ public class TurnOrchestrator {
         }
         Decided decided = decide(m, packet);
         markSeen(roomId, lastSeen, true);
+        ClosureGate.Verdict closing = gateVerdict(gate);
+        if (closing != null) {
+            return askToEnd(m, agentId, trigger, lastSeen, closing);
+        }
         DirectorDecision d = decided.decision();
         if (trigger == null && d.silent()) {
             // a moment of the session is never met with silence
@@ -258,6 +260,7 @@ public class TurnOrchestrator {
                 }
             }
         }
+        out = checkedVoice(m, d, voicePacket, out);
         if (out == null || out.failed()) {
             if (stored.questionId() != null) {
                 questionService.cancel(stored.questionId(), "the voice could not write it");
@@ -322,6 +325,54 @@ public class TurnOrchestrator {
         }
         unavailableToldAt.put(roomId, now);
         chatRealtimeService.saveSystemAndPublish(roomId, UNAVAILABLE_TEXT);
+    }
+
+    /** Written Persian or saying it all again: the voice writes it once more; a repeat that stays is not sent. */
+    private VoiceOutputParser.Result checkedVoice(TurnMaterial m, DirectorDecision d, String packet, VoiceOutputParser.Result out) {
+        if (out == null || out.failed() || !"NONE".equals(d.safetyLevel) || !"NONE".equals(d.gov)) {
+            return out;
+        }
+        String said = out.text() + " " + (out.questionText() == null ? "" : out.questionText());
+        List<String> earlier = m.recent().stream()
+                .filter(message -> message.getSenderType() == MessageSenderType.AGENT)
+                .map(MessageTexts::visible)
+                .toList();
+        earlier = earlier.subList(Math.max(0, earlier.size() - 4), earlier.size());
+        boolean repeated = VoiceGuard.repeats(said, earlier);
+        java.util.Optional<String> written = VoiceGuard.written(said);
+        if (!repeated && written.isEmpty()) {
+            return out;
+        }
+        String warning = (repeated ? "your draft repeated what you said earlier: say only what is new; " : "")
+                + (written.isPresent() ? "your draft used written Persian («" + written.get() + "»): every sentence must be spoken Persian; " : "");
+        String again = packet.contains("must_not=")
+                ? packet.replaceFirst("must_not=", java.util.regex.Matcher.quoteReplacement("must_not=" + warning))
+                : packet.replaceFirst("length=", java.util.regex.Matcher.quoteReplacement("must_not=" + warning + "\nlength="));
+        VoiceOutputParser.Result rewritten = null;
+        try {
+            rewritten = VoiceOutputParser.parse(brain.forRoom(m.room()).voice(again).text());
+        } catch (RuntimeException exception) {
+            log.warn("Voice check failed in room {}: {}", m.roomId(), exception.getMessage());
+        }
+        boolean usable = rewritten != null && !rewritten.failed()
+                && (!rewritten.text().isBlank() || (rewritten.questionText() != null && !rewritten.questionText().isBlank()));
+        VoiceOutputParser.Result best = usable ? rewritten : out;
+        if (m.triggerMessageId() != null && best.questionText() == null
+                && VoiceGuard.repeats(best.text(), earlier)) {
+            return new VoiceOutputParser.Result("", null, Map.of(), false, null, List.of("not sent: it only repeated earlier words"));
+        }
+        return best;
+    }
+
+    private static ClosureGate.Verdict gateVerdict(java.util.concurrent.CompletableFuture<ClosureGate.Verdict> gate) {
+        if (gate == null) {
+            return null;
+        }
+        try {
+            return gate.get(15, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception exception) {
+            return null;
+        }
     }
 
     /** Ends the turn with the question on a card, with no director and no voice. */

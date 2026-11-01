@@ -64,7 +64,7 @@ public class SessionPulse {
         if (!config.orchestrated()) {
             return;
         }
-        for (ChatRoom room : chatRoomRepository.findAllBySessionActiveTrueAndStatus(ChatRoomStatus.ACTIVE)) {
+        for (ChatRoom room : chatRoomRepository.findRunning(ChatRoomStatus.ACTIVE)) {
             try {
                 pulse(room);
             } catch (RuntimeException exception) {

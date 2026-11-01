@@ -19,5 +19,15 @@ public interface ChatRoomRepository
 
     long countByCreatedAtAfter(java.time.LocalDateTime since);
 
-    java.util.List<ChatRoom> findAllBySessionActiveTrueAndStatus(com.coupleai.coupleai.beinema.Enum.ChatRoomStatus status);
+    /** Rooms with a session running (sessionActive is null while one runs). */
+    @org.springframework.data.jpa.repository.Query("select r from ChatRoom r where r.status = :status "
+            + "and r.sessionStartedAt is not null and (r.sessionActive is null or r.sessionActive = true)")
+    java.util.List<ChatRoom> findRunning(@org.springframework.data.repository.query.Param("status") com.coupleai.coupleai.beinema.Enum.ChatRoomStatus status);
+
+    /** How many sessions of this owner run now and are not settled yet, other rooms only. */
+    @org.springframework.data.jpa.repository.Query("select count(r) from ChatRoom r where r.createdBy = :owner and r.id <> :room "
+            + "and r.status = com.coupleai.coupleai.beinema.Enum.ChatRoomStatus.ACTIVE "
+            + "and r.sessionStartedAt is not null and (r.sessionActive is null or r.sessionActive = true)")
+    long countRunningOf(@org.springframework.data.repository.query.Param("owner") Long owner,
+                        @org.springframework.data.repository.query.Param("room") Long room);
 }
