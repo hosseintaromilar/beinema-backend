@@ -25,6 +25,11 @@ public interface BrainGateway {
         return new Reply("", 0);
     }
 
+    /** The gate before the director: does the session go on? Empty when there is no such lane. */
+    default Reply closure(String packet) {
+        return new Reply("", 0);
+    }
+
     /** The teacher lane: a lesson fitted to the couple (JSON). Empty when there is no such lane. */
     default Reply teacher(String packet) {
         return new Reply("", 0);

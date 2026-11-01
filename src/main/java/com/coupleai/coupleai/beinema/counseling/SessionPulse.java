@@ -45,6 +45,7 @@ public class SessionPulse {
     private final CounselorSessionService counselorSessionService;
     private final CounselingConfig config;
     private final TurnRunner turnRunner;
+    private final SessionEndCheckService endChecks;
 
     @Value("${beinema.brain.quiet-minutes:3}")
     private long quietMinutes = 3;
@@ -73,7 +74,7 @@ public class SessionPulse {
     }
 
     private void pulse(ChatRoom room) {
-        if (room.getSessionStartedAt() == null || !counselorSessionService.usesNewBrain(room)) {
+        if (room.getSessionStartedAt() == null || !counselorSessionService.usesNewBrain(room) || endChecks.hasOpen(room.getId())) {
             return;
         }
         List<ChatRoomParticipant> people = participantRepository.findAllByChatRoom(room);

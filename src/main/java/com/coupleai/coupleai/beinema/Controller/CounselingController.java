@@ -33,6 +33,8 @@ public class CounselingController {
     private final ChatRealtimeService chatRealtimeService;
     private final ChatRoomEventHub chatRoomEventHub;
     private final TurnRunner turnRunner;
+    private final com.coupleai.coupleai.beinema.counseling.SessionEndCheckService endCheckService;
+    private final com.coupleai.coupleai.beinema.Service.ConversationEndService conversationEndService;
     private final CoupleTestService coupleTestService;
     private final com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository;
     private final com.coupleai.coupleai.beinema.counseling.PersonalPathService personalPathService;
@@ -90,6 +92,33 @@ public class CounselingController {
             turnRunner.runAsync(chatRoomId);
         }
         return coupleTestService.view(chatRoomId, testId, user);
+    }
+
+    /** The question whether to end the conversation here, as this person may see it. */
+    @GetMapping("/end-checks/{checkId}")
+    public Map<String, Object> endCheck(@PathVariable Long chatRoomId, @PathVariable String checkId) {
+        return endCheckService.view(chatRoomId, checkId, currentUserService.getCurrentUser());
+    }
+
+    @PostMapping("/end-checks/{checkId}/vote")
+    public Map<String, Object> voteEnd(
+            @PathVariable Long chatRoomId,
+            @PathVariable String checkId,
+            @RequestBody Map<String, Boolean> body
+    ) {
+        User user = currentUserService.getCurrentUser();
+        var vote = endCheckService.vote(chatRoomId, checkId, Boolean.TRUE.equals(body.get("yes")), user);
+        if (vote.message() != null) {
+            chatRealtimeService.publish(chatRoomId, vote.message());
+        }
+        chatRoomEventHub.publishNamed(chatRoomId, "test_updated", Map.of("id", checkId));
+        if (vote.ended()) {
+            Long agentId = chatRoomAgentRepository.findActiveAgentIds(chatRoomId).stream().findFirst().orElse(0L);
+            conversationEndService.endByAgreement(chatRoomId, agentId);
+        } else if (vote.continued()) {
+            turnRunner.runAsync(chatRoomId);
+        }
+        return endCheckService.view(chatRoomId, checkId, user);
     }
 
     /** The card of a lesson of the kit. */

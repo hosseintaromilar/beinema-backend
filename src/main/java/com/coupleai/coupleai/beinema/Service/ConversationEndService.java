@@ -57,9 +57,28 @@ public class ConversationEndService {
     private final ChatRealtimeService chatRealtimeService;
     private final SessionLifecycleService sessionLifecycleService;
     private final ApplicationEventPublisher events;
+    private final com.coupleai.coupleai.beinema.Service.ChatRoomEventHub eventHub;
 
     /** What happened, for the page: ENDED (the owner closed it) or LEFT (this person left). */
     public record EndResult(String outcome) {
+    }
+
+    /** They agreed with the companion to end it here: closed for everyone, as when the owner ends it. */
+    public void endByAgreement(Long roomId, Long agentId) {
+        ChatRoom room = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new ChatRoomAccessDeniedException("Access denied"));
+        if (room.getStatus() == ChatRoomStatus.ENDED) {
+            return;
+        }
+        User owner = room.getCreatedBy() == null ? null : userRepository.findById(room.getCreatedBy()).orElse(null);
+        chatRealtimeService.saveAgentAndPublish(roomId, agentId, "باشه، همین‌جا تمومش می‌کنیم. مراقب خودتون باشید.");
+        room.setStatus(ChatRoomStatus.ENDED);
+        room.setEndedAt(Instant.now());
+        room.setEndedBy(room.getCreatedBy());
+        chatRoomRepository.save(room);
+        chatRealtimeService.saveSystemAndPublish(roomId, "این گفتگو با توافق پایان یافت. پیام‌های قبلی همچنان قابل دیدن است.");
+        sessionLifecycleService.closeForGood(room, owner);
+        eventHub.publishNamed(roomId, "room_closed", java.util.Map.of("id", roomId));
     }
 
     public EndResult end(Long roomId) {

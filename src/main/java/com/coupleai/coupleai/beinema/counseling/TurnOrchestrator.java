@@ -67,6 +67,10 @@ public class TurnOrchestrator {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private CoupleTestService coupleTests;
 
+    /** Absent in tests. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SessionEndCheckService endChecks;
+
     /** The lines shown while the counselor prepares its reply; optional (absent in the tests that build this by hand). */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private StatusLineWriter statusLines;
@@ -139,6 +143,15 @@ public class TurnOrchestrator {
         if (statusLines != null && !written.isEmpty()) {
             // next to the real turn: a short line about what was just written
             statusLines.startFor(roomId, written);
+        }
+
+        // the gate: has going on here become pointless? Then they are asked, and nothing else happens
+        if (trigger != null && !written.isEmpty() && endChecks != null
+                && !endChecks.askedInSession(roomId, m.sessionNumber())) {
+            ClosureGate.Verdict closing = ClosureGate.check(m, brain);
+            if (closing != null) {
+                return askToEnd(m, agentId, trigger, lastSeen, closing);
+            }
         }
 
         // 0. the session manager plans the session at its start and again every so often
@@ -293,6 +306,24 @@ public class TurnOrchestrator {
         }
         deliver(roomId, agentId, trigger, items.get(0));
         return new Outcome(roomId, agentId, trigger, new ArrayList<>(items.subList(1, items.size())), true, false, null);
+    }
+
+    /** Ends the turn with the question on a card, with no director and no voice. */
+    private Outcome askToEnd(TurnMaterial m, Long agentId, Long trigger, int lastSeen, ClosureGate.Verdict closing) {
+        Long roomId = m.roomId();
+        markSeen(roomId, lastSeen, true);
+        DirectorDecision d = DecisionValidator.fallback("BOTH", "closure gate: " + closing.reason());
+        d.action = "WAIT";
+        d.route = "SILENT";
+        d.react = null;
+        d.sticker = null;
+        d.notes.add("closure gate: " + closing.reason());
+        TurnPersistence.Stored stored = persistence.store(m, d, DecisionStatus.DONE, 0, closing.reason(), closing.millis(), null);
+        persistence.finish(stored.decisionId(), "", 0, List.of("asked whether to end"));
+        inbox.processed(roomId, trigger, m.notes());
+        String publicId = endChecks.open(roomId, m.sessionNumber()).getPublicId();
+        chatRealtimeService.saveAgentAndPublish(roomId, agentId, KitMarkers.content(KitMarkers.END_CHECK, publicId, closing.question()));
+        return new Outcome(roomId, agentId, trigger, List.of(), true, false, null);
     }
 
     /** The rest of the counselor's turn, after the sender has been released. */

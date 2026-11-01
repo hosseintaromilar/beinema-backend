@@ -81,7 +81,7 @@ class ConversationEndServiceTest {
         sessions = mock(SessionLifecycleService.class);
         events = mock(ApplicationEventPublisher.class);
         service = new ConversationEndService(rooms, participants, feedback, mock(UserRepository.class), current,
-                realtime, sessions, events);
+                realtime, sessions, events, mock(ChatRoomEventHub.class));
 
         afsaneh = user(1L, "افسانه");
         hossein = user(3L, "حسین");
