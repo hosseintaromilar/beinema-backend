@@ -24,6 +24,8 @@ public final class VoiceOutputParser {
     public static final String ERROR_MARKER = "[[ERROR|";
     private static final String OPEN = "[[QUESTION]]";
     private static final String CLOSE = "[[/QUESTION]]";
+    /** A line of the packet the voice copied into its words. */
+    private static final Pattern PACKET_LEAK = Pattern.compile("(?m)\\btype=(CHOOSE|CONFIRM)\\b( to [A-Z]+( \\([^)\\n]*\\))?)?[ \\t]*");
     private static final Pattern OPTION = Pattern.compile("^\\s*\\[\\[OPT\\|([A-Za-z0-9]{1,12})\\]\\]\\s*(.+?)\\s*$");
 
     public record Result(String text, String questionText, Map<String, String> options, boolean questionBlock,
@@ -47,7 +49,7 @@ public final class VoiceOutputParser {
             return new Result("", null, Map.of(), false, end > start ? raw.substring(start, end) : "VOICE_FAILED", notes);
         }
         // a stray governance line or director leak never reaches the couple
-        String text = new GovernancePacketParser().strip(raw.replace("\r", ""));
+        String text = PACKET_LEAK.matcher(new GovernancePacketParser().strip(raw.replace("\r", ""))).replaceAll("");
         int open = text.indexOf(OPEN);
         if (open < 0) {
             return new Result(text.trim(), null, Map.of(), false, null, notes);
