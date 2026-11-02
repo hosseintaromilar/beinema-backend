@@ -27,7 +27,7 @@ class WelcomeGuideTest {
         assertTrue(text.contains("من زوج‌درمانگر هستم؛ همراه هوشمند زوج‌ها در بین‌ما."));
         // 2. how the work goes and which framework it follows
         assertTrue(text.contains("روال کار در بین‌ما:"));
-        assertTrue(text.contains("واقعیت‌درمانی") && text.contains("نظریهٔ انتخاب"));
+        assertFalse(text.contains("واقعیت‌درمانی") || text.contains("نظریهٔ انتخاب") || text.contains("گلاسر"));
         assertTrue(text.contains("هر جلسه ۴۵ دقیقه است") && text.contains("۱۵ دقیقه استراحت"));
         // 3. how to invite the partner
         assertTrue(text.contains("منوی سه‌نقطه رو در گوشهٔ بالا سمت چپ") && text.contains("«افزودن پارتنر»"));
@@ -53,7 +53,7 @@ class WelcomeGuideTest {
         assertTrue(text.startsWith("سلام حسین، به بین‌ما خوش اومدی."));
         assertTrue(text.contains("افسانه تو را به این گروه دعوت کرده"));
         assertTrue(text.contains("گفتگوی افسانه با من از قبل شروع شده"));
-        assertTrue(text.contains("قوانین گفتگو:") && text.contains("ایمنی:") && text.contains("واقعیت‌درمانی"));
+        assertTrue(text.contains("قوانین گفتگو:") && text.contains("ایمنی:") && !text.contains("واقعیت‌درمانی"));
         assertFalse(text.contains("افزودن پارتنر"), "the partner does not need the invite guide");
         assertTrue(text.endsWith("«موافقم» را بزن تا وارد گفتگو شوی."));
         assertFalse(text.contains("{"));

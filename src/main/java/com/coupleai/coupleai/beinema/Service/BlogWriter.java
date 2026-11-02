@@ -145,7 +145,9 @@ public class BlogWriter {
         recent.stream().limit(30).forEach(post -> user.append("- ").append(post.getTitle()).append('\n'));
         Map<String, String> pages = linkablePages(null);
         BlogService.Draft draft = withKnownLinks(ask(user.append(linksBlock(pages)).toString(), topic.key()), pages);
-        return blogService.createDraft(draft);
+        // the address comes from the plan, not from the model
+        return blogService.createDraft(new BlogService.Draft(draft.title(), topic.key(), draft.summary(),
+                draft.bodyMarkdown(), draft.tags(), draft.imagePrompt(), draft.topicKey()));
     }
 
     /** The rewrite after the admin's notes, in the background; a failure shows in {@link #status()}. */
