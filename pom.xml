@@ -105,16 +105,11 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- chat export as PDF: HTML to PDF with right-to-left (Persian) text shaping -->
+        <!-- reading the text of PDF files people attach -->
         <dependency>
-            <groupId>com.openhtmltopdf</groupId>
-            <artifactId>openhtmltopdf-pdfbox</artifactId>
-            <version>1.0.10</version>
-        </dependency>
-        <dependency>
-            <groupId>com.openhtmltopdf</groupId>
-            <artifactId>openhtmltopdf-rtl-support</artifactId>
-            <version>1.0.10</version>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.24</version>
         </dependency>
     </dependencies>
 
