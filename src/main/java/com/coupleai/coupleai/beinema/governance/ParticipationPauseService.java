@@ -593,8 +593,7 @@ public class ParticipationPauseService {
                     && !userId.equals(item.getUser().getId())
                     && Boolean.TRUE.equals(item.getSessionConsented()));
             if (sessions != null && counselorSessionService != null && counselorSessionService.usesNewBrain(chatRoom)) {
-                // v3: the counselor writes the thanks and the first question itself, so it is never the same text
-                sessions.consentMoment(chatRoom, me, partnerAlreadyIn);
+                // v3: the fixed welcome is enough at the door; the companion speaks once someone has written
                 return;
             }
             String text = WelcomeGuide.afterConsent(me.getUser().visibleName(), partnerAlreadyIn);

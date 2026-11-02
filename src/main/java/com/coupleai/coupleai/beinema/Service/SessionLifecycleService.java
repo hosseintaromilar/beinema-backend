@@ -711,24 +711,6 @@ public class SessionLifecycleService {
         }
     }
 
-    /**
-     * Someone just accepted the rules (their first entry): with the v3 brain the
-     * counselor thanks them and asks the opening question in its own words.
-     */
-    public void consentMoment(ChatRoom room, ChatRoomParticipant person, boolean partnerAlreadyIn) {
-        if (room == null || person == null || person.getUser() == null) {
-            return;
-        }
-        String note = "[SYSTEM | SESSION] PARTNER_CONSENTED session=" + number(room) + "\n"
-                + "First entry of " + label(person) + ": they accepted the rules before entering, and a short fixed "
-                + "welcome (greeting by name and who you are) was just shown. Do not greet again, introduce yourself "
-                + "or thank them for agreeing; go straight to the opening question.\n"
-                + (partnerAlreadyIn
-                ? "The other partner had agreed before; this person joins a conversation of two.\n"
-                : "Nobody else has agreed yet.\n");
-        events.publishEvent(new SessionMoment(room.getId(), person.getUser().getId(), note, null));
-    }
-
     private static String label(ChatRoomParticipant person) {
         return PartnerRole.of(person.getRole()) + " (" + person.getUser().visibleName() + ")";
     }

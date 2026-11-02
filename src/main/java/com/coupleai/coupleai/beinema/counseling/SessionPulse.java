@@ -130,14 +130,15 @@ public class SessionPulse {
     /** The moment due now, or null. nudges: how often the quiet was already broken with no one answering. */
     static String decide(LocalDateTime now, LocalDateTime lastAny, LocalDateTime lastPerson, LocalDateTime lastSpoken,
                          int nudges, long quietMinutes, long listenMinutes) {
-        if (lastAny == null) {
+        if (lastAny == null || lastPerson == null) {
+            // nobody has written yet: the welcome already said what to do, and it is not repeated
             return null;
         }
         long idle = Duration.between(lastAny, now).toMinutes();
         if (idle >= quietMinutes) {
             return nudges >= MAX_NUDGES ? null : "ROOM_QUIET minutes=" + idle + " nudge=" + (nudges + 1);
         }
-        if (lastPerson == null || lastSpoken == null || !lastPerson.isAfter(lastSpoken)) {
+        if (lastSpoken == null || !lastPerson.isAfter(lastSpoken)) {
             return null;
         }
         long unheard = Duration.between(lastSpoken, now).toMinutes();

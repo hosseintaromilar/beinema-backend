@@ -30,7 +30,7 @@ class WelcomeGuideTest {
         assertTrue(text.contains("واقعیت‌درمانی") && text.contains("نظریهٔ انتخاب"));
         assertTrue(text.contains("هر جلسه ۴۵ دقیقه است") && text.contains("۱۵ دقیقه استراحت"));
         // 3. how to invite the partner
-        assertTrue(text.contains("منوی سه‌نقطه را در گوشهٔ بالا سمت چپ") && text.contains("«افزودن پارتنر»"));
+        assertTrue(text.contains("منوی سه‌نقطه رو در گوشهٔ بالا سمت چپ") && text.contains("«افزودن پارتنر»"));
         // 4. rules, safety, then the request to agree
         assertTrue(text.contains("قوانین گفتگو:") && text.contains("توهین"));
         assertTrue(text.contains("ایمنی:") && text.contains("۱۲۳") && text.contains("۱۱۵") && text.contains("۱۱۰"));
@@ -97,8 +97,8 @@ class WelcomeGuideTest {
 
         String partner = WelcomeGuide.shortWelcome(new WelcomeGuide.Facts(
                 "حسین", "نادر", false, "افسانه", true, 45, 15, true, 15, 3));
-        assertTrue(partner.contains("افسانه تو را به این گروه دعوت کرده"));
-        assertTrue(partner.contains("پیام‌های قبلی را می‌بینی"));
+        assertTrue(partner.contains("افسانه تو رو به این گفتگو دعوت کرده"));
+        assertTrue(partner.contains("پیام‌های قبلی رو می‌بینی"));
         assertFalse(partner.contains("{"));
 
         String rules = WelcomeGuide.rules(45, 15, 15, 3, true);
