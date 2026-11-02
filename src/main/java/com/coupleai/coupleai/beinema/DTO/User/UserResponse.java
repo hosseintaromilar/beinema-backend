@@ -29,6 +29,10 @@ public class UserResponse {
 
     private String role;
 
+    private boolean supervisor;
+
+    private boolean adminChatAccess;
+
     private String status;
 
     private boolean emailVerified;
@@ -64,6 +68,8 @@ public class UserResponse {
                 .avatarUrl(user.getAvatarUrl())
 
                 .role(user.getRole().name())
+                .supervisor(Boolean.TRUE.equals(user.getSupervisor()))
+                .adminChatAccess(Boolean.TRUE.equals(user.getAdminChatAccess()))
 
                 .status(user.getStatus().name())
 

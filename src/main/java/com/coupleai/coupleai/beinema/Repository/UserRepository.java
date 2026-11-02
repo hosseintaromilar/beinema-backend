@@ -21,4 +21,15 @@ public interface UserRepository
 
     /** For the admin dashboard. */
     long countByCreatedAtAfter(java.time.LocalDateTime since);
+
+    boolean existsBySupervisorTrue();
+
+    java.util.Optional<User> findFirstByRoleOrderByIdAsc(com.coupleai.coupleai.beinema.Enum.UserRole role);
+
+    java.util.List<User> findAllByRole(com.coupleai.coupleai.beinema.Enum.UserRole role);
+
+    @org.springframework.data.jpa.repository.Query("select u from User u where u.deleted = false and (:q = '' "
+            + "or lower(u.username) like concat('%', :q, '%') or lower(u.name) like concat('%', :q, '%') "
+            + "or lower(u.email) like concat('%', :q, '%') or u.phoneNumber like concat('%', :q, '%')) order by u.id desc")
+    java.util.List<User> searchForAdmin(@org.springframework.data.repository.query.Param("q") String q, org.springframework.data.domain.Pageable page);
 }

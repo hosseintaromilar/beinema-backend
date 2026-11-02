@@ -13,6 +13,21 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
 
+    /** The same answer for a room that does not exist and one you are not in, so nothing can be learned from it. */
+    @ExceptionHandler(ChatRoomAccessDeniedException.class)
+    public ResponseEntity<java.util.Map<String, String>> roomDenied(ChatRoomAccessDeniedException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of("message", "این گفتگو پیدا نشد."));
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<java.util.Map<String, String>> plainFailure(RuntimeException exception) {
+        String text = exception.getMessage();
+        if ("Access denied".equals(text) || "Chat room not found".equals(text)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of("message", "این گفتگو پیدا نشد."));
+        }
+        throw exception;
+    }
+
     @ExceptionHandler(InvalidContactException.class)
     public ResponseEntity<ErrorMessage> handleInvalidContact(
 

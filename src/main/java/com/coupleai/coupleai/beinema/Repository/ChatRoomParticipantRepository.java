@@ -79,4 +79,7 @@ public interface ChatRoomParticipantRepository
     @org.springframework.data.jpa.repository.Modifying
     @Query("update ChatRoomParticipant p set p.deliveredSeq = :delivered, p.readSeq = :read where p.id = :id")
     void updateReceipts(@Param("id") Long id, @Param("delivered") int delivered, @Param("read") int read);
+
+    @Query("select p from ChatRoomParticipant p join fetch p.chatRoom where p.user.id = :userId order by p.id desc")
+    List<ChatRoomParticipant> findAllForUser(@Param("userId") Long userId);
 }

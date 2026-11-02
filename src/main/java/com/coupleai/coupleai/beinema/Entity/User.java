@@ -182,6 +182,14 @@ public class User extends BaseEntity {
      * Free sessions this person has used as the creator of a conversation
      * (SessionBillingService); null for accounts from before it, read as 0.
      */
+    /** An admin who also manages the other admins. */
+    @Column(name = "supervisor")
+    private Boolean supervisor;
+
+    /** This person allowed the management to read their chats, for support. Off unless they turn it on. */
+    @Column(name = "admin_chat_access")
+    private Boolean adminChatAccess;
+
     @Column(name = "free_sessions_used")
     private Integer freeSessionsUsed;
 

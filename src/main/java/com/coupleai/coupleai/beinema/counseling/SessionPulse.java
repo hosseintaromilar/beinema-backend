@@ -46,6 +46,7 @@ public class SessionPulse {
     private final CounselingConfig config;
     private final TurnRunner turnRunner;
     private final SessionEndCheckService endChecks;
+    private final com.coupleai.coupleai.beinema.Service.SessionLifecycleService sessionLifecycleService;
 
     @Value("${beinema.brain.quiet-minutes:3}")
     private long quietMinutes = 3;
@@ -66,7 +67,12 @@ public class SessionPulse {
         }
         for (ChatRoom room : chatRoomRepository.findRunning(ChatRoomStatus.ACTIVE)) {
             try {
-                pulse(room);
+                // the clock runs without anyone on the page: a session past its time closes and is settled
+                ChatRoom current = sessionLifecycleService.refresh(room);
+                if (current.getSessionStartedAt() == null || Boolean.FALSE.equals(current.getSessionActive())) {
+                    continue;
+                }
+                pulse(current);
             } catch (RuntimeException exception) {
                 log.warn("Session pulse failed in room {}: {}", room.getId(), exception.getMessage());
             }

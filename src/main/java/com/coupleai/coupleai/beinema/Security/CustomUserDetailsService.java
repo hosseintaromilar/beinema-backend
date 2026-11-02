@@ -102,6 +102,9 @@ public class CustomUserDetailsService
 
 
     private static List<SimpleGrantedAuthority> authoritiesOf(User user) {
+        if (user.getRole() == com.coupleai.coupleai.beinema.Enum.UserRole.ADMIN && Boolean.TRUE.equals(user.getSupervisor())) {
+            return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_SUPERVISOR"));
+        }
         return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
     }
 

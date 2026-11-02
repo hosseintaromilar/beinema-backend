@@ -58,6 +58,14 @@ public class UserController {
         return userService.updateProfile(authentication, request);
     }
 
+    @PutMapping("/me/admin-chat-access")
+    public UserResponse setAdminChatAccess(
+            Authentication authentication,
+            @RequestBody java.util.Map<String, Boolean> body
+    ) {
+        return userService.setAdminChatAccess(authentication, Boolean.TRUE.equals(body.get("enabled")));
+    }
+
     /** Body: currentPassword (when one is set), newPassword. */
     @PutMapping("/me/password")
     public UserResponse changePassword(

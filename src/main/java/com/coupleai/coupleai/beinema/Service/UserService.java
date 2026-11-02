@@ -86,6 +86,14 @@ public class UserService {
     }
 
 
+    /** The person's own switch: may the management read their chats for support? */
+    @Transactional
+    public UserResponse setAdminChatAccess(Authentication authentication, boolean enabled) {
+        User user = loadByAuthentication(authentication);
+        user.setAdminChatAccess(enabled);
+        return UserResponse.from(userRepository.save(user));
+    }
+
     public UserResponse getCurrentUser(
 
             Authentication authentication

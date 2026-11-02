@@ -228,6 +228,9 @@ public class SecurityConfig {
                         .permitAll()
 
 
+                        .requestMatchers("/api/admin/admins/**", "/api/admin/access-log")
+                        .hasRole("SUPERVISOR")
+
                         .requestMatchers("/api/admin/**")
                         .hasRole("ADMIN")
 
