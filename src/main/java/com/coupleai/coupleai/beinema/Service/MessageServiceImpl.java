@@ -176,7 +176,9 @@ public class MessageServiceImpl implements MessageService {
         }
         // who left the conversation is not waited for, greeted with or counted
         List<ChatRoomParticipant> members = ChatRoomParticipant.active(everyone);
-        List<Message> history = messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom);
+        List<Message> history = messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom).stream()
+                .filter(message -> message.getVisibleToUserId() == null)
+                .toList();
         boolean fresh = history.stream().noneMatch(message ->
                 message.getSenderType() == MessageSenderType.USER
                         || message.getSenderType() == MessageSenderType.AGENT

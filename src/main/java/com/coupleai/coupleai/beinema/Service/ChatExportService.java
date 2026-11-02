@@ -42,7 +42,10 @@ public class ChatExportService {
         }
 
         // same messages (and the same access rules) as the chat screen
-        List<MessageResponse> messages = messageService.getMessages(chatRoomId);
+        // a sealed message stays out of a file that can be passed around
+        List<MessageResponse> messages = messageService.getMessages(chatRoomId).stream()
+                .filter(message -> !Boolean.TRUE.equals(message.getConfidential()))
+                .toList();
 
         List<String> members = new ArrayList<>();
         for (ChatRoomParticipant participant : participantRepository.findAllByChatRoom(room)) {

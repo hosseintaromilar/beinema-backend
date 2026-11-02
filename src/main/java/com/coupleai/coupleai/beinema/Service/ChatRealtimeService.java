@@ -119,7 +119,7 @@ public class ChatRealtimeService {
             return null;
         }
         Message previous = messageRepository
-                .findFirstByChatRoomAndDeletedFalseOrderBySequenceNumberDesc(chatRoom)
+                .findFirstByChatRoomAndDeletedFalseAndVisibleToUserIdIsNullOrderBySequenceNumberDesc(chatRoom)
                 .orElse(null);
         if (previous != null
                 && previous.getSenderType() == MessageSenderType.AGENT
@@ -223,6 +223,27 @@ public class ChatRealtimeService {
         messageRepository.saveAndFlush(sticker);
         chatRoomEventHub.publish(chatRoomId, toResponse(chatRoom, sticker));
         return sticker;
+    }
+
+    /** The companion's sealed reply: only its addressee sees it, now and in the history. */
+    @Transactional
+    public Message saveConfidentialReplyAndPublish(Long chatRoomId, Long agentId, Long userId, String content) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+        int nextSequence = messageRepository.findMaxSequenceNumberByChatRoom(chatRoom).orElse(0);
+        Message reply = Message.builder()
+                .chatRoom(chatRoom)
+                .senderType(MessageSenderType.AGENT)
+                .senderId(agentId == null ? 0L : agentId)
+                .content(content)
+                .status(MessageStatus.SENT)
+                .sequenceNumber(nextSequence)
+                .visibleToUserId(userId)
+                .confidential(true)
+                .build();
+        messageRepository.saveAndFlush(reply);
+        chatRoomEventHub.publishToUser(chatRoomId, userId, toResponse(chatRoom, reply));
+        return reply;
     }
 
     /** A platform notice that only one member of the room sees, now and in the history. */

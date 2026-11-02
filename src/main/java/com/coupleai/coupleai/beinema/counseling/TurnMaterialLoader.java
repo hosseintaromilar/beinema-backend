@@ -213,6 +213,7 @@ public class TurnMaterialLoader {
         }
         return messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(room).stream()
                 .anyMatch(message -> message.getSenderType() == MessageSenderType.USER
+                        && message.getVisibleToUserId() == null
                         && userId.equals(message.getSenderId())
                         && message.getId() > messageId);
     }
@@ -224,7 +225,7 @@ public class TurnMaterialLoader {
         if (room == null || messageId == null) {
             return false;
         }
-        return messageRepository.findFirstByChatRoomAndDeletedFalseOrderBySequenceNumberDesc(room)
+        return messageRepository.findFirstByChatRoomAndDeletedFalseAndVisibleToUserIdIsNullOrderBySequenceNumberDesc(room)
                 .filter(last -> last.getSenderType() == MessageSenderType.USER && last.getId() > messageId)
                 .filter(last -> last.getCreatedAt() != null && !last.getCreatedAt().isAfter(by))
                 .isPresent();
@@ -235,7 +236,7 @@ public class TurnMaterialLoader {
         if (room == null || messageId == null) {
             return false;
         }
-        return messageRepository.findFirstByChatRoomAndDeletedFalseOrderBySequenceNumberDesc(room)
+        return messageRepository.findFirstByChatRoomAndDeletedFalseAndVisibleToUserIdIsNullOrderBySequenceNumberDesc(room)
                 .filter(last -> last.getSenderType() == MessageSenderType.USER && last.getId() > messageId)
                 .isPresent();
     }

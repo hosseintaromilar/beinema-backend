@@ -28,6 +28,10 @@ public class ChatRoom extends BaseEntity {
     @Column(name = "session_mode", length = 10)
     private String sessionMode;
 
+    /** Someone's private message showed a safety concern: no face-to-face work here. Says nothing of who. */
+    @Column(name = "safety_caution")
+    private Boolean safetyCaution;
+
     /** How far the companion has picked up and read the room (message sequence numbers). Written only by the receipt queries: saving a stale copy of this row must not put old numbers back. */
     @Column(name = "agent_delivered_seq", updatable = false)
     private Integer agentDeliveredSeq;

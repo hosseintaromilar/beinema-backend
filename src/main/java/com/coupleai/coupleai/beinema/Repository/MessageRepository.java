@@ -45,12 +45,34 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             ChatRoom chatRoom
     );
 
+    /** The newest message everyone can see. */
+    Optional<Message> findFirstByChatRoomAndDeletedFalseAndVisibleToUserIdIsNullOrderBySequenceNumberDesc(
+            ChatRoom chatRoom
+    );
+
+    @Query("""
+            select count(m)
+            from Message m
+            where m.chatRoom.id = :chatRoomId
+              and m.senderId = :userId
+              and m.senderType = :senderType
+              and m.confidential = true
+              and m.createdAt > :since
+            """)
+    long countConfidentialSince(
+            @Param("chatRoomId") Long chatRoomId,
+            @Param("userId") Long userId,
+            @Param("senderType") MessageSenderType senderType,
+            @Param("since") java.time.LocalDateTime since
+    );
+
     /** When someone of this kind last wrote in the room after the given message number. */
     @Query("""
             select max(m.createdAt)
             from Message m
             where m.chatRoom.id = :chatRoomId
               and m.senderType = :senderType
+              and m.visibleToUserId is null
               and m.sequenceNumber > :afterSequence
             """)
     Optional<java.time.LocalDateTime> findLastMessageAtAfter(
@@ -65,6 +87,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             where m.chatRoom.id in :roomIds
               and m.senderType = :senderType
               and m.senderId = :userId
+              and m.visibleToUserId is null
             group by m.chatRoom.id
             """)
     List<Object[]> findLastUserMessageAtByRoomIds(

@@ -38,7 +38,7 @@ public final class MessageTexts {
         if (message == null || Boolean.TRUE.equals(message.getDeleted())) {
             return false;
         }
-        if (message.getSenderType() == MessageSenderType.SYSTEM) {
+        if (message.getSenderType() == MessageSenderType.SYSTEM || message.getVisibleToUserId() != null) {
             return false;
         }
         String content = message.getContent() == null ? "" : message.getContent().trim();

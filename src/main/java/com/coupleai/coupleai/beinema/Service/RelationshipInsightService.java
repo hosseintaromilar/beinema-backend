@@ -138,7 +138,9 @@ public class RelationshipInsightService {
     private RelationshipInsightResponse refresh(User user, ChatRoom chatRoom) {
         Long chatRoomId = chatRoom.getId();
         List<Message> messages = messageRepository
-                .findByChatRoomIdAndDeletedFalseOrderBySequenceNumberAsc(chatRoomId);
+                .findByChatRoomIdAndDeletedFalseOrderBySequenceNumberAsc(chatRoomId).stream()
+                .filter(message -> message.getVisibleToUserId() == null)
+                .toList();
 
         long userMessageCount = messages.stream()
                 .filter(message -> message.getSenderType() == MessageSenderType.USER)

@@ -33,6 +33,7 @@ public class CounselingController {
     private final ChatRealtimeService chatRealtimeService;
     private final ChatRoomEventHub chatRoomEventHub;
     private final TurnRunner turnRunner;
+    private final com.coupleai.coupleai.beinema.counseling.ConfidentialMessageService confidentialMessageService;
     private final com.coupleai.coupleai.beinema.Service.SessionModeService sessionModeService;
     private final com.coupleai.coupleai.beinema.counseling.SessionEndCheckService endCheckService;
     private final com.coupleai.coupleai.beinema.Service.ConversationEndService conversationEndService;
@@ -93,6 +94,17 @@ public class CounselingController {
             turnRunner.runAsync(chatRoomId);
         }
         return coupleTestService.view(chatRoomId, testId, user);
+    }
+
+    /** A sealed message to the companion: the answer comes as a sealed message too. */
+    @PostMapping("/private-messages")
+    public com.coupleai.coupleai.beinema.DTO.messages.MessageResponse sendPrivate(
+            @PathVariable Long chatRoomId,
+            @RequestBody Map<String, String> body
+    ) {
+        User user = currentUserService.getCurrentUser();
+        return com.coupleai.coupleai.beinema.DTO.messages.MessageResponse.from(
+                confidentialMessageService.send(chatRoomId, body.get("content"), user));
     }
 
     @GetMapping("/session-mode")

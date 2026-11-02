@@ -63,6 +63,9 @@ public class MessageResponse {
 
     private String stickerName;
 
+    /** A sealed message: drawn as an envelope, for its one reader. */
+    private Boolean confidential;
+
     /** A card of the companion's kit shown by this message: TEST, RESULT or LESSON, and its id. */
     private String kitKind;
     private String kitRef;
@@ -147,6 +150,9 @@ public class MessageResponse {
                 )
                 .stickerName(
                         CounselorSignal.stickerName(message.getContent())
+                )
+                .confidential(
+                        message.getConfidential()
                 )
                 .kitKind(
                         com.coupleai.coupleai.beinema.governance.KitMarkers.kind(message.getContent())

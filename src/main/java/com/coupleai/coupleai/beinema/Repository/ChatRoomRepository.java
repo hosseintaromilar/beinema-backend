@@ -30,4 +30,10 @@ public interface ChatRoomRepository
             + "and r.sessionStartedAt is not null and (r.sessionActive is null or r.sessionActive = true)")
     long countRunningOf(@org.springframework.data.repository.query.Param("owner") Long owner,
                         @org.springframework.data.repository.query.Param("room") Long room);
+
+    /** Only this column: a stale copy of the room must not write anything back. */
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("update ChatRoom r set r.safetyCaution = true where r.id = :id")
+    void markSafetyCaution(@org.springframework.data.repository.query.Param("id") Long id);
 }

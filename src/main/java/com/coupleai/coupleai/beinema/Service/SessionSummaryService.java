@@ -237,6 +237,9 @@ public class SessionSummaryService {
 
     /** One transcript line, or null for messages that are not speech. */
     private String line(Message message, Map<Long, String> labels, int maxChars) {
+        if (message.getVisibleToUserId() != null) {
+            return null;
+        }
         if (message.getSenderType() == MessageSenderType.SYSTEM || Boolean.TRUE.equals(message.getDeleted())) {
             return null;
         }

@@ -38,6 +38,7 @@ public class BlogWriter {
     private static final Logger log = LoggerFactory.getLogger(BlogWriter.class);
     /** More drafts than this waiting for the admin: the writer skips a day. */
     private static final int MAX_WAITING = 3;
+    private static final String PRIORITY_COLUMN = "seo";
 
     public record Topic(String key, String column, String subject) {
     }
@@ -209,6 +210,13 @@ public class BlogWriter {
     /** Another column than the last post's, then the first subject of it not written yet (or written longest ago). */
     static Topic nextTopic(List<Topic> topics, List<BlogPost> recentNewestFirst) {
         List<String> usedKeys = recentNewestFirst.stream().map(BlogPost::getTopicKey).toList();
+        // the researched subjects come before the rotation of the columns
+        java.util.Optional<Topic> priority = topics.stream()
+                .filter(topic -> PRIORITY_COLUMN.equals(topic.column()) && !usedKeys.contains(topic.key()))
+                .findFirst();
+        if (priority.isPresent()) {
+            return priority.get();
+        }
         String lastColumn = topics.stream()
                 .filter(topic -> !usedKeys.isEmpty() && topic.key().equals(usedKeys.get(0)))
                 .map(Topic::column).findFirst().orElse(null);

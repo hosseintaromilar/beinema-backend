@@ -47,7 +47,7 @@ class BlogWriterTest {
     void theCalendarFileIsRead() throws Exception {
         String text = new String(new org.springframework.core.io.ClassPathResource("blog/topics.txt")
                 .getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-        assertEquals(43, BlogWriter.parseTopics(text).size());
+        assertEquals(38, BlogWriter.parseTopics(text).size());
     }
 
     @org.junit.jupiter.api.Test

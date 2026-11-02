@@ -51,6 +51,11 @@ public class MetisWorkflowGateway implements BrainGateway {
     }
 
     @Override
+    public Reply confidential(String packet) {
+        return call(config.getWorkflowId(), packet);
+    }
+
+    @Override
     public BrainGateway forRoom(ChatRoom room) {
         String agentBotId = room == null ? null : chatRoomAgentRepository.findActiveAgentBotIds(room.getId()).stream()
                 .filter(java.util.Objects::nonNull)
@@ -80,6 +85,11 @@ public class MetisWorkflowGateway implements BrainGateway {
 
             @Override
             public Reply closure(String packet) {
+                return call(workflowId, packet);
+            }
+
+            @Override
+            public Reply confidential(String packet) {
                 return call(workflowId, packet);
             }
         };

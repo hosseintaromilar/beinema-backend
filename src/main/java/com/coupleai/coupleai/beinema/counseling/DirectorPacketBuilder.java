@@ -174,7 +174,8 @@ public final class DirectorPacketBuilder {
 
     /** Why the owner opened the room, in their words: a hint for the opening, not a confirmed want. */
     static String creatorNote(TurnMaterial m) {
-        return sessionMode(m) + ownerNote(m);
+        String caution = m.room() != null && Boolean.TRUE.equals(m.room().getSafetyCaution()) ? "private_caution: true\n" : "";
+        return caution + sessionMode(m) + ownerNote(m);
     }
 
     /** How the creator chose to work; once the partner is in, the participants say it. */

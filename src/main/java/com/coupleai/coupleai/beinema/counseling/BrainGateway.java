@@ -30,6 +30,11 @@ public interface BrainGateway {
         return new Reply("", 0);
     }
 
+    /** The lane of sealed messages. Empty when there is no such lane. */
+    default Reply confidential(String packet) {
+        return new Reply("", 0);
+    }
+
     /** The teacher lane: a lesson fitted to the couple (JSON). Empty when there is no such lane. */
     default Reply teacher(String packet) {
         return new Reply("", 0);

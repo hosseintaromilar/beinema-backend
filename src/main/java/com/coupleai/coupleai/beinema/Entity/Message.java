@@ -74,4 +74,8 @@ public class Message extends BaseEntity {
     @Column(name = "visible_to_user_id")
     private Long visibleToUserId;
 
+    /** A sealed message to or from the companion; it stays out of everything shared. */
+    @Column(name = "confidential")
+    private Boolean confidential;
+
 }
