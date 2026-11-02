@@ -218,6 +218,18 @@ public class TurnMaterialLoader {
     }
 
     /** Whether a partner wrote after this message (while the counselor was deciding about it). */
+    /** The newest message is a person's, after this one, and was written by this moment. */
+    public boolean someoneWroteAfterBy(Long roomId, Long messageId, java.time.LocalDateTime by) {
+        ChatRoom room = chatRoomRepository.findById(roomId).orElse(null);
+        if (room == null || messageId == null) {
+            return false;
+        }
+        return messageRepository.findFirstByChatRoomAndDeletedFalseOrderBySequenceNumberDesc(room)
+                .filter(last -> last.getSenderType() == MessageSenderType.USER && last.getId() > messageId)
+                .filter(last -> last.getCreatedAt() != null && !last.getCreatedAt().isAfter(by))
+                .isPresent();
+    }
+
     public boolean someoneWroteAfter(Long roomId, Long messageId) {
         ChatRoom room = chatRoomRepository.findById(roomId).orElse(null);
         if (room == null || messageId == null) {

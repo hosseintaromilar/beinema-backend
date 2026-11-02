@@ -63,6 +63,7 @@ public class TurnOrchestrator {
     private final DirectorDecisionRecordRepository decisionRepository;
     private final TurnInbox inbox;
 
+    private static final long START_OVER_SECONDS = 10;
     static final String UNAVAILABLE_TEXT = "همراه الان موقتاً در دسترس نیست. پیام‌هاتون ذخیره شده؛ کمی بعد دوباره امتحان کنید.";
     private static final long UNAVAILABLE_REPEAT_MILLIS = 10 * 60 * 1000L;
     private final java.util.Map<Long, Long> unavailableToldAt = new java.util.concurrent.ConcurrentHashMap<>();
@@ -116,6 +117,11 @@ public class TurnOrchestrator {
      * trigger message and the counselor always speaks.
      */
     public Outcome runTurn(Long roomId) {
+        return runTurn(roomId, true);
+    }
+
+    /** mayStartOver: once per run, a decision overtaken by new messages is dropped and made again with all of them. */
+    private Outcome runTurn(Long roomId, boolean mayStartOver) {
         expireStaleQuestions(roomId);
         TurnMaterial m = loader.load(roomId);
         if (!m.hasNewMessages() && !m.hasMoment()) {
@@ -161,6 +167,7 @@ public class TurnOrchestrator {
 
         // 1-2. decide
         boolean kit = m.tags() != null && m.tags().contains(ElikaKit.TAG);
+        java.time.LocalDateTime decisionStarted = java.time.LocalDateTime.now();
         String packet = DirectorPacketBuilder.build(m, null);
         if (kit && coupleTests != null) {
             packet += coupleTests.forDirector(m);
@@ -170,6 +177,12 @@ public class TurnOrchestrator {
         ClosureGate.Verdict closing = gateVerdict(gate);
         if (closing != null) {
             return askToEnd(m, agentId, trigger, lastSeen, closing);
+        }
+        if (mayStartOver && trigger != null
+                && loader.someoneWroteAfterBy(roomId, trigger, decisionStarted.plusSeconds(START_OVER_SECONDS))) {
+            // someone wrote early in this decision: one reply to all of it. Later than that, starting over
+            // would keep them waiting too long, so that message goes to the next turn.
+            return runTurn(roomId, false);
         }
         DirectorDecision d = decided.decision();
         if (trigger == null && d.silent()) {
