@@ -13,8 +13,9 @@ public final class KitMarkers {
     public static final String RESULT = "RESULT";
     public static final String LESSON = "LESSON";
     public static final String END_CHECK = "ENDCHECK";
+    public static final String MODE = "MODE";
 
-    private static final Pattern CARD = Pattern.compile("\\[\\[KIT\\|(TEST|RESULT|LESSON|ENDCHECK)=([A-Za-z0-9-]{3,40})\\]\\]\\s*");
+    private static final Pattern CARD = Pattern.compile("\\[\\[KIT\\|(TEST|RESULT|LESSON|ENDCHECK|MODE)=([A-Za-z0-9-]{3,40})\\]\\]\\s*");
 
     private KitMarkers() {
     }

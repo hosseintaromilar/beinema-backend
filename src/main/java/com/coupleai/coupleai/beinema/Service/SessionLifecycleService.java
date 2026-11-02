@@ -517,6 +517,10 @@ public class SessionLifecycleService {
         if (!someReady(people)) {
             return false;
         }
+        // the first session's clock waits for the first answer or message, not for the welcome being read
+        if (number(room) == 1 && room.getSessionMode() == null && lastUserMessageAt(room).isEmpty()) {
+            return false;
+        }
         if (!waitsForPartner(room, people)) {
             return true;
         }
@@ -528,7 +532,13 @@ public class SessionLifecycleService {
 
     /** A room of one person with another counselor has nobody to wait for; a couple room always waits. */
     private boolean waitsForPartner(ChatRoom room, List<ChatRoomParticipant> people) {
-        return people.size() >= 2 || counselorSessionService.isRelationshipCounselor(room);
+        if (people.size() >= 2) {
+            return true;
+        }
+        if ("SOLO".equals(room.getSessionMode())) {
+            return false;
+        }
+        return "COUPLE".equals(room.getSessionMode()) || counselorSessionService.isRelationshipCounselor(room);
     }
 
     private record Wait(Instant until, boolean forConsent) {

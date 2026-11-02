@@ -249,7 +249,13 @@ public class MessageServiceImpl implements MessageService {
                 // like the counselor's other messages: a short "typing" pause first
                 chatRealtimeService.publishAgentTyping(chatRoom.getId(), WELCOME_TYPING_MILLIS);
                 sleepQuietly(WELCOME_TYPING_MILLIS);
-                chatRealtimeService.saveAgentAndPublish(chatRoom.getId(), agentId, welcome);
+                // the creator alone in a new room answers on a card: alone, or with the partner
+                boolean asksMode = ROOM_CREATOR_ROLES.contains(me.getRole()) && others.isEmpty()
+                        && chatRoom.getSessionMode() == null;
+                chatRealtimeService.saveAgentAndPublish(chatRoom.getId(), agentId, asksMode
+                        ? com.coupleai.coupleai.beinema.governance.KitMarkers.content(
+                                com.coupleai.coupleai.beinema.governance.KitMarkers.MODE, "mode-" + chatRoom.getId(), welcome)
+                        : welcome);
             }
             participationPauseService.acceptSessionConsent(chatRoom, user);
             return;
@@ -816,6 +822,8 @@ public class MessageServiceImpl implements MessageService {
         messageRepository.saveAndFlush(userMessage);
         chatFileService.link(files, userMessage.getId());
         chatRealtimeService.publish(chatRoom.getId(), userMessage);
+        // the first message can be what starts the clock
+        sessionLifecycleService.refresh(chatRoom);
 
         final Long roomId = chatRoom.getId();
         if (resumeHint != null && resumeHint.handshake()) {

@@ -91,7 +91,7 @@ class WelcomeGuideTest {
                 "افسانه", "نادر", true, "", false, 45, 15, true, 15, 3));
         assertTrue(owner.startsWith("سلام افسانه، به بین‌ما خوش اومدی."));
         assertTrue(owner.contains("من نادر هستم"));
-        assertTrue(owner.contains("افزودن پارتنر"), "the creator learns how to bring the partner in");
+        assertTrue(owner.contains("پارتنرت هم کنارمون باشه"), "the creator is asked first; the invite guide comes after the answer");
         assertFalse(owner.contains("قوانین گفتگو"));
         assertFalse(owner.contains("موافقم"));
 

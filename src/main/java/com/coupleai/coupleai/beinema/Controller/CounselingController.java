@@ -33,6 +33,7 @@ public class CounselingController {
     private final ChatRealtimeService chatRealtimeService;
     private final ChatRoomEventHub chatRoomEventHub;
     private final TurnRunner turnRunner;
+    private final com.coupleai.coupleai.beinema.Service.SessionModeService sessionModeService;
     private final com.coupleai.coupleai.beinema.counseling.SessionEndCheckService endCheckService;
     private final com.coupleai.coupleai.beinema.Service.ConversationEndService conversationEndService;
     private final CoupleTestService coupleTestService;
@@ -92,6 +93,16 @@ public class CounselingController {
             turnRunner.runAsync(chatRoomId);
         }
         return coupleTestService.view(chatRoomId, testId, user);
+    }
+
+    @GetMapping("/session-mode")
+    public Map<String, Object> sessionMode(@PathVariable Long chatRoomId) {
+        return sessionModeService.view(chatRoomId, currentUserService.getCurrentUser());
+    }
+
+    @PostMapping("/session-mode")
+    public Map<String, Object> chooseSessionMode(@PathVariable Long chatRoomId, @RequestBody Map<String, String> body) {
+        return sessionModeService.choose(chatRoomId, body.get("mode"), currentUserService.getCurrentUser());
     }
 
     /** The question whether to end the conversation here, as this person may see it. */

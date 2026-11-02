@@ -122,6 +122,8 @@ class SessionLifecycleServiceTest {
 
         room = new ChatRoom();
         room.setId(5L);
+        // the creator has answered; the clock waiting for that answer has its own test
+        room.setSessionMode("COUPLE");
         afsaneh = user(1L, "افسانه");
         hossein = user(3L, "حسین");
         afsanehLink = link(afsaneh, ParticipantRole.OWNER);
@@ -186,6 +188,18 @@ class SessionLifecycleServiceTest {
     private void someoneWrote(Instant at) {
         when(messages.findLastMessageAtAfter(eq(5L), eq(MessageSenderType.USER), anyInt()))
                 .thenReturn(Optional.of(LocalDateTime.ofInstant(at, ZoneId.systemDefault())));
+    }
+
+    @Test
+    void theFirstClockWaitsForAnAnswerOrAMessage() {
+        room.setSessionMode(null);
+        consent(afsanehLink);
+        consent(hosseinLink);
+        service.refresh(room);
+        assertNull(room.getSessionStartedAt());
+        room.setSessionMode("SOLO");
+        service.refresh(room);
+        assertEquals(T0, room.getSessionStartedAt());
     }
 
     /** Both are in the first session and its 45 minutes run from T0. */
@@ -308,6 +322,7 @@ class SessionLifecycleServiceTest {
 
     @Test
     void aOnePersonRoomOfAnotherCounselorStartsAtOnce() {
+        room.setSessionMode("SOLO");
         when(participants.findAllByChatRoom(room)).thenReturn(List.of(afsanehLink));
         consent(afsanehLink);
 

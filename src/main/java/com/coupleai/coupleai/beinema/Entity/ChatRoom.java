@@ -24,6 +24,10 @@ public class ChatRoom extends BaseEntity {
     @Column(name = "creator_note", length = 500)
     private String creatorNote;
 
+    /** The creator's answer: SOLO, COUPLE, or null while not answered. */
+    @Column(name = "session_mode", length = 10)
+    private String sessionMode;
+
     /** How far the companion has picked up and read the room (message sequence numbers). Written only by the receipt queries: saving a stale copy of this row must not put old numbers back. */
     @Column(name = "agent_delivered_seq", updatable = false)
     private Integer agentDeliveredSeq;

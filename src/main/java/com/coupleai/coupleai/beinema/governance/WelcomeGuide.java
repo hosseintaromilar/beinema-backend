@@ -74,7 +74,7 @@ public final class WelcomeGuide {
         String others = blank(facts.otherMembers()) ? "" : facts.otherMembers().trim();
         String text;
         if (facts.roomCreator()) {
-            String partner = others.isEmpty() ? s.get("owner_invite") : s.get("welcome_partner_here");
+            String partner = others.isEmpty() ? s.get("welcome_ask_mode") : s.get("welcome_partner_here");
             text = s.get("welcome_owner").replace("{partner}", partner);
         } else {
             String started = facts.conversationStarted() ? s.get("welcome_started") : "";

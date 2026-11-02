@@ -174,6 +174,19 @@ public final class DirectorPacketBuilder {
 
     /** Why the owner opened the room, in their words: a hint for the opening, not a confirmed want. */
     static String creatorNote(TurnMaterial m) {
+        return sessionMode(m) + ownerNote(m);
+    }
+
+    /** How the creator chose to work; once the partner is in, the participants say it. */
+    private static String sessionMode(TurnMaterial m) {
+        String mode = m.room() == null ? null : m.room().getSessionMode();
+        if (mode == null || m.userIdOf("MEMBER") != null) {
+            return "";
+        }
+        return "SOLO".equals(mode) ? "session_mode: SOLO\n" : "session_mode: COUPLE_WAITING\n";
+    }
+
+    private static String ownerNote(TurnMaterial m) {
         String note = m.room() == null ? null : m.room().getCreatorNote();
         return note == null || note.isBlank() ? ""
                 : "owner_note (written by OWNER when opening the room; a hint, not a confirmed want): \""
