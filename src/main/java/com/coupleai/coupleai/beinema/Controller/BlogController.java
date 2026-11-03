@@ -38,6 +38,7 @@ public class BlogController {
         StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
                 .append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
                 .append("  <url><loc>").append(siteUrl).append("/</loc></url>\n")
+                .append("  <url><loc>").append(siteUrl).append("/about</loc></url>\n")
                 .append("  <url><loc>").append(siteUrl).append("/agents</loc></url>\n")
                 .append("  <url><loc>").append(siteUrl).append("/blog</loc></url>\n");
         for (BlogPost post : blogService.published()) {
