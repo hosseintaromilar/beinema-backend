@@ -10,7 +10,7 @@ import java.util.List;
  */
 public enum SessionPackageTier {
     TRIAL("بستهٔ آزمایشی", 2, 590_000, 30, 1, false, false,
-            List.of(new Step(1, 30, 413_000, 100))),
+            List.of(new Step(1, 50, 295_000, 100))),
     MAIN("بستهٔ همراه", 8, 1_990_000, 60, 2, true, false,
             List.of(new Step(1, 50, 995_000, 100), new Step(2, 30, 1_393_000, 100))),
     DIAMOND("بستهٔ سه‌ماهه", 20, 4_490_000, 90, 3, true, false,

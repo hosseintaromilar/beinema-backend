@@ -55,6 +55,7 @@ class SessionBillingServiceTest {
         owner = new User();
         owner.setId(1L);
         owner.setName("افسانه");
+        owner.setEmailVerified(true);
         partner = new User();
         partner.setId(2L);
         partner.setName("حسین");
@@ -176,7 +177,7 @@ class SessionBillingServiceTest {
     @Test
     void theCardsShowTheActiveStepAndTheRegularPrice() {
         List<SessionBillingService.PackageOffer> offers = billing.packageOffers();
-        assertEquals(List.of(413_000L, 995_000L, 2_245_000L, 495_000L),
+        assertEquals(List.of(295_000L, 995_000L, 2_245_000L, 495_000L),
                 offers.stream().map(SessionBillingService.PackageOffer::price).toList());
         assertEquals(List.of(590_000L, 1_990_000L, 4_490_000L, 990_000L),
                 offers.stream().map(SessionBillingService.PackageOffer::listPrice).toList());
