@@ -41,4 +41,11 @@ public class Referral extends BaseEntity {
 
     @Column(nullable = false)
     private Long refereeAmount;
+
+    /** PENDING until the invited person buys a plan or finishes a session, then REWARDED; null on old rows. */
+    @Column(length = 10)
+    private String status;
+
+    @Column(name = "rewarded_at")
+    private java.time.Instant rewardedAt;
 }

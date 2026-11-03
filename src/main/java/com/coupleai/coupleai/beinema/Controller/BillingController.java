@@ -42,10 +42,38 @@ public class BillingController {
         return billingService.prices();
     }
 
-    /** Body: tier (BRONZE, SILVER or GOLD); paid from the wallet's credit. */
+    /** The pricing cards: every plan, its steps and their real counters. Public; nothing personal. */
+    @GetMapping("/api/pricing")
+    public List<SessionBillingService.PlanView> pricing() {
+        return billingService.pricing();
+    }
+
+    /**
+     * Body: tier (TRIAL, MAIN, DIAMOND or MONTHLY) and expectedPrice (the price on the card).
+     * The server decides the price; when it is not the expected one, 409 with the new price.
+     */
     @PostMapping("/api/billing/packages")
-    public SessionBillingService.OwnedPackage buyPackage(@RequestBody Map<String, String> body) {
-        return billingService.buyPackage(currentUserService.getCurrentUser(), body == null ? null : body.get("tier"));
+    public SessionBillingService.OwnedPackage buyPackage(@RequestBody Map<String, Object> body) {
+        Object expected = body == null ? null : body.get("expectedPrice");
+        Long expectedPrice = expected instanceof Number number ? number.longValue() : null;
+        return billingService.buyPackage(currentUserService.getCurrentUser(),
+                body == null ? null : String.valueOf(body.get("tier")), expectedPrice);
+    }
+
+    /** Cancels a bundle (refund recorded for the admin) or stops a subscription renewing. */
+    @PostMapping("/api/billing/packages/{id}/cancel")
+    public SessionBillingService.OwnedPackage cancel(@PathVariable Long id) {
+        return billingService.cancel(currentUserService.getCurrentUser(), id);
+    }
+
+    @GetMapping("/api/admin/refunds")
+    public List<Map<String, Object>> refunds() {
+        return billingService.pendingRefunds();
+    }
+
+    @PostMapping("/api/admin/refunds/{id}/paid")
+    public void refundPaid(@PathVariable Long id) {
+        billingService.refundPaid(id);
     }
 
     @GetMapping("/api/billing/receipts")

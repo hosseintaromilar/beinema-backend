@@ -28,6 +28,7 @@ public class MessageDeletionService {
     private final UserRepository userRepository;
     private final ChatFileService chatFileService;
     private final ChatRoomEventHub eventHub;
+    private final com.coupleai.coupleai.beinema.Repository.DeletionLogRepository deletionLogRepository;
 
     @Transactional
     public void deleteOwn(Long chatRoomId, Long messageId, String email) {
@@ -50,6 +51,12 @@ public class MessageDeletionService {
         message.setContent("");
         messageRepository.saveAndFlush(message);
         chatFileService.deleteMessageFiles(messageId);
+        com.coupleai.coupleai.beinema.Entity.DeletionLog entry = new com.coupleai.coupleai.beinema.Entity.DeletionLog();
+        entry.setScope(com.coupleai.coupleai.beinema.Entity.DeletionLog.MESSAGE);
+        entry.setChatRoomId(chatRoomId);
+        entry.setMessageId(messageId);
+        entry.setActorId(user.getId());
+        deletionLogRepository.save(entry);
         eventHub.publishNamed(chatRoomId, "message_deleted", Map.of("messageId", messageId));
     }
 }

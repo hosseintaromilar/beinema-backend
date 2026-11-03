@@ -86,6 +86,7 @@ public class MetisClient {
 
             HttpRequest request =
                     HttpRequest.newBuilder()
+                            .timeout(java.time.Duration.ofSeconds(60))
                             .uri(
                                     URI.create(url)
                             )
@@ -117,12 +118,7 @@ public class MetisClient {
                             response.statusCode() >= 300
             ) {
 
-                throw new RuntimeException(
-                        "Metis returned HTTP "
-                                + response.statusCode()
-                                + ": "
-                                + response.body()
-                );
+                com.coupleai.coupleai.beinema.ai.MetisCallException.check(response.statusCode(), response.body(), "Metis message");
             }
 
 
@@ -166,7 +162,7 @@ public class MetisClient {
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new RuntimeException("Metis storage returned HTTP " + response.statusCode());
+                com.coupleai.coupleai.beinema.ai.MetisCallException.check(response.statusCode(), response.body(), "Metis storage");
             }
             var files = objectMapper.readTree(response.body()).path("files");
             String url = files.isArray() && files.size() > 0 ? files.get(0).path("url").asText("") : "";
@@ -320,12 +316,7 @@ public class MetisClient {
                                 response.body()
                         );
 
-                throw new RuntimeException(
-                        "Metis streaming request failed. HTTP "
-                                + response.statusCode()
-                                + ": "
-                                + errorBody
-                );
+                com.coupleai.coupleai.beinema.ai.MetisCallException.check(response.statusCode(), errorBody, "Metis stream");
             }
 
 

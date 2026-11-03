@@ -64,7 +64,7 @@ public class TurnOrchestrator {
     private final TurnInbox inbox;
 
     private static final long START_OVER_SECONDS = 10;
-    static final String UNAVAILABLE_TEXT = "همراه الان موقتاً در دسترس نیست. پیام‌هاتون ذخیره شده؛ کمی بعد دوباره امتحان کنید.";
+    static final String UNAVAILABLE_TEXT = com.coupleai.coupleai.beinema.ai.AiUnavailableException.TEXT;
     private static final long UNAVAILABLE_REPEAT_MILLIS = 10 * 60 * 1000L;
     private final java.util.Map<Long, Long> unavailableToldAt = new java.util.concurrent.ConcurrentHashMap<>();
 

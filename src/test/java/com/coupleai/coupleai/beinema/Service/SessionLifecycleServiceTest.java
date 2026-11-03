@@ -106,7 +106,8 @@ class SessionLifecycleServiceTest {
         service = new SessionLifecycleService(
                 rooms, participants, agents, summaries, personSummaries,
                 realtime, currentUser, counselor, summaryService, messages, sessionRecords, eventHub, events,
-                mock(RelationshipInsightService.class), mock(SessionBillingService.class));
+                mock(RelationshipInsightService.class), mock(SessionBillingService.class),
+                mock(com.coupleai.coupleai.beinema.ai.AiHealth.class));
         ReflectionTestUtils.setField(service, "defaultMinutes", 45);
         ReflectionTestUtils.setField(service, "partnerWaitMinutes", 5);
         ReflectionTestUtils.setField(service, "minBreakMinutes", 15);

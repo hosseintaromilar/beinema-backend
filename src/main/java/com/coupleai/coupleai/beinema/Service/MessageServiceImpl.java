@@ -76,6 +76,7 @@ public class MessageServiceImpl implements MessageService {
     private final ParticipationPauseService participationPauseService;
 
     private final SessionMemoryService sessionMemoryService;
+    private final com.coupleai.coupleai.beinema.safety.SafetyCardService safetyCardService;
 
     private final RoomTurnLock roomTurnLock;
 
@@ -454,6 +455,8 @@ public class MessageServiceImpl implements MessageService {
         messageRepository.saveAndFlush(userMessage);
         chatFileService.link(files, userMessage.getId());
         chatRealtimeService.publish(chatRoom.getId(), userMessage);
+        // safety never waits for the model
+        safetyCardService.check(chatRoom, user, captionText);
 
         chatRoom = counselorSessionService.ensureBound(chatRoom, user);
         String conversationId = chatRoom.getAiConversationId();
@@ -753,7 +756,7 @@ public class MessageServiceImpl implements MessageService {
                                 SseEmitter.event()
                                         .name("error")
                                         .data(
-                                                "مشاور الان نتوانست جواب بدهد. چند لحظه بعد دوباره بفرست."
+                                                com.coupleai.coupleai.beinema.ai.AiUnavailableException.TEXT
                                         )
                         );
 
@@ -824,6 +827,8 @@ public class MessageServiceImpl implements MessageService {
         messageRepository.saveAndFlush(userMessage);
         chatFileService.link(files, userMessage.getId());
         chatRealtimeService.publish(chatRoom.getId(), userMessage);
+        // safety never waits for the model
+        safetyCardService.check(chatRoom, user, captionText);
         // the first message can be what starts the clock
         sessionLifecycleService.refresh(chatRoom);
 
@@ -878,7 +883,7 @@ public class MessageServiceImpl implements MessageService {
             try {
                 emitter.send(ok
                         ? SseEmitter.event().name("done").data("DONE")
-                        : SseEmitter.event().name("error").data("مشاور الان نتوانست جواب بدهد. چند لحظه بعد دوباره بفرست."));
+                        : SseEmitter.event().name("error").data(com.coupleai.coupleai.beinema.ai.AiUnavailableException.TEXT));
             } catch (IOException | IllegalStateException closed) {
                 emitterClosed.set(true);
             }

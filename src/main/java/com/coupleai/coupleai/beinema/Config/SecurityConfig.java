@@ -186,6 +186,10 @@ public class SecurityConfig {
 
                                 "/api/blog-pages",
 
+                                "/api/status",
+
+                                "/api/pricing",
+
                                 "/api/blog-pages/*",
 
                                 "/api/blog",

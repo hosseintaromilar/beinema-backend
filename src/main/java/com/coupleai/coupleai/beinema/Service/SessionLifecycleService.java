@@ -166,6 +166,7 @@ public class SessionLifecycleService {
     private final ApplicationEventPublisher events;
     private final RelationshipInsightService relationshipInsightService;
     private final SessionBillingService sessionBillingService;
+    private final com.coupleai.coupleai.beinema.ai.AiHealth aiHealth;
 
     /** Tests replace these two to control time and to run the closing in place. */
     Clock clock = Clock.systemUTC();
@@ -327,6 +328,9 @@ public class SessionLifecycleService {
                     return fresh;
                 }
                 begun = begin(fresh, people, now);
+            } else if (aiHealth.down()) {
+                // the clock stands still while the AI service is down; the time is given back after
+                return fresh;
             } else {
                 Instant timeUp = started.plusSeconds(durationSeconds(fresh));
                 Instant last = timeUp.plusSeconds(overtimeSeconds());
@@ -578,6 +582,8 @@ public class SessionLifecycleService {
     /** The 45 minutes start. Who is not in yet hears privately that we waited and started. */
     private Begun begin(ChatRoom room, List<ChatRoomParticipant> people, Instant now) {
         room.setSessionStartedAt(now);
+        // a session the creator does not pay for is the short first meeting (about 20 minutes)
+        room.setSessionDurationMinutes(sessionBillingService.sessionMinutesFor(room.getCreatedBy()));
         chatRoomRepository.save(room);
         SessionRecord record = currentRecord(room, now);
         if (record.getStartedAt() == null) {

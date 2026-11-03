@@ -28,4 +28,18 @@ public interface SessionPackageRepository extends JpaRepository<SessionPackage, 
             order by p.expiresAt asc
             """)
     List<SessionPackage> findUsableForUpdate(@Param("userId") Long userId, @Param("now") Instant now);
+
+    boolean existsByUserIdAndTierAndPromoTier(Long userId, String tier, Integer promoTier);
+
+    List<SessionPackage> findAllByUserIdOrderByIdDesc(Long userId);
+
+    List<SessionPackage> findAllByRefundStatusOrderByIdDesc(String refundStatus);
+
+    /** Subscriptions that end soon and should renew. */
+    @Query("""
+            select p from SessionPackage p
+            where p.autoRenew = true and (p.renewed is null or p.renewed = false)
+              and p.cancelledAt is null and p.expiresAt < :before
+            """)
+    List<SessionPackage> findToRenew(@Param("before") Instant before);
 }

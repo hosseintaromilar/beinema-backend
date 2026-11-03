@@ -46,7 +46,8 @@ class SessionBillingServiceTest {
         users = mock(UserRepository.class);
         wallets = mock(WalletService.class);
         packages = mock(SessionPackageRepository.class);
-        billing = new SessionBillingService(users, wallets, packages, org.mockito.Mockito.mock(com.coupleai.coupleai.beinema.Repository.ChatRoomRepository.class));
+        billing = new SessionBillingService(users, org.mockito.Mockito.mock(com.coupleai.coupleai.beinema.ai.AiHealth.class), wallets, packages, org.mockito.Mockito.mock(com.coupleai.coupleai.beinema.Repository.ChatRoomRepository.class),
+                org.mockito.Mockito.mock(com.coupleai.coupleai.beinema.Repository.PromoTierCounterRepository.class));
         ReflectionTestUtils.setField(billing, "freeSessions", 2);
         ReflectionTestUtils.setField(billing, "sessionPrice", 100_000L);
         ReflectionTestUtils.setField(billing, "sessionListPrice", 500_000L);
@@ -133,37 +134,72 @@ class SessionBillingServiceTest {
         verify(wallets, never()).debit(any(), any(), anyLong(), any(), anyString(), anyString(), any(), any());
     }
 
-    @Test
-    void aBundleIsBoughtFromTheWalletForAMonth() {
-        wallet.setBalance(700_000L);
-        when(packages.save(any(SessionPackage.class))).thenAnswer(call -> call.getArgument(0));
-        SessionBillingService.OwnedPackage silver = billing.buyPackage(owner, "silver");
+    private com.coupleai.coupleai.beinema.Repository.PromoTierCounterRepository counters() {
+        return (com.coupleai.coupleai.beinema.Repository.PromoTierCounterRepository)
+                ReflectionTestUtils.getField(billing, "counterRepository");
+    }
 
-        assertEquals(10, silver.sessionsLeft());
-        assertEquals("نقره‌ای", silver.title());
-        long days = Duration.between(Instant.now(), Instant.ofEpochMilli(silver.expiresAt())).toDays();
-        assertTrue(days >= 29 && days <= 30, "valid for a month, was " + days);
-        verify(wallets).debit(eq(owner), eq(wallet), eq(700_000L), eq(WalletTransactionType.PACKAGE_PURCHASE),
+    @Test
+    void theFirstBuyersGetTheFirstStepAndTheServerDecidesThePrice() {
+        wallet.setBalance(2_000_000L);
+        when(packages.save(any(SessionPackage.class))).thenAnswer(call -> call.getArgument(0));
+        when(counters().take("MAIN", 1)).thenReturn(1);
+        SessionBillingService.OwnedPackage main = billing.buyPackage(owner, "main", 995_000L);
+
+        assertEquals(8, main.sessionsLeft());
+        assertEquals("بستهٔ همراه", main.title());
+        long days = Duration.between(Instant.now(), Instant.ofEpochMilli(main.expiresAt())).toDays();
+        assertTrue(days >= 59 && days <= 60, "valid 60 days, was " + days);
+        verify(wallets).debit(eq(owner), eq(wallet), eq(995_000L), eq(WalletTransactionType.PACKAGE_PURCHASE),
                 anyString(), anyString(), eq(null), eq(null));
     }
 
     @Test
+    void aFullStepGivesTheNextOne_andAChangedPriceBuysNothing() {
+        wallet.setBalance(2_000_000L);
+        when(counters().take("MAIN", 1)).thenReturn(0);
+        when(counters().take("MAIN", 2)).thenReturn(1);
+        SessionBillingService.PriceChangedException changed = assertThrows(SessionBillingService.PriceChangedException.class,
+                () -> billing.buyPackage(owner, "MAIN", 995_000L));
+        assertEquals(1_393_000L, changed.price());
+        verify(wallets, never()).debit(any(), any(), anyLong(), any(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
     void notEnoughCreditForABundleSaysHowMuchIsNeeded() {
-        wallet.setBalance(1_000_000L);
-        IllegalArgumentException gold = assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "GOLD"));
-        assertTrue(gold.getMessage().contains("۱٬۵۰۰٬۰۰۰ تومان"), gold.getMessage());
+        wallet.setBalance(100_000L);
+        IllegalArgumentException trial = assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "TRIAL"));
+        assertTrue(trial.getMessage().contains("۵۹۰٬۰۰۰ تومان"), trial.getMessage());
         assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "PLATINUM"));
     }
 
     @Test
-    void biggerBundlesCostLessPerSessionAndTheStruckPriceIsAtMostTwiceThePrice() {
+    void theCardsShowTheActiveStepAndTheRegularPrice() {
         List<SessionBillingService.PackageOffer> offers = billing.packageOffers();
-        assertEquals(List.of(75_000L, 70_000L, 62_500L, 55_000L),
-                offers.stream().map(SessionBillingService.PackageOffer::perSession).toList());
-        assertEquals(List.of(600_000L, 1_400_000L, 3_000_000L, 4_400_000L),
+        assertEquals(List.of(413_000L, 995_000L, 2_245_000L, 495_000L),
+                offers.stream().map(SessionBillingService.PackageOffer::price).toList());
+        assertEquals(List.of(590_000L, 1_990_000L, 4_490_000L, 990_000L),
                 offers.stream().map(SessionBillingService.PackageOffer::listPrice).toList());
-        assertEquals(List.of(2, 3, 4, 6), offers.stream().map(SessionBillingService.PackageOffer::dailySessions).toList());
-        assertTrue(offers.stream().allMatch(offer -> offer.validDays() == 30));
+        assertEquals(List.of(1, 2, 3, 1), offers.stream().map(SessionBillingService.PackageOffer::dailySessions).toList());
+    }
+
+    @Test
+    void cancellingPaysBackTheUnusedSessionsAtTheRegularPrice() {
+        SessionPackage main = bundle(8, 3);
+        main.setTier("MAIN");
+        main.setPrice(995_000L);
+        main.setRegularPrice(1_990_000L);
+        assertEquals(248_750L, SessionBillingService.refundFor(main));
+        main.setSessionsUsed(6);
+        assertEquals(0L, SessionBillingService.refundFor(main));
+        SessionPackage diamond = bundle(20, 5);
+        diamond.setTier("DIAMOND");
+        diamond.setPrice(3_143_000L);
+        diamond.setRegularPrice(4_490_000L);
+        assertEquals(2_020_500L, SessionBillingService.refundFor(diamond));
+        SessionPackage trial = bundle(2, 0);
+        trial.setTier("TRIAL");
+        assertEquals(0L, SessionBillingService.refundFor(trial), "the trial has no refund");
     }
 
     @Test
@@ -171,11 +207,12 @@ class SessionBillingServiceTest {
         ReflectionTestUtils.setField(billing, "dailySessionsWithoutBundle", 1);
         assertEquals(1, billing.dailyLimitFor(1L), "no bundle");
 
-        SessionPackage bronze = bundle(4, 0);
-        SessionPackage gold = bundle(24, 3);
-        gold.setTier("GOLD");
-        when(packages.findUsable(eq(1L), any())).thenReturn(List.of(bronze, gold));
-        assertEquals(4, billing.dailyLimitFor(1L));
+        SessionPackage trial = bundle(2, 0);
+        trial.setTier("TRIAL");
+        SessionPackage diamond = bundle(20, 3);
+        diamond.setTier("DIAMOND");
+        when(packages.findUsable(eq(1L), any())).thenReturn(List.of(trial, diamond));
+        assertEquals(3, billing.dailyLimitFor(1L));
     }
 
     @Test

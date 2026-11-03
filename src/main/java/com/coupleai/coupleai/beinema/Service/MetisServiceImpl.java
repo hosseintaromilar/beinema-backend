@@ -20,6 +20,22 @@ public class MetisServiceImpl implements MetisService {
 
     private final MetisClient metisClient;
 
+    private final com.coupleai.coupleai.beinema.ai.AiHealth aiHealth;
+
+    /** Runs a call and tells the service's health how it went. */
+    private <T> T watched(java.util.function.Supplier<T> call) {
+        try {
+            T result = call.get();
+            aiHealth.succeeded();
+            return result;
+        } catch (IllegalArgumentException wrongInput) {
+            throw wrongInput;
+        } catch (RuntimeException failure) {
+            aiHealth.failed(failure);
+            throw failure;
+        }
+    }
+
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(MetisServiceImpl.class);
 
     /** Waits before each try of a removal: at once, then one and ten minutes later. */
@@ -70,6 +86,14 @@ public class MetisServiceImpl implements MetisService {
 
     @Override
     public MetisConversationResponse createConversation(
+            String botId,
+            String userKey,
+            String userName
+    ) {
+        return watched(() -> createConversationNow(botId, userKey, userName));
+    }
+
+    private MetisConversationResponse createConversationNow(
             String botId,
             String userKey,
             String userName
@@ -125,7 +149,9 @@ public class MetisServiceImpl implements MetisService {
                                     HttpStatusCode::isError,
                                     (request1, response1) -> {
 
-                                        throw new RuntimeException(
+                                        throw new com.coupleai.coupleai.beinema.ai.MetisCallException(
+                                                com.coupleai.coupleai.beinema.ai.AiError.ofStatus(
+                                                        response1.getStatusCode().value(), ""),
                                                 "Metis conversation creation failed. HTTP status: "
                                                         + response1.getStatusCode()
                                         );
@@ -193,11 +219,14 @@ public class MetisServiceImpl implements MetisService {
         }
 
 
-        metisClient.streamMessage(
-                sessionId,
-                content,
-                chunkConsumer
-        );
+        watched(() -> {
+            metisClient.streamMessage(
+                    sessionId,
+                    content,
+                    chunkConsumer
+            );
+            return null;
+        });
     }
 
 
@@ -228,14 +257,14 @@ public class MetisServiceImpl implements MetisService {
             throw new IllegalArgumentException("Message content is required");
         }
 
-        var response = metisClient.sendMessage(sessionId, content);
+        var response = watched(() -> metisClient.sendMessage(sessionId, content));
         String reply = response == null ? null : response.extractContent();
         return reply == null ? "" : reply;
     }
 
     @Override
     public String uploadFile(byte[] bytes, String filename, String contentType) {
-        return metisClient.uploadFile(bytes, filename, contentType);
+        return watched(() -> metisClient.uploadFile(bytes, filename, contentType));
     }
 
     @Override
@@ -247,7 +276,7 @@ public class MetisServiceImpl implements MetisService {
         if (sessionId == null || sessionId.isBlank()) {
             throw new IllegalArgumentException("Metis session id is required");
         }
-        var response = metisClient.sendMessage(sessionId, content, attachments);
+        var response = watched(() -> metisClient.sendMessage(sessionId, content, attachments));
         String reply = response == null ? null : response.extractContent();
         return reply == null ? "" : reply;
     }

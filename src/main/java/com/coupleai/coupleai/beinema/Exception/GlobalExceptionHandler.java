@@ -21,6 +21,22 @@ public class GlobalExceptionHandler {
                 .body(java.util.Map.of("message", "این گفتگو پیدا نشد."));
     }
 
+    /** The AI service is down: one plain sentence, and a code the site knows. */
+    @ExceptionHandler(com.coupleai.coupleai.beinema.ai.AiUnavailableException.class)
+    public ResponseEntity<java.util.Map<String, String>> aiUnavailable(com.coupleai.coupleai.beinema.ai.AiUnavailableException exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(java.util.Map.of("code", "AI_UNAVAILABLE", "message", exception.getMessage()));
+    }
+
+    /** The price of a plan changed before the purchase: nothing was bought; the new price goes back. */
+    @ExceptionHandler(com.coupleai.coupleai.beinema.Service.SessionBillingService.PriceChangedException.class)
+    public ResponseEntity<java.util.Map<String, Object>> priceChanged(com.coupleai.coupleai.beinema.Service.SessionBillingService.PriceChangedException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(java.util.Map.of("code", "PRICE_CHANGED", "message", exception.getMessage(), "price", exception.price()));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<java.util.Map<String, String>> plainFailure(RuntimeException exception) {
         String text = exception.getMessage();

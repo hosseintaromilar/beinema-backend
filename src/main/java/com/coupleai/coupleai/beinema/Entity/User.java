@@ -193,6 +193,10 @@ public class User extends BaseEntity {
     @Column(name = "free_sessions_used")
     private Integer freeSessionsUsed;
 
+    /** Free sessions given on top of the first one, for a successful referral. */
+    @Column(name = "gifted_sessions")
+    private Integer giftedSessions;
+
     /**
      * The number was confirmed with an SMS code. While sign-up is by password,
      * numbers are only written down (false), to be confirmed once SMS is back.

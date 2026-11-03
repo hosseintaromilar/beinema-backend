@@ -31,7 +31,8 @@ class MessageDeletionServiceTest {
     private final UserRepository users = mock(UserRepository.class);
     private final ChatFileService files = mock(ChatFileService.class);
     private final ChatRoomEventHub hub = mock(ChatRoomEventHub.class);
-    private final MessageDeletionService service = new MessageDeletionService(messages, participants, users, files, hub);
+    private final MessageDeletionService service = new MessageDeletionService(messages, participants, users, files, hub,
+            mock(com.coupleai.coupleai.beinema.Repository.DeletionLogRepository.class));
 
     private final ChatRoom room = new ChatRoom();
     private final User me = new User();

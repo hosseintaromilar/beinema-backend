@@ -51,6 +51,7 @@ public class ConfidentialMessageService {
     private final ChatRoomAgentRepository chatRoomAgentRepository;
     private final ChatRealtimeService chatRealtimeService;
     private final BrainGateway brain;
+    private final com.coupleai.coupleai.beinema.safety.SafetyCardService safetyCardService;
 
     public Message send(Long roomId, String content, User user) {
         ChatRoom room = chatRoomRepository.findById(roomId)
@@ -84,6 +85,7 @@ public class ConfidentialMessageService {
                 .visibleToUserId(user.getId())
                 .confidential(true)
                 .build());
+        safetyCardService.check(room, user, text);
         Thread thread = new Thread(() -> answer(room, user, message, danger), "beinema-private-" + roomId);
         thread.setDaemon(true);
         thread.start();

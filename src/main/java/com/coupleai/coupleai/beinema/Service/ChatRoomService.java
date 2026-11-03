@@ -41,6 +41,7 @@ public class ChatRoomService {
     private final ChatRoomInvitationRepository invitationRepository;
     private final ChatRealtimeService chatRealtimeService;
     private final MetisService metisService;
+    private final com.coupleai.coupleai.beinema.ai.AiHealth aiHealth;
     private final ChatRoomEventHub chatRoomEventHub;
     private final SessionBillingService sessionBillingService;
     private final RelationshipInsightRepository relationshipInsightRepository;
@@ -62,6 +63,9 @@ public class ChatRoomService {
     private final com.coupleai.coupleai.beinema.Repository.ServiceFeedbackRepository serviceFeedbackRepository;
     private final com.coupleai.coupleai.beinema.Repository.PersonMilestoneRepository personMilestoneRepository;
     private final com.coupleai.coupleai.beinema.Repository.SessionEndCheckRepository sessionEndCheckRepository;
+    private final com.coupleai.coupleai.beinema.safety.SafetyEventRepository safetyEventRepository;
+    private final com.coupleai.coupleai.beinema.ai.AiSessionPauseRepository aiSessionPauseRepository;
+    private final com.coupleai.coupleai.beinema.Repository.DeletionLogRepository deletionLogRepository;
     private final com.coupleai.coupleai.beinema.counseling.CounselorStateService counselorStateService;
     private final com.coupleai.coupleai.beinema.Security.CurrentUserService currentUserService;
 
@@ -122,6 +126,10 @@ public class ChatRoomService {
 
         // the first session opens with the conversation: a free one, or credit for one
         sessionBillingService.requireCanStart(user, user);
+        if (aiHealth.down()) {
+            // no half-made room: it is made when the service is back
+            throw new com.coupleai.coupleai.beinema.ai.AiUnavailableException();
+        }
 
 
         /*
@@ -135,12 +143,15 @@ public class ChatRoomService {
          * موجودی قبل از این فراخوانی چک شده تا گفتگوی بی‌استفاده ساخته نشود.
          */
 
-        var metisConversation =
-
-                metisService.createConversation(
-                        agent.getAiBotId(),
-                        user
-                );
+        com.coupleai.coupleai.beinema.DTO.metis.MetisConversationResponse metisConversation;
+        try {
+            metisConversation = metisService.createConversation(agent.getAiBotId(), user);
+        } catch (RuntimeException failure) {
+            if (com.coupleai.coupleai.beinema.ai.AiError.of(failure).outage()) {
+                throw new com.coupleai.coupleai.beinema.ai.AiUnavailableException();
+            }
+            throw failure;
+        }
 
 
         String aiConversationId =
@@ -659,6 +670,8 @@ public class ChatRoomService {
         serviceFeedbackRepository.deleteAllByChatRoomId(chatRoomId);
         personMilestoneRepository.deleteAllByChatRoomId(chatRoomId);
         sessionEndCheckRepository.deleteAllByChatRoomId(chatRoomId);
+        safetyEventRepository.deleteAllByChatRoomId(chatRoomId);
+        aiSessionPauseRepository.deleteAllByChatRoomId(chatRoomId);
         invitationRepository.deleteAllByChatRoom(chatRoom);
         relationshipInsightRepository.deleteAllByChatRoom(chatRoom);
         agentAccessRepository.deleteByChatRoomId(chatRoomId);
@@ -674,6 +687,12 @@ public class ChatRoomService {
         chatRoomRepository.deleteById(chatRoomId);
         // session_records stay: no words in them, only what was billed
         metisService.forget(metisConversation);
+        com.coupleai.coupleai.beinema.Entity.DeletionLog entry = new com.coupleai.coupleai.beinema.Entity.DeletionLog();
+        entry.setScope(com.coupleai.coupleai.beinema.Entity.DeletionLog.ROOM);
+        entry.setChatRoomId(chatRoomId);
+        entry.setActorId(user.getId());
+        entry.setMetisStatus(metisConversation == null || metisConversation.isBlank() ? "NONE" : "REQUESTED");
+        deletionLogRepository.save(entry);
         chatRoomEventHub.publishNamed(chatRoomId, "room_deleted", java.util.Map.of("chatRoomId", chatRoomId));
     }
 
