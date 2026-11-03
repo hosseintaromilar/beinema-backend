@@ -204,11 +204,11 @@ public class BlogService {
                 millis(post.getPublishedAt()), text.getTags(), text.getBodyMarkdown());
     }
 
-    /** The site's list: only what a reader sees (no notes, prompts or versions). */
+    /** The site's list: what a reader sees, with the tags for finding posts by topic (no text, notes or versions). */
     public List<PublicPost> publishedCards() {
         return published().stream()
                 .map(post -> new PublicPost(post.getId(), post.getSlug(), post.getTitle(), post.getSummary(),
-                        post.getImagePath(), millis(post.getPublishedAt()), null, null))
+                        post.getImagePath(), millis(post.getPublishedAt()), currentVersion(post).getTags(), null))
                 .toList();
     }
 
