@@ -320,6 +320,19 @@ public class SessionBillingService {
             bundle.setAutoRenew(false);
             return owned(packageRepository.save(bundle));
         }
+        // a refund is asked for with a support ticket; the admin cancels the bundle from there
+        throw new IllegalArgumentException("برای بازگشت وجه از بخش «پشتیبانی» تیکت بزن.");
+    }
+
+    /** The admin, answering a refund ticket: the bundle stops now and the refund waits to be paid back. */
+    @Transactional
+    public OwnedPackage cancelForRefund(Long packageId) {
+        SessionPackage bundle = packageRepository.findById(packageId)
+                .orElseThrow(() -> new IllegalArgumentException("این بسته پیدا نشد."));
+        SessionPackageTier plan = SessionPackageTier.of(bundle.getTier());
+        if (bundle.getCancelledAt() != null || !bundle.getExpiresAt().isAfter(Instant.now())) {
+            throw new IllegalArgumentException("این بسته دیگر فعال نیست.");
+        }
         if (plan == null || !plan.refundable()) {
             throw new IllegalArgumentException("این بسته بازگشت وجه ندارد.");
         }

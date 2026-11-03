@@ -66,6 +66,12 @@ public class BillingController {
         return billingService.cancel(currentUserService.getCurrentUser(), id);
     }
 
+    /** The admin cancels a bundle after a refund ticket; the refund is recorded to be paid back. */
+    @PostMapping("/api/admin/packages/{id}/cancel")
+    public SessionBillingService.OwnedPackage cancelForRefund(@PathVariable Long id) {
+        return billingService.cancelForRefund(id);
+    }
+
     @GetMapping("/api/admin/refunds")
     public List<Map<String, Object>> refunds() {
         return billingService.pendingRefunds();
