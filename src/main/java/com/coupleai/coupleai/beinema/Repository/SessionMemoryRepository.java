@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface SessionMemoryRepository extends JpaRepository<SessionMemory, Long> {
 
     Optional<SessionMemory> findByChatRoomId(Long chatRoomId);
+
+    void deleteAllByChatRoomId(Long chatRoomId);
 }

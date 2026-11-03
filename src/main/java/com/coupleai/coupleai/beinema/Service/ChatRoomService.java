@@ -41,6 +41,7 @@ public class ChatRoomService {
     private final ChatRoomInvitationRepository invitationRepository;
     private final ChatRealtimeService chatRealtimeService;
     private final MetisService metisService;
+    private final ChatRoomEventHub chatRoomEventHub;
     private final SessionBillingService sessionBillingService;
     private final RelationshipInsightRepository relationshipInsightRepository;
     private final RelationshipInsightService relationshipInsightService;
@@ -56,6 +57,11 @@ public class ChatRoomService {
     private final com.coupleai.coupleai.beinema.Repository.ClientIntentRepository clientIntentRepository;
     private final com.coupleai.coupleai.beinema.Repository.ClarifyingQuestionRepository clarifyingQuestionRepository;
     private final com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository directorDecisionRecordRepository;
+    private final com.coupleai.coupleai.beinema.Repository.CoupleTestRepository coupleTestRepository;
+    private final com.coupleai.coupleai.beinema.Repository.SessionMemoryRepository sessionMemoryRepository;
+    private final com.coupleai.coupleai.beinema.Repository.ServiceFeedbackRepository serviceFeedbackRepository;
+    private final com.coupleai.coupleai.beinema.Repository.PersonMilestoneRepository personMilestoneRepository;
+    private final com.coupleai.coupleai.beinema.Repository.SessionEndCheckRepository sessionEndCheckRepository;
     private final com.coupleai.coupleai.beinema.counseling.CounselorStateService counselorStateService;
     private final com.coupleai.coupleai.beinema.Security.CurrentUserService currentUserService;
 
@@ -648,6 +654,11 @@ public class ChatRoomService {
         clientIntentRepository.deleteAllByChatRoomId(chatRoomId);
         clarifyingQuestionRepository.deleteAllByChatRoomId(chatRoomId);
         directorDecisionRecordRepository.deleteAllByChatRoomId(chatRoomId);
+        coupleTestRepository.deleteAllByChatRoomId(chatRoomId);
+        sessionMemoryRepository.deleteAllByChatRoomId(chatRoomId);
+        serviceFeedbackRepository.deleteAllByChatRoomId(chatRoomId);
+        personMilestoneRepository.deleteAllByChatRoomId(chatRoomId);
+        sessionEndCheckRepository.deleteAllByChatRoomId(chatRoomId);
         invitationRepository.deleteAllByChatRoom(chatRoom);
         relationshipInsightRepository.deleteAllByChatRoom(chatRoom);
         agentAccessRepository.deleteByChatRoomId(chatRoomId);
@@ -657,9 +668,13 @@ public class ChatRoomService {
         chatRoomAgentRepository.deleteAllByChatRoom(chatRoom);
         messageRepository.deleteAllByChatRoom(chatRoom);
 
+        String metisConversation = chatRoom.getAiConversationId();
         entityManager.flush();
         entityManager.clear();
         chatRoomRepository.deleteById(chatRoomId);
+        // session_records stay: no words in them, only what was billed
+        metisService.forget(metisConversation);
+        chatRoomEventHub.publishNamed(chatRoomId, "room_deleted", java.util.Map.of("chatRoomId", chatRoomId));
     }
 
 

@@ -129,7 +129,12 @@ public class SessionSummaryService {
                 """ + transcript;
 
         var session = metisService.createConversation(insightBotId, user);
-        String raw = metisService.sendMessage(session.getId(), prompt);
+        String raw;
+        try {
+            raw = metisService.sendMessage(session.getId(), prompt);
+        } finally {
+            metisService.forget(session.getId());
+        }
         if (raw == null || raw.isBlank()) {
             return Map.of();
         }
@@ -199,7 +204,12 @@ public class SessionSummaryService {
                 """ + transcript;
 
         var session = metisService.createConversation(insightBotId, user);
-        String raw = metisService.sendMessage(session.getId(), prompt);
+        String raw;
+        try {
+            raw = metisService.sendMessage(session.getId(), prompt);
+        } finally {
+            metisService.forget(session.getId());
+        }
         if (raw == null || raw.isBlank()) {
             throw new IllegalStateException("empty summary");
         }

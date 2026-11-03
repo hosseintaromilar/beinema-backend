@@ -17,6 +17,14 @@ public class MessageController {
 
     private final MessageService messageService;
     private final com.coupleai.coupleai.beinema.Service.MessageReceiptService receiptService;
+    private final com.coupleai.coupleai.beinema.Service.MessageDeletionService messageDeletionService;
+
+    /** The sender takes back one of their own messages; the others see that it was deleted. */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{chatRoomId}/messages/{messageId}")
+    public void deleteMessage(@PathVariable Long chatRoomId, @PathVariable Long messageId,
+                              org.springframework.security.core.Authentication authentication) {
+        messageDeletionService.deleteOwn(chatRoomId, messageId, authentication.getName());
+    }
 
     @GetMapping("/{chatRoomId}/messages")
     public List<MessageResponse> getMessages(

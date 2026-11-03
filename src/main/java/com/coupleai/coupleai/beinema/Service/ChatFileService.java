@@ -247,6 +247,20 @@ public class ChatFileService {
 
     // -------------------------------------------------------------- cleanup
 
+    /** The files of one deleted message: their rows and their bytes on disk. */
+    public void deleteMessageFiles(Long messageId) {
+        for (MessageAttachment attachment : attachmentRepository.findAllByMessageId(messageId)) {
+            if (attachment.getStoragePath() != null) {
+                try {
+                    Files.deleteIfExists(uploadRoot.resolve(attachment.getStoragePath()));
+                } catch (IOException | RuntimeException ignored) {
+                    // the row goes anyway; a leftover file is never shown again
+                }
+            }
+            attachmentRepository.delete(attachment);
+        }
+    }
+
     public void deleteRoomFiles(Long chatRoomId) {
         Path directory = uploadRoot.resolve("rooms").resolve(String.valueOf(chatRoomId));
         attachmentRepository.deleteByChatRoomId(chatRoomId);
@@ -295,14 +309,18 @@ public class ChatFileService {
                         .orElseThrow(() -> new IllegalStateException("uploader missing"));
                 String url = metisService.uploadFile(bytes, attachment.getOriginalName(), attachment.getContentType());
                 var session = metisService.createConversation(readerBotId, uploader);
-                summary = metisService.sendMessageWithAttachments(
-                        session.getId(),
-                        READER_PROMPT,
-                        List.of(MetisAttachment.builder()
-                                .content(url)
-                                .contentType("IMAGE".equals(attachment.getKind()) ? "IMAGE" : "FILE")
-                                .build())
-                );
+                try {
+                    summary = metisService.sendMessageWithAttachments(
+                            session.getId(),
+                            READER_PROMPT,
+                            List.of(MetisAttachment.builder()
+                                    .content(url)
+                                    .contentType("IMAGE".equals(attachment.getKind()) ? "IMAGE" : "FILE")
+                                    .build())
+                    );
+                } finally {
+                    metisService.forget(session.getId());
+                }
             }
             attachment.setSummary(summary == null ? "" : summary.strip());
             attachment.setSummaryStatus(MessageAttachment.READY);

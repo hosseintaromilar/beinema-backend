@@ -79,6 +79,9 @@ public class MessageResponse {
     /** Set on a private notice: only this user sees the message. */
     private Long visibleToUserId;
 
+    /** The sender took the message back; its words are gone. */
+    private Boolean deleted;
+
 
     /**
      * Convert Message entity to MessageResponse DTO.
@@ -166,6 +169,7 @@ public class MessageResponse {
                 .visibleToUserId(
                         message.getVisibleToUserId()
                 )
+                .deleted(Boolean.TRUE.equals(message.getDeleted()) ? Boolean.TRUE : null)
 
                 .build();
     }

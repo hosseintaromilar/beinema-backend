@@ -20,4 +20,6 @@ public interface SessionEndCheckRepository extends JpaRepository<SessionEndCheck
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from SessionEndCheck c where c.publicId = :publicId")
     Optional<SessionEndCheck> findByPublicIdForUpdate(@Param("publicId") String publicId);
+
+    void deleteAllByChatRoomId(Long chatRoomId);
 }

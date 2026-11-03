@@ -10,4 +10,6 @@ public interface PersonMilestoneRepository extends JpaRepository<PersonMilestone
     List<PersonMilestone> findAllByChatRoomIdOrderByIdAsc(Long chatRoomId);
 
     List<PersonMilestone> findAllByChatRoomIdAndUserIdOrderByIdAsc(Long chatRoomId, Long userId);
+
+    void deleteAllByChatRoomId(Long chatRoomId);
 }

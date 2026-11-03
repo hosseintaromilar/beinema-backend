@@ -186,7 +186,12 @@ public class RelationshipInsightService {
                     insightBotId,
                     user
             );
-            String raw = metisService.sendMessage(session.getId(), prompt);
+            String raw;
+            try {
+                raw = metisService.sendMessage(session.getId(), prompt);
+            } finally {
+                metisService.forget(session.getId());
+            }
             InsightLlmPayload payload = parsePayload(raw);
 
             RelationshipInsight insight = insightRepository.findByChatRoom(chatRoom)

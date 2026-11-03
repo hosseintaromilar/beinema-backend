@@ -19,4 +19,6 @@ public interface CoupleTestRepository extends JpaRepository<CoupleTest, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from CoupleTest t where t.publicId = :publicId")
     Optional<CoupleTest> findByPublicIdForUpdate(@Param("publicId") String publicId);
+
+    void deleteAllByChatRoomId(Long chatRoomId);
 }

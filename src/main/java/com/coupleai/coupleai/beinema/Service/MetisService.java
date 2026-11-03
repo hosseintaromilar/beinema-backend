@@ -36,6 +36,13 @@ public interface MetisService {
             String content
     );
 
+    /**
+     * Removes a conversation from Metis once its answer is in, in the background and with a
+     * few retries; never throws. Metis hides a removed conversation at once and keeps it up to
+     * three months (its privacy policy); it has no way to remove a single message.
+     */
+    void forget(String sessionId);
+
     /** Uploads bytes to Metis storage and returns a direct-download URL. */
     String uploadFile(byte[] bytes, String filename, String contentType);
 

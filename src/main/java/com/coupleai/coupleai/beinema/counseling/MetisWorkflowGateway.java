@@ -101,7 +101,12 @@ public class MetisWorkflowGateway implements BrainGateway {
         }
         long started = System.currentTimeMillis();
         var session = metisService.createConversation(workflowId, CALLER_KEY, CALLER_NAME);
-        String reply = metisService.sendMessageAllowBlank(session.getId(), packet);
-        return new Reply(reply == null ? "" : reply, System.currentTimeMillis() - started);
+        try {
+            String reply = metisService.sendMessageAllowBlank(session.getId(), packet);
+            return new Reply(reply == null ? "" : reply, System.currentTimeMillis() - started);
+        } finally {
+            // the packet is built from our database each time; Metis needs nothing kept
+            metisService.forget(session.getId());
+        }
     }
 }

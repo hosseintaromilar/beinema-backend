@@ -11,4 +11,6 @@ public interface ServiceFeedbackRepository extends JpaRepository<ServiceFeedback
     Optional<ServiceFeedback> findByChatRoomIdAndUserId(Long chatRoomId, Long userId);
 
     List<ServiceFeedback> findAllByOrderByIdDesc();
+
+    void deleteAllByChatRoomId(Long chatRoomId);
 }

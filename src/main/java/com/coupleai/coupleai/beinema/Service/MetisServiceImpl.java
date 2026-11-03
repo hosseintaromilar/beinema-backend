@@ -20,6 +20,44 @@ public class MetisServiceImpl implements MetisService {
 
     private final MetisClient metisClient;
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(MetisServiceImpl.class);
+
+    /** Waits before each try of a removal: at once, then one and ten minutes later. */
+    private static final long[] FORGET_DELAYS_SECONDS = {0, 60, 600};
+
+    private static final java.util.concurrent.ScheduledExecutorService FORGETTING =
+            java.util.concurrent.Executors.newScheduledThreadPool(2, runnable -> {
+                Thread thread = new Thread(runnable, "metis-forget");
+                thread.setDaemon(true);
+                return thread;
+            });
+
+    @Override
+    public void forget(String sessionId) {
+        if (sessionId != null && !sessionId.isBlank()) {
+            forget(sessionId, 0);
+        }
+    }
+
+    private void forget(String sessionId, int attempt) {
+        FORGETTING.schedule(() -> {
+            try {
+                metisRestClient.delete()
+                        .uri("/api/v1/chat/session/{id}", sessionId)
+                        .retrieve()
+                        .toBodilessEntity();
+            } catch (org.springframework.web.client.HttpClientErrorException.NotFound gone) {
+                // already removed
+            } catch (RuntimeException failure) {
+                if (attempt + 1 < FORGET_DELAYS_SECONDS.length) {
+                    forget(sessionId, attempt + 1);
+                } else {
+                    LOG.warn("Could not remove Metis conversation {}: {}", sessionId, failure.getMessage());
+                }
+            }
+        }, FORGET_DELAYS_SECONDS[attempt], java.util.concurrent.TimeUnit.SECONDS);
+    }
+
 
     @Override
     public MetisConversationResponse createConversation(
