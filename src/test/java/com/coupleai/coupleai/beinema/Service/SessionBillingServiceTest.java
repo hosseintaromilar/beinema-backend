@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -164,6 +165,23 @@ class SessionBillingServiceTest {
                 () -> billing.buyPackage(owner, "MAIN", 995_000L));
         assertEquals(1_393_000L, changed.price());
         verify(wallets, never()).debit(any(), any(), anyLong(), any(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void theTrialIsOncePerAccount_andTheCardShowsWhatThisPersonWouldPay() {
+        wallet.setBalance(5_000_000L);
+        when(packages.existsByUserIdAndTier(1L, "TRIAL")).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "TRIAL", 295_000L));
+
+        // the first step of the companion bundle is still open, but this person already used it
+        when(counters().findByPlanAndTierNo(any(), any())).thenReturn(java.util.Optional.empty());
+        when(packages.existsByUserIdAndTierAndPromoTier(1L, "MAIN", 1)).thenReturn(true);
+        List<SessionBillingService.PlanView> mine = billing.pricing(owner);
+        SessionBillingService.PlanView main = mine.stream().filter(plan -> plan.planId().equals("MAIN")).findFirst().orElseThrow();
+        assertEquals(1_393_000L, main.activePrice());
+        SessionBillingService.PlanView trial = mine.stream().filter(plan -> plan.planId().equals("TRIAL")).findFirst().orElseThrow();
+        assertFalse(trial.available());
+        assertTrue(billing.pricing().stream().allMatch(SessionBillingService.PlanView::available), "nobody in particular");
     }
 
     @Test

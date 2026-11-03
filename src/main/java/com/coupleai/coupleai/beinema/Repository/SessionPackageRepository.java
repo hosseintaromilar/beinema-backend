@@ -31,6 +31,8 @@ public interface SessionPackageRepository extends JpaRepository<SessionPackage, 
 
     boolean existsByUserIdAndTierAndPromoTier(Long userId, String tier, Integer promoTier);
 
+    boolean existsByUserIdAndTier(Long userId, String tier);
+
     List<SessionPackage> findAllByUserIdOrderByIdDesc(Long userId);
 
     List<SessionPackage> findAllByRefundStatusOrderByIdDesc(String refundStatus);

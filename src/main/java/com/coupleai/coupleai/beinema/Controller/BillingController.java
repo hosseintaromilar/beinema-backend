@@ -45,7 +45,17 @@ public class BillingController {
     /** The pricing cards: every plan, its steps and their real counters. Public; nothing personal. */
     @GetMapping("/api/pricing")
     public List<SessionBillingService.PlanView> pricing() {
-        return billingService.pricing();
+        // signed in: the prices this person would pay; otherwise the general ones
+        com.coupleai.coupleai.beinema.Entity.User buyer = null;
+        try {
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+                buyer = currentUserService.getCurrentUser();
+            }
+        } catch (RuntimeException notSignedIn) {
+            buyer = null;
+        }
+        return billingService.pricing(buyer);
     }
 
     /**

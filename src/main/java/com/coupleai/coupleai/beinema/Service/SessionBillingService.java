@@ -102,7 +102,8 @@ public class SessionBillingService {
     /** A plan as the pricing cards show it (GET /api/pricing): nothing personal in it. */
     public record PlanView(String planId, String title, int sessions, long regularPrice, int validDays,
                            int dailyCap, boolean refundable, boolean recurring, Integer activeTier,
-                           long activePrice, long perSession, long regularPerSession, List<StepView> tiers) {
+                           long activePrice, long perSession, long regularPerSession, List<StepView> tiers,
+                           boolean available) {
     }
 
     /** A bundle someone bought that still has sessions and time left. */
@@ -131,17 +132,32 @@ public class SessionBillingService {
     /** Every plan with its real counters and the step a buyer would get now (nobody in particular). */
     @Transactional(readOnly = true)
     public List<PlanView> pricing() {
+        return pricing(null);
+    }
+
+    /**
+     * The same for one person: a step they already bought at is skipped, as the purchase would skip
+     * it, so the card shows the price they would really pay; the trial is not offered twice.
+     */
+    @Transactional(readOnly = true)
+    public List<PlanView> pricing(User buyer) {
         return Arrays.stream(SessionPackageTier.values()).map(plan -> {
             List<StepView> steps = plan.steps().stream().map(step -> {
                 int sold = counterRepository.findByPlanAndTierNo(plan.name(), step.number())
                         .map(counter -> counter.getSold()).orElse(0);
                 return new StepView(step.number(), step.percent(), step.price(), Math.min(sold, step.capacity()), step.capacity());
             }).toList();
-            StepView active = steps.stream().filter(step -> step.sold() < step.capacity()).findFirst().orElse(null);
+            StepView active = steps.stream()
+                    .filter(step -> step.sold() < step.capacity())
+                    .filter(step -> buyer == null || !packageRepository.existsByUserIdAndTierAndPromoTier(
+                            buyer.getId(), plan.name(), step.tierNo()))
+                    .findFirst().orElse(null);
             long price = active == null ? plan.regularPrice() : active.price();
+            boolean available = buyer == null || plan != SessionPackageTier.TRIAL
+                    || !packageRepository.existsByUserIdAndTier(buyer.getId(), plan.name());
             return new PlanView(plan.name(), plan.title(), plan.sessions(), plan.regularPrice(), plan.validDays(),
                     plan.dailySessions(), plan.refundable(), plan.recurring(), active == null ? null : active.tierNo(),
-                    price, price / plan.sessions(), plan.regularPerSession(), steps);
+                    price, price / plan.sessions(), plan.regularPerSession(), steps, available);
         }).toList();
     }
 
@@ -205,6 +221,9 @@ public class SessionBillingService {
         SessionPackageTier plan = SessionPackageTier.of(tierName);
         if (plan == null) {
             throw new IllegalArgumentException("این بسته پیدا نشد.");
+        }
+        if (plan == SessionPackageTier.TRIAL && packageRepository.existsByUserIdAndTier(user.getId(), plan.name())) {
+            throw new IllegalArgumentException("بستهٔ آزمایشی برای هر حساب فقط یک بار است؛ برای ادامه یکی از بسته‌های دیگر را انتخاب کن.");
         }
         Integer step = null;
         long price = plan.regularPrice();
