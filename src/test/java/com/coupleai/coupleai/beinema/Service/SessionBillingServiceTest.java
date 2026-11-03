@@ -185,6 +185,22 @@ class SessionBillingServiceTest {
     }
 
     @Test
+    void aBoughtBundleIsUsedBeforeTheFreeSession_andItsSessionsAreFullLength() {
+        owner.setFreeSessionsUsed(0);
+        SessionPackage main = bundle(8, 0);
+        main.setTier("MAIN");
+        when(packages.findUsableForUpdate(eq(1L), any())).thenReturn(List.of(main));
+        when(packages.findUsable(eq(1L), any())).thenReturn(List.of(main));
+        when(users.findById(1L)).thenReturn(java.util.Optional.of(owner));
+        ReflectionTestUtils.setField(billing, "freeSessionMinutes", 20);
+
+        assertEquals(null, billing.sessionMinutesFor(1L), "a bundle session is a full one");
+        assertEquals(SessionBillingService.PACKAGE, billing.settle(room, 1));
+        assertEquals(1, main.getSessionsUsed());
+        assertEquals(0, owner.getFreeSessionsUsed(), "the free session is kept");
+    }
+
+    @Test
     void notEnoughCreditForABundleSaysHowMuchIsNeeded() {
         wallet.setBalance(100_000L);
         IllegalArgumentException trial = assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "TRIAL"));

@@ -31,6 +31,16 @@ public interface ChatRoomRepository
     long countRunningOf(@org.springframework.data.repository.query.Param("owner") Long owner,
                         @org.springframework.data.repository.query.Param("room") Long room);
 
+    /**
+     * Rooms of this owner, other than this one, that are open and have not had a session paid for
+     * yet (also before their first session starts): each one will spend a free session.
+     */
+    @org.springframework.data.jpa.repository.Query("select count(r) from ChatRoom r where r.createdBy = :owner and r.id <> :room "
+            + "and r.status = com.coupleai.coupleai.beinema.Enum.ChatRoomStatus.ACTIVE "
+            + "and not exists (select s from SessionRecord s where s.chatRoomId = r.id and s.billing is not null)")
+    long countAwaitingFirstBillOf(@org.springframework.data.repository.query.Param("owner") Long owner,
+                                  @org.springframework.data.repository.query.Param("room") Long room);
+
     /** Only this column: a stale copy of the room must not write anything back. */
     @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying

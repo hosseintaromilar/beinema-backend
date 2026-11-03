@@ -172,7 +172,11 @@ public class SessionBillingService {
             return null;
         }
         User owner = userRepository.findById(ownerId).orElse(null);
-        return owner != null && freeLeft(owner) > 0 ? freeSessionMinutes : null;
+        if (owner == null || !packageRepository.findUsable(ownerId, Instant.now()).isEmpty()) {
+            // a session from a bundle is a full one
+            return null;
+        }
+        return freeLeft(owner) > 0 ? freeSessionMinutes : null;
     }
 
     /** Sessions a day without a bundle (the rules and the welcome say it). */
@@ -445,7 +449,7 @@ public class SessionBillingService {
         if (user == null || user.getId() == null) {
             return freeLeft(user);
         }
-        return (int) Math.max(0, freeLeft(user) - chatRoomRepository.countRunningOf(user.getId(), room));
+        return (int) Math.max(0, freeLeft(user) - chatRoomRepository.countAwaitingFirstBillOf(user.getId(), room));
     }
 
     public int freeLeft(User user) {
@@ -506,18 +510,18 @@ public class SessionBillingService {
         if (sessionSettled != null) {
             sessionSettled.accept(owner, room.getTitle());
         }
-        if (freeLeft(owner) > 0) {
-            owner.setFreeSessionsUsed((owner.getFreeSessionsUsed() == null ? 0 : owner.getFreeSessionsUsed()) + 1);
-            userRepository.save(owner);
-            return FREE;
-        }
-        // then a bought bundle, the one that ends first
+        // a bought bundle first: the free session is the short first meeting for someone without one
         List<SessionPackage> bundles = packageRepository.findUsableForUpdate(owner.getId(), Instant.now());
         if (!bundles.isEmpty()) {
             SessionPackage bundle = bundles.get(0);
             bundle.setSessionsUsed(bundle.getSessionsUsed() + 1);
             packageRepository.save(bundle);
             return PACKAGE;
+        }
+        if (freeLeft(owner) > 0) {
+            owner.setFreeSessionsUsed((owner.getFreeSessionsUsed() == null ? 0 : owner.getFreeSessionsUsed()) + 1);
+            userRepository.save(owner);
+            return FREE;
         }
         Wallet wallet = walletService.lockByUserId(owner.getId());
         if (wallet.getBalance() < sessionPrice) {
