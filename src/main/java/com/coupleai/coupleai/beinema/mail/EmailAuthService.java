@@ -70,6 +70,12 @@ public class EmailAuthService {
     @Value("${beinema.billing.free-sessions:1}")
     private int freeSessions;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
+    private static final String HELD_ELSEWHERE =
+            "این ایمیل به حساب دیگری وصل است که گفتگو یا خرید دارد؛ برای یکی کردن حساب‌ها به پشتیبانی پیام بده.";
+
     public EmailAuthService(UserRepository userRepository, EmailCodeRepository codeRepository,
                             FreeSessionGrantRepository grantRepository, PasswordEncoder passwordEncoder,
                             SmtpMailer mailer, WalletService walletService, ReferralService referralService,
@@ -352,11 +358,10 @@ public class EmailAuthService {
                 throw new IllegalArgumentException("برای عوض کردن ایمیل، رمز فعلی‌ات را درست بنویس.");
             }
         }
-        userRepository.findByEmailNormalized(normalized)
-                .filter(other -> !other.getId().equals(user.getId()))
-                .ifPresent(other -> {
-                    throw new IllegalArgumentException("این ایمیل به حساب دیگری وصل است. برای یکی کردن حساب‌ها به پشتیبانی پیام بده.");
-                });
+        // another account with this address: only an empty one can give it up, after the code
+        holder(user, email, normalized).filter(other -> !empty(other)).ifPresent(other -> {
+            throw new IllegalArgumentException(HELD_ELSEWHERE);
+        });
         String purpose = user.isEmailVerified() && user.getEmailNormalized() != null
                 ? EmailCode.EMAIL_CHANGE : EmailCode.MIGRATION_VERIFY;
         issue(normalized, email, user, purpose, ip);
@@ -369,6 +374,7 @@ public class EmailAuthService {
         String normalized = EmailAddresses.normalize(email);
         boolean changing = user.isEmailVerified() && user.getEmailNormalized() != null;
         consume(normalized, changing ? EmailCode.EMAIL_CHANGE : EmailCode.MIGRATION_VERIFY, code);
+        holder(user, email, normalized).ifPresent(other -> takeOver(user, other));
         String old = user.getContactEmail();
         user.setContactEmail(email);
         if (changing) {
@@ -383,6 +389,51 @@ public class EmailAuthService {
             confirm(user, normalized);
         }
         return new Result("VERIFIED", "ایمیلت تأیید شد.", email);
+    }
+
+    /** Another account that has this address, as its email or as the address it signed in with. */
+    private java.util.Optional<User> holder(User user, String email, String normalized) {
+        return userRepository.findByEmailNormalized(normalized)
+                .or(() -> userRepository.findByEmail(email))
+                .filter(other -> !other.getId().equals(user.getId()) && !other.isDeleted());
+    }
+
+    /** Nothing in it that belongs to a person's life here: no conversation, no purchase, no money. */
+    private boolean empty(User other) {
+        long rooms = entityManager.createQuery("select count(r) from ChatRoom r where r.createdBy = :id", Long.class)
+                .setParameter("id", other.getId()).getSingleResult();
+        long joined = entityManager.createQuery("select count(p) from ChatRoomParticipant p where p.user.id = :id", Long.class)
+                .setParameter("id", other.getId()).getSingleResult();
+        long packages = entityManager.createQuery("select count(p) from SessionPackage p where p.userId = :id", Long.class)
+                .setParameter("id", other.getId()).getSingleResult();
+        Long money = entityManager.createQuery("select coalesce(sum(w.balance), 0) from Wallet w where w.user.id = :id", Long.class)
+                .setParameter("id", other.getId()).getSingleResult();
+        return rooms == 0 && joined == 0 && packages == 0 && (money == null || money == 0);
+    }
+
+    /**
+     * The person proved with the code that the address is theirs: the empty account that had it gives
+     * it up. Its tickets and its Google sign-in come to this account; it is switched off, not removed.
+     */
+    private void takeOver(User user, User other) {
+        if (!empty(other)) {
+            throw new IllegalArgumentException(HELD_ELSEWHERE);
+        }
+        entityManager.createQuery("update SupportTicket t set t.userId = :to where t.userId = :from")
+                .setParameter("to", user.getId()).setParameter("from", other.getId()).executeUpdate();
+        String google = other.getGoogleSubject();
+        other.setGoogleSubject(null);
+        other.setEmailNormalized(null);
+        other.setContactEmail(null);
+        other.setEmail("released-" + other.getId() + "@users.beinema");
+        other.setDeleted(true);
+        other.setStatus(UserStatus.INACTIVE);
+        userRepository.saveAndFlush(other);
+        if (google != null && user.getGoogleSubject() == null) {
+            // «ادامه دادن با Google» now opens this account
+            user.setGoogleSubject(google);
+        }
+        log.info("Account {} gave its email (and Google sign-in) to account {}", other.getId(), user.getId());
     }
 
     // ------------------------------------------------------------------ inside

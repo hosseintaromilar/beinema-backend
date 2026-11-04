@@ -30,12 +30,17 @@ public class FileStorageService {
     }
 
     public String storeAvatar(Long userId, MultipartFile file) {
-        return storeImage("avatars", String.valueOf(userId), file);
+        return storeImage("avatars", String.valueOf(userId), file, 2);
     }
 
     /** An agent's photo, uploaded in the admin panel. */
     public String storeAgentPhoto(MultipartFile file) {
-        return storeImage("agents", "agent", file);
+        return storeImage("agents", "agent", file, 2);
+    }
+
+    /** A blog post's picture the admin uploads instead of a generated one (up to 5 MB). */
+    public String storeBlogImage(MultipartFile file) {
+        return storeImage("blog", "blog-upload", file, 5);
     }
 
     /** A picture downloaded from the image generator into /uploads/{folder} (jpg, png or webp, up to 8 MB). */
@@ -55,12 +60,12 @@ public class FileStorageService {
         }
     }
 
-    private String storeImage(String folder, String prefix, MultipartFile file) {
+    private String storeImage(String folder, String prefix, MultipartFile file, int maxMegabytes) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("فایل عکس انتخاب نشده است");
         }
-        if (file.getSize() > 2 * 1024 * 1024) {
-            throw new IllegalArgumentException("حجم عکس باید کمتر از ۲ مگابایت باشد");
+        if (file.getSize() > (long) maxMegabytes * 1024 * 1024) {
+            throw new IllegalArgumentException("حجم عکس باید کمتر از " + (maxMegabytes == 2 ? "۲" : "۵") + " مگابایت باشد");
         }
 
         String contentType = file.getContentType() == null

@@ -22,6 +22,7 @@ public class AdminBlogController {
     private final BlogService blogService;
     private final com.coupleai.coupleai.beinema.Service.BlogImageGenerator blogImageGenerator;
     private final com.coupleai.coupleai.beinema.Service.BlogWriter blogWriter;
+    private final com.coupleai.coupleai.beinema.Service.FileStorageService fileStorageService;
 
     @GetMapping
     public List<BlogPost> list() {
@@ -63,6 +64,14 @@ public class AdminBlogController {
     public Map<String, Object> makeImages(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
         double cost = blogImageGenerator.generate(id, body == null ? null : body.get("description"));
         return Map.of("cost", cost, "images", blogService.view(id).images());
+    }
+
+    /** The admin's own picture for the post (jpg, png or webp, up to 5 MB); it becomes the chosen one. */
+    @PostMapping(value = "/{id}/image-upload", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public BlogService.PostView uploadImage(@PathVariable Long id,
+                                            @org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        blogService.addUploadedImage(id, fileStorageService.storeBlogImage(file));
+        return blogService.view(id);
     }
 
     @PostMapping("/{id}/image/{imageId}")

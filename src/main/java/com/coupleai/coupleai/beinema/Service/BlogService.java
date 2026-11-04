@@ -132,6 +132,19 @@ public class BlogService {
                 imageRepository.findAllByPostIdAndVersionNumberOrderByIdAsc(postId, post.getCurrentVersion()));
     }
 
+    /** A picture the admin uploaded: one more option of the current version, and chosen at once. */
+    @Transactional
+    public BlogPost addUploadedImage(Long postId, String storedPath) {
+        BlogPost post = find(postId);
+        BlogImage image = new BlogImage();
+        image.setPostId(postId);
+        image.setVersionNumber(post.getCurrentVersion());
+        image.setGenerationId("upload");
+        image.setStoredPath(storedPath);
+        image = imageRepository.save(image);
+        return chooseImage(postId, image.getId());
+    }
+
     /** The admin chooses one picture: it is copied to our own storage. */
     @Transactional
     public BlogPost chooseImage(Long postId, Long imageId) {
