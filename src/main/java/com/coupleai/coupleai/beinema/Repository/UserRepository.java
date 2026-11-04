@@ -10,6 +10,12 @@ public interface UserRepository
 
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+
+    Optional<User> findByEmailNormalized(String emailNormalized);
+
+    long countByCreatedAtAfterAndSignupIp(java.time.LocalDateTime after, String signupIp);
+
+    java.util.List<User> findAllByEmailVerifiedFalseAndEmailNormalizedIsNotNullAndCreatedAtBefore(java.time.LocalDateTime before);
     Optional<User> findByPhoneNumber(String phoneNumber);
     Optional<User> findByUsername(String username);
     boolean existsByUsername(String username);

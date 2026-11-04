@@ -156,6 +156,24 @@ public class User extends BaseEntity {
 
     private boolean emailVerified = false;
 
+    /**
+     * The person's own email, in its normalized form (Gmail without dots or +tags ...): one account
+     * and one free session per address. Login by email looks here; for a Google account it is its address.
+     */
+    @Column(name = "email_normalized", unique = true, length = 150)
+    private String emailNormalized;
+
+    /** The address as they wrote it, for sending. */
+    @Column(name = "contact_email", length = 150)
+    private String contactEmail;
+
+    @Column(name = "email_verified_at")
+    private java.time.Instant emailVerifiedAt;
+
+    /** Where an email sign-up came from, for the sign-ups-per-network limit. */
+    @Column(name = "signup_ip", length = 64)
+    private String signupIp;
+
 
 
     private LocalDateTime lastLoginAt;

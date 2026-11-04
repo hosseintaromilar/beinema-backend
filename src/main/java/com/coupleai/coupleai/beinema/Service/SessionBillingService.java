@@ -45,6 +45,8 @@ public class SessionBillingService {
     /** Not charged: the AI service was down for a good part of the session. */
     public static final String OUTAGE = "OUTAGE";
 
+    static final String VERIFY_FIRST = "اول ایمیلت را در «پروفایل» ثبت و تأیید کن؛ جلسهٔ رایگان و خرید بسته بعد از تأیید ایمیل فعال می‌شود.";
+
     private final UserRepository userRepository;
     private final com.coupleai.coupleai.beinema.ai.AiHealth aiHealth;
 
@@ -226,6 +228,9 @@ public class SessionBillingService {
         if (plan == null) {
             throw new IllegalArgumentException("این بسته پیدا نشد.");
         }
+        if (!confirmed(user)) {
+            throw new IllegalArgumentException(VERIFY_FIRST);
+        }
         if (plan == SessionPackageTier.TRIAL && packageRepository.existsByUserIdAndTier(user.getId(), plan.name())) {
             throw new IllegalArgumentException("بستهٔ آزمایشی برای هر حساب فقط یک بار است؛ برای ادامه یکی از بسته‌های دیگر را انتخاب کن.");
         }
@@ -403,6 +408,13 @@ public class SessionBillingService {
 
     private java.util.function.BiConsumer<User, String> sessionSettled;
 
+    private java.util.function.BiConsumer<User, String> freeUsed;
+
+    /** Called when a free session is spent (its email never gets another). */
+    public void onFreeUsed(java.util.function.BiConsumer<User, String> listener) {
+        this.freeUsed = listener;
+    }
+
     /** Called when a session with a conversation in it closes (for the referral reward). */
     public void onSessionSettled(java.util.function.BiConsumer<User, String> listener) {
         this.sessionSettled = listener;
@@ -452,7 +464,15 @@ public class SessionBillingService {
         return (int) Math.max(0, freeLeft(user) - chatRoomRepository.countAwaitingFirstBillOf(user.getId(), room));
     }
 
+    /** A confirmed email (also Google's) or an SMS-checked number; only then is there a free session. */
+    public static boolean confirmed(User user) {
+        return user != null && (user.isEmailVerified() || Boolean.TRUE.equals(user.getPhoneVerified()));
+    }
+
     public int freeLeft(User user) {
+        if (!confirmed(user)) {
+            return 0;
+        }
         int used = user == null || user.getFreeSessionsUsed() == null ? 0 : user.getFreeSessionsUsed();
         int gifted = user == null || user.getGiftedSessions() == null ? 0 : user.getGiftedSessions();
         return Math.max(0, freeSessions + gifted - used);
@@ -519,6 +539,9 @@ public class SessionBillingService {
             return PACKAGE;
         }
         if (freeLeft(owner) > 0) {
+            if (freeUsed != null) {
+                freeUsed.accept(owner, "");
+            }
             owner.setFreeSessionsUsed((owner.getFreeSessionsUsed() == null ? 0 : owner.getFreeSessionsUsed()) + 1);
             userRepository.save(owner);
             return FREE;

@@ -172,7 +172,9 @@ public class AuthService {
         String typed = request == null ? null
                 : request.getUsername() != null && !request.getUsername().isBlank() ? request.getUsername()
                 : request.getPhoneNumber();
-        String identifier = Usernames.lenient(typed);
+        String identifier = typed != null && typed.contains("@")
+                ? com.coupleai.coupleai.beinema.mail.EmailAddresses.normalize(typed)
+                : Usernames.lenient(typed);
         String password = request == null || request.getPassword() == null ? "" : request.getPassword();
         Deque<Instant> failures = loginFailures.computeIfAbsent(identifier, key -> new ConcurrentLinkedDeque<>());
         Instant now = Instant.now();
@@ -181,7 +183,9 @@ public class AuthService {
             throw new InvalidCredentialsException("چند بار رمز اشتباه وارد شد؛ ربع ساعت دیگر دوباره امتحان کن.");
         }
 
-        User user = userRepository.findByUsername(identifier)
+        User user = identifier.contains("@")
+                ? userRepository.findByEmailNormalized(identifier).orElse(null)
+                : userRepository.findByUsername(identifier)
                 .or(() -> asPhone(identifier).flatMap(userRepository::findByPhoneNumber))
                 .orElse(null);
         if (user == null || user.isDeleted() || !passwordEncoder.matches(password, user.getPassword())) {
@@ -215,7 +219,7 @@ public class AuthService {
     }
 
 
-    static String requirePassword(String password) {
+    public static String requirePassword(String password) {
         if (password == null || password.length() < MIN_PASSWORD) {
             throw new IllegalArgumentException("رمز باید دست‌کم ۸ نویسه باشد.");
         }
@@ -674,6 +678,14 @@ public class AuthService {
         return sessionFor(user);
     }
 
+
+    /** Opens a session for an account another sign-in path has checked (email code, password reset). */
+    public AuthResponse signIn(User user) {
+        if (!user.isActive()) {
+            throw new UserNotActiveException("حساب کاربری شما فعال نیست");
+        }
+        return openSession(user, user.getPhoneNumber());
+    }
 
     private AuthResponse sessionFor(User user) {
         String token = jwtService.generateToken(user.getId(), user.getEmail());

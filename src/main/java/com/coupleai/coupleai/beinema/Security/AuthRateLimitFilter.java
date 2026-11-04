@@ -26,14 +26,19 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     private record Limit(int max, long windowMillis) {
     }
 
-    private static final Map<String, Limit> LIMITS = Map.of(
-            "/api/auth/login", new Limit(20, 60_000),
-            "/api/auth/google", new Limit(20, 60_000),
-            "/api/auth/register", new Limit(10, 600_000),
-            "/api/auth/forgot-password", new Limit(5, 600_000),
-            "/api/auth/reset-password", new Limit(10, 600_000),
-            "/api/auth/otp/request", new Limit(5, 600_000),
-            "/api/auth/otp/verify", new Limit(20, 600_000)
+    private static final Map<String, Limit> LIMITS = Map.ofEntries(
+            Map.entry("/api/auth/login", new Limit(20, 60_000)),
+            Map.entry("/api/auth/google", new Limit(20, 60_000)),
+            Map.entry("/api/auth/register", new Limit(10, 600_000)),
+            Map.entry("/api/auth/forgot-password", new Limit(5, 600_000)),
+            Map.entry("/api/auth/reset-password", new Limit(10, 600_000)),
+            Map.entry("/api/auth/otp/request", new Limit(5, 600_000)),
+            Map.entry("/api/auth/otp/verify", new Limit(20, 600_000)),
+            Map.entry("/api/auth/signup", new Limit(10, 600_000)),
+            Map.entry("/api/auth/verify-email", new Limit(20, 600_000)),
+            Map.entry("/api/auth/resend-code", new Limit(10, 600_000)),
+            Map.entry("/api/auth/email/forgot-password", new Limit(5, 600_000)),
+            Map.entry("/api/auth/email/reset-password", new Limit(10, 600_000))
     );
     private static final int MAX_TRACKED = 50_000;
 

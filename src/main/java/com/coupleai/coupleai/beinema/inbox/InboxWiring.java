@@ -14,6 +14,7 @@ public class InboxWiring {
     private final SessionBillingService billingService;
     private final ReferralService referralService;
     private final InboxService inboxService;
+    private final com.coupleai.coupleai.beinema.mail.EmailAuthService emailAuthService;
 
     @PostConstruct
     void wire() {
@@ -23,6 +24,7 @@ public class InboxWiring {
             referralService.qualify(user);
         });
         billingService.onSessionSettled((user, title) -> referralService.qualify(user));
+        billingService.onFreeUsed((user, ignored) -> emailAuthService.freeSessionUsed(user));
         billingService.onRenewalFailed((user, what) -> inboxService.system(user.getId(), "تمدید اشتراک انجام نشد",
                 "اعتبار حسابت برای تمدید " + what + " کافی نبود و اشتراک متوقف شد. هر وقت خواستی، دوباره شروعش کن.",
                 "اعتبار حساب", "/dashboard/wallet"));

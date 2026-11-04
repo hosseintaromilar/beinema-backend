@@ -37,6 +37,9 @@ public class UserResponse {
 
     private boolean emailVerified;
 
+    /** The person's own email (a Google account's address too); null when none was given. */
+    private String contactEmail;
+
     /** They chose a password; changing it asks for the current one. */
     private boolean passwordSet;
 
@@ -74,6 +77,9 @@ public class UserResponse {
                 .status(user.getStatus().name())
 
                 .emailVerified(user.isEmailVerified())
+
+                .contactEmail(user.getContactEmail() != null ? user.getContactEmail()
+                        : user.getGoogleSubject() != null ? user.getEmail() : null)
 
                 .passwordSet(Boolean.TRUE.equals(user.getPasswordSet()))
 

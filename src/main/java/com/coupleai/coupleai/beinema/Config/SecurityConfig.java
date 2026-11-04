@@ -160,7 +160,17 @@ public class SecurityConfig {
 
                                 "/api/auth/google",
 
-                                "/api/auth/google/config"
+                                "/api/auth/google/config",
+
+                                "/api/auth/signup",
+
+                                "/api/auth/verify-email",
+
+                                "/api/auth/resend-code",
+
+                                "/api/auth/email/forgot-password",
+
+                                "/api/auth/email/reset-password"
 
                         )
 
@@ -189,6 +199,8 @@ public class SecurityConfig {
                                 "/api/status",
 
                                 "/api/pricing",
+
+                                "/api/auth/email/config",
 
                                 "/api/blog-pages/*",
 
