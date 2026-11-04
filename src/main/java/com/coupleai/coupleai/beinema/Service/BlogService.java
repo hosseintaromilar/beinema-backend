@@ -42,7 +42,36 @@ public class BlogService {
 
     /** A published post as the site shows it; tags and text only on the post's own page. */
     public record PublicPost(Long id, String slug, String title, String summary, String imagePath,
-                             Long publishedAt, String tags, String bodyMarkdown) {
+                             Long publishedAt, String tags, String bodyMarkdown, List<String> related) {
+    }
+
+    static final int MAX_RELATED = 4;
+
+    /** The posts to suggest at the end of this one: published ones only, not itself, at most four. */
+    @Transactional
+    public BlogPost setRelated(Long postId, List<String> slugs) {
+        BlogPost post = find(postId);
+        java.util.LinkedHashSet<String> chosen = new java.util.LinkedHashSet<>();
+        for (String slug : slugs == null ? List.<String>of() : slugs) {
+            String clean = slug == null ? "" : slug.trim();
+            if (clean.isEmpty() || clean.equals(post.getSlug())) {
+                continue;
+            }
+            BlogPost other = postRepository.findBySlug(clean)
+                    .filter(found -> found.getStatus() == BlogPostStatus.PUBLISHED)
+                    .orElseThrow(() -> new IllegalArgumentException("فقط مطلب منتشرشده را می‌شود پیشنهاد داد."));
+            chosen.add(other.getSlug());
+        }
+        if (chosen.size() > MAX_RELATED) {
+            throw new IllegalArgumentException("حداکثر " + MAX_RELATED + " مطلب برای پیشنهاد انتخاب کن.");
+        }
+        post.setRelatedSlugs(chosen.isEmpty() ? null : String.join(",", chosen));
+        return postRepository.save(post);
+    }
+
+    private static List<String> relatedOf(BlogPost post) {
+        String value = post.getRelatedSlugs();
+        return value == null || value.isBlank() ? List.of() : List.of(value.split(","));
     }
 
     /** A new post from the writer: version 1, waiting for the admin. */
@@ -201,14 +230,14 @@ public class BlogService {
         BlogPost post = publishedPost(slug);
         BlogPostVersion text = currentVersion(post);
         return new PublicPost(post.getId(), post.getSlug(), post.getTitle(), post.getSummary(), post.getImagePath(),
-                millis(post.getPublishedAt()), text.getTags(), text.getBodyMarkdown());
+                millis(post.getPublishedAt()), text.getTags(), text.getBodyMarkdown(), relatedOf(post));
     }
 
     /** The site's list: what a reader sees, with the tags for finding posts by topic (no text, notes or versions). */
     public List<PublicPost> publishedCards() {
         return published().stream()
                 .map(post -> new PublicPost(post.getId(), post.getSlug(), post.getTitle(), post.getSummary(),
-                        post.getImagePath(), millis(post.getPublishedAt()), currentVersion(post).getTags(), null))
+                        post.getImagePath(), millis(post.getPublishedAt()), currentVersion(post).getTags(), null, null))
                 .toList();
     }
 

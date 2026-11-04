@@ -77,6 +77,12 @@ public class AdminBlogController {
                 body.get("bodyMarkdown"), body.get("tags"), null, null));
     }
 
+    /** Body: { "slugs": ["…"] }: the posts suggested at the end of this one (published, at most four). */
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/related")
+    public BlogPost related(@PathVariable Long id, @RequestBody Map<String, List<String>> body) {
+        return blogService.setRelated(id, body == null ? null : body.get("slugs"));
+    }
+
     @PostMapping("/{id}/publish")
     public BlogPost publish(@PathVariable Long id) {
         return blogService.publish(id);

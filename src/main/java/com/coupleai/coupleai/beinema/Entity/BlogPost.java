@@ -57,4 +57,11 @@ public class BlogPost extends BaseEntity {
 
     @Column(name = "published_at")
     private Instant publishedAt;
+
+    /**
+     * The posts the admin suggests reading at the end of this one, in order (slugs, comma separated).
+     * Empty: the site suggests posts with the same tags.
+     */
+    @Column(name = "related_slugs", length = 500)
+    private String relatedSlugs;
 }

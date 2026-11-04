@@ -61,12 +61,14 @@ public final class BlogPageHtml {
             body.append("<img src=\"").append(escape(post.imagePath())).append("\" alt=\"\">");
         }
         body.append("<div class=\"blog-text\">").append(markdown(post.bodyMarkdown())).append("</div>");
-        List<BlogService.PublicPost> related = others.stream()
-                .filter(other -> !other.slug().equals(post.slug()))
-                .limit(3)
-                .toList();
+        // the admin's choice, in its order; without one, the first others
+        List<String> chosen = post.related() == null ? List.of() : post.related();
+        List<BlogService.PublicPost> related = chosen.isEmpty()
+                ? others.stream().filter(other -> !other.slug().equals(post.slug())).limit(3).toList()
+                : chosen.stream().flatMap(slug -> others.stream().filter(other -> other.slug().equals(slug)).limit(1)).toList();
         if (!related.isEmpty()) {
-            body.append("<nav class=\"blog-related\"><h2>این‌ها را هم بخوانید</h2><ul>");
+            body.append("<nav class=\"blog-related\"><h2>").append(chosen.isEmpty() ? "این‌ها را هم بخوانید" : "پیشنهاد خواندن")
+                    .append("</h2><ul>");
             related.forEach(other -> body.append("<li><a href=\"/blog/").append(escape(other.slug())).append("\">")
                     .append(escape(other.title())).append("</a></li>"));
             body.append("</ul></nav>");

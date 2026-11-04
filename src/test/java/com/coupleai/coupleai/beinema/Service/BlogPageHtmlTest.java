@@ -17,7 +17,7 @@ class BlogPageHtmlTest {
             <body><div id="root"></div></body></html>""";
 
     private static BlogService.PublicPost post(String slug, String title, String body) {
-        return new BlogService.PublicPost(1L, slug, title, "خلاصه", "/uploads/a.png", 0L, "t", body);
+        return new BlogService.PublicPost(1L, slug, title, "خلاصه", "/uploads/a.png", 0L, "t", body, List.of());
     }
 
     @Test
@@ -34,6 +34,18 @@ class BlogPageHtmlTest {
         assertFalse(html.contains("<li><a href=\"/blog/a\">"));
         assertTrue(html.contains("id=\"blog-seed\""));
         assertTrue(html.contains("noindex"), "the shell's own robots line decides");
+    }
+
+    @Test
+    void theAdminsChoiceIsSuggestedInItsOrder() {
+        BlogService.PublicPost chosen = new BlogService.PublicPost(1L, "a", "عنوان", "خلاصه", null, 0L, "t", "متن",
+                List.of("c", "b"));
+        String html = BlogPageHtml.post(SHELL, "https://x.ir", chosen,
+                List.of(post("a", "عنوان", null), post("b", "دومی", null), post("c", "سومی", null), post("d", "چهارمی", null)));
+
+        assertTrue(html.contains("<h2>پیشنهاد خواندن</h2>"));
+        assertTrue(html.indexOf("href=\"/blog/c\"") < html.indexOf("href=\"/blog/b\""));
+        assertFalse(html.contains("href=\"/blog/d\""));
     }
 
     @Test
