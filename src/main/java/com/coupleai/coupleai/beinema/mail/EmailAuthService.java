@@ -117,7 +117,7 @@ public class EmailAuthService {
     }
 
     /** The code from the email: a known address is signed in; a new one gets a ticket for its name. */
-    @Transactional
+    @Transactional(noRollbackFor = WrongCodeException.class)
     public LoginResult verifyLogin(String rawEmail, String code) {
         String email = requireAddress(rawEmail);
         String normalized = EmailAddresses.normalize(email);
@@ -266,7 +266,7 @@ public class EmailAuthService {
     }
 
     /** The code from the email: the account is confirmed, the free session given if this address never had one. */
-    @Transactional
+    @Transactional(noRollbackFor = WrongCodeException.class)
     public AuthResponse verifySignup(String rawEmail, String code) {
         String normalized = EmailAddresses.normalize(rawEmail);
         User user = userRepository.findByEmailNormalized(normalized)
@@ -312,7 +312,7 @@ public class EmailAuthService {
         return new Result("CODE_SENT", SENT_IF_KNOWN, EmailAddresses.clean(rawEmail));
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = WrongCodeException.class)
     public AuthResponse reset(String rawEmail, String code, String newPassword) {
         String normalized = EmailAddresses.normalize(rawEmail);
         String pass = AuthService.requirePassword(newPassword);
@@ -368,7 +368,7 @@ public class EmailAuthService {
         return new Result("CODE_SENT", "کد ۶ رقمی به " + email + " فرستاده شد.", email);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = WrongCodeException.class)
     public Result verifyAddedEmail(User user, String rawEmail, String code) {
         String email = requireAddress(rawEmail);
         String normalized = EmailAddresses.normalize(email);
@@ -525,7 +525,7 @@ public class EmailAuthService {
                 row.setConsumedAt(Instant.now());
             }
             codeRepository.save(row);
-            throw new IllegalArgumentException(row.getAttempts() >= MAX_TRIES
+            throw new WrongCodeException(row.getAttempts() >= MAX_TRIES
                     ? "چند بار اشتباه شد؛ کد تازه بگیر." : "کد درست نیست.");
         }
         row.setConsumedAt(Instant.now());

@@ -46,7 +46,29 @@ public class GlobalExceptionHandler {
                     .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                     .body(java.util.Map.of("message", "این گفتگو پیدا نشد."));
         }
+        // a plain error the code threw with a Persian sentence for the person: a refused request, not a crash
+        if (exception.getClass() == RuntimeException.class && text != null && text.matches("(?s).*[\\u0600-\\u06FF].*")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(java.util.Map.of("message", text));
+        }
         throw exception;
+    }
+
+    /** A broken request (bad JSON, a number that is not one, a missing or broken file): 400, never 500. */
+    @ExceptionHandler({
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.web.multipart.MultipartException.class,
+            NumberFormatException.class,
+            ClassCastException.class
+    })
+    public ResponseEntity<java.util.Map<String, String>> brokenRequest(Exception exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(java.util.Map.of("message", "داده‌های فرستاده‌شده درست نیست."));
     }
 
     @ExceptionHandler(InvalidContactException.class)
