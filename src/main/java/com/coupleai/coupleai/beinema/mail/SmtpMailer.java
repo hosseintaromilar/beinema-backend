@@ -15,6 +15,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -63,12 +65,29 @@ public class SmtpMailer {
         return sender && (login ? password != null && !password.isBlank() : !tls);
     }
 
-    /** Sends one message; throws when the mail server refused it. */
+    /**
+     * One message. fromAddress and fromName empty: the default sender. html empty: made from the
+     * text. headers: extra ones, such as List-Unsubscribe.
+     */
+    public record Mail(String to, String fromAddress, String fromName, String subject, String text, String html,
+                       String replyTo, Map<String, String> headers) {
+    }
+
+    /** Sends one plain message from the default sender, with an HTML copy of the same words. */
     public void send(String to, String subject, String body) {
+        send(new Mail(to, null, null, subject, body, null, null, Map.of()));
+    }
+
+    /** Sends one message; throws when the mail server refused it. */
+    public void send(Mail mail) {
         if (!configured()) {
             throw new IllegalStateException("mail is not configured");
         }
-        String sender = from == null || from.isBlank() ? username : from;
+        String to = mail.to();
+        String sender = mail.fromAddress() != null && !mail.fromAddress().isBlank() ? mail.fromAddress()
+                : from == null || from.isBlank() ? username : from;
+        String name = mail.fromName() != null && !mail.fromName().isBlank() ? mail.fromName() : fromName;
+        String html = mail.html() != null && !mail.html().isBlank() ? mail.html() : MailLetter.html(mail.text(), null);
         try (Socket socket = tls ? SSLSocketFactory.getDefault().createSocket(host, port) : new Socket(host, port)) {
             socket.setSoTimeout(20_000);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
@@ -83,23 +102,41 @@ public class SmtpMailer {
             command(out, in, "MAIL FROM:<" + sender + ">", 250);
             command(out, in, "RCPT TO:<" + to + ">", 250);
             command(out, in, "DATA", 354);
-            String message = "From: " + encoded(fromName) + " <" + sender + ">\r\n"
-                    + "To: <" + to + ">\r\n"
-                    + "Subject: " + encoded(subject) + "\r\n"
-                    + "Date: " + ZonedDateTime.now().format(DateTimeFormatter.RFC_1123_DATE_TIME) + "\r\n"
-                    + "Message-ID: <" + UUID.randomUUID() + "@beinema.ir>\r\n"
-                    + "MIME-Version: 1.0\r\n"
-                    + "Content-Type: text/plain; charset=UTF-8\r\n"
-                    + "Content-Transfer-Encoding: base64\r\n"
-                    + "\r\n"
-                    + Base64.getMimeEncoder().encodeToString(body.getBytes(StandardCharsets.UTF_8))
-                    + "\r\n.";
-            command(out, in, message, 250);
+            // the words as plain text and as a page, side by side: mail programs show the one they can
+            String boundary = "beinema-" + UUID.randomUUID();
+            Map<String, String> head = new LinkedHashMap<>();
+            head.put("From", encoded(name) + " <" + sender + ">");
+            head.put("To", "<" + to + ">");
+            if (mail.replyTo() != null && !mail.replyTo().isBlank()) {
+                head.put("Reply-To", "<" + mail.replyTo() + ">");
+            }
+            head.put("Subject", encoded(mail.subject()));
+            head.put("Date", ZonedDateTime.now().format(DateTimeFormatter.RFC_1123_DATE_TIME));
+            head.put("Message-ID", "<" + UUID.randomUUID() + "@beinema.ir>");
+            if (mail.headers() != null) {
+                head.putAll(mail.headers());
+            }
+            head.put("MIME-Version", "1.0");
+            head.put("Content-Type", "multipart/alternative; boundary=\"" + boundary + "\"");
+            StringBuilder message = new StringBuilder();
+            head.forEach((key, value) -> message.append(key).append(": ").append(value).append("\r\n"));
+            message.append("\r\n")
+                    .append(part(boundary, "text/plain", mail.text()))
+                    .append(part(boundary, "text/html", html))
+                    .append("--").append(boundary).append("--\r\n.");
+            command(out, in, message.toString(), 250);
             write(out, "QUIT");
         } catch (IOException failure) {
             log.warn("Mail to a {} address failed: {}", to.substring(to.indexOf('@') + 1), failure.getMessage());
             throw new IllegalStateException("mail failed", failure);
         }
+    }
+
+    private static String part(String boundary, String type, String content) {
+        return "--" + boundary + "\r\n"
+                + "Content-Type: " + type + "; charset=UTF-8\r\n"
+                + "Content-Transfer-Encoding: base64\r\n\r\n"
+                + Base64.getMimeEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8)) + "\r\n";
     }
 
     private static void command(OutputStream out, BufferedReader in, String line, int code) throws IOException {

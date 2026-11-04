@@ -229,6 +229,10 @@ public class User extends BaseEntity {
     @Column(name = "password_set")
     private Boolean passwordSet;
 
+    /** Asked for no more group emails (news, festivals), with the link in one of them. */
+    @Column(name = "email_opt_out")
+    private Boolean emailOptOut;
+
     public boolean hasPhoneNumber() {
         return phoneNumber != null && !phoneNumber.isBlank();
     }

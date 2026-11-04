@@ -228,7 +228,7 @@ public class BlogService {
     }
 
     /** Latin, lowercase, dashes; Persian-only titles fall back to "post-<time>". */
-    static String slugOf(String wanted, String title) {
+    public static String slugOf(String wanted, String title) {
         String base = wanted != null && !wanted.isBlank() ? wanted : "";
         base = Normalizer.normalize(base, Normalizer.Form.NFKD).toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9]+", "-").replaceAll("(^-+|-+$)", "");

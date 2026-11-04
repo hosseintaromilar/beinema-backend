@@ -295,7 +295,7 @@ public class InboxService {
 
     /** The people a draft reaches: active accounts only, from account and purchase data only. */
     @SuppressWarnings("unchecked")
-    List<Long> audience(Draft draft) {
+    public List<Long> audience(Draft draft) {
         String kind = draft.audience() == null ? "all" : draft.audience();
         String value = draft.value() == null ? "" : draft.value().trim();
         String active = "u.deleted = false and u.status = :active";

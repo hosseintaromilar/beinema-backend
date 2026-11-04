@@ -97,7 +97,7 @@ public class BlogWriter {
             return;
         }
         try {
-            startWriting();
+            startWriting(null);
         } catch (RuntimeException exception) {
             log.info("The daily blog post was not started: {}", exception.getMessage());
         }
@@ -110,9 +110,10 @@ public class BlogWriter {
     /**
      * The admin's «نوشتن مطلب تازه»: writing and the pictures take about a minute,
      * longer than a request may stay open behind the proxies, so it runs in the
-     * background and the panel follows {@link #status()}.
+     * background and the panel follows {@link #status()}. With a topic from the admin
+     * the post is about that; without one, the next topic of the plan.
      */
-    public synchronized Status startWriting() {
+    public synchronized Status startWriting(Topic chosen) {
         if (writing) {
             throw new IllegalArgumentException("نویسنده همین الان در حال نوشتن است.");
         }
@@ -121,7 +122,7 @@ public class BlogWriter {
         lastError = null;
         Thread thread = new Thread(() -> {
             try {
-                lastPostId = writeNew().getId();
+                lastPostId = writeNew(chosen).getId();
             } catch (RuntimeException exception) {
                 lastError = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
                 log.warn("The blog post could not be written", exception);
@@ -135,19 +136,29 @@ public class BlogWriter {
         return status();
     }
 
+    /** A topic the admin wrote in the panel; without an address the writer's own suggestion is used. */
+    public static Topic adminTopic(String subject, String slug) {
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        String key = slug == null || slug.isBlank() ? "" : BlogService.slugOf(slug, null);
+        return new Topic(key, "admin", subject.trim());
+    }
+
     /** Writes a new post now (the daily run, and the background job of the admin's button). */
-    public BlogPost writeNew() {
+    public BlogPost writeNew(Topic chosen) {
         List<BlogPost> recent = postRepository.findTop60ByOrderByIdDesc();
-        Topic topic = nextTopic(topics, recent);
+        Topic topic = chosen != null ? chosen : nextTopic(topics, recent);
         StringBuilder user = new StringBuilder()
                 .append("Subject (Persian): ").append(topic.subject()).append('\n')
                 .append("Do not repeat these earlier titles or their angle:\n");
         recent.stream().limit(30).forEach(post -> user.append("- ").append(post.getTitle()).append('\n'));
         Map<String, String> pages = linkablePages(null);
         BlogService.Draft draft = withKnownLinks(ask(user.append(linksBlock(pages)).toString(), topic.key()), pages);
-        // the address comes from the plan, not from the model
-        return blogService.createDraft(new BlogService.Draft(draft.title(), topic.key(), draft.summary(),
-                draft.bodyMarkdown(), draft.tags(), draft.imagePrompt(), draft.topicKey()));
+        // the address comes from the plan or the admin; the model's only when neither gave one
+        String slug = topic.key().isBlank() ? draft.slug() : topic.key();
+        return blogService.createDraft(new BlogService.Draft(draft.title(), slug, draft.summary(),
+                draft.bodyMarkdown(), draft.tags(), draft.imagePrompt(), topic.key().isBlank() ? null : topic.key()));
     }
 
     /** The rewrite after the admin's notes, in the background; a failure shows in {@link #status()}. */

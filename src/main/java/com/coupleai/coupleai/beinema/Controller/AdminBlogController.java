@@ -28,10 +28,24 @@ public class AdminBlogController {
         return blogService.all();
     }
 
-    /** Starts writing a new post in the background (about a minute); the panel follows /writer. */
+    /**
+     * Starts writing a new post in the background (about a minute); the panel follows /writer.
+     * Body (optional): { "subject": "the topic in Persian", "slug": "address" }; without a subject
+     * the next topic of the plan.
+     */
     @PostMapping("/write")
-    public com.coupleai.coupleai.beinema.Service.BlogWriter.Status write() {
-        return blogWriter.startWriting();
+    public com.coupleai.coupleai.beinema.Service.BlogWriter.Status write(@RequestBody(required = false) Map<String, String> body) {
+        return blogWriter.startWriting(body == null ? null
+                : com.coupleai.coupleai.beinema.Service.BlogWriter.adminTopic(body.get("subject"), body.get("slug")));
+    }
+
+    /** A post the admin writes by hand: a draft like the writer's, waiting for a picture and publishing. */
+    @PostMapping
+    public BlogPost create(@RequestBody Map<String, String> body) {
+        String slug = body.get("slug");
+        return blogService.createDraft(new BlogService.Draft(body.get("title"), slug, body.get("summary"),
+                body.get("bodyMarkdown"), body.get("tags"), null,
+                slug == null || slug.isBlank() ? null : BlogService.slugOf(slug, null)));
     }
 
     @GetMapping("/writer")
