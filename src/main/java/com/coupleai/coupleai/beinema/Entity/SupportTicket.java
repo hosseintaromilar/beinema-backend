@@ -44,4 +44,18 @@ public class SupportTicket extends BaseEntity {
     /** Support answered and the person has not opened it yet. */
     @Column(name = "unread_by_user", nullable = false)
     private boolean unreadByUser;
+
+    /**
+     * A ticket that came by email (a reply to support@ or info@): the address it came from, the
+     * mailbox (support or info) the answers go out from, and the last email's Message-ID, so the
+     * answer joins the same thread in the person's mail. user_id is 0 when the address is no account's.
+     */
+    @Column(name = "email_from", length = 200)
+    private String emailFrom;
+
+    @Column(name = "email_mailbox", length = 20)
+    private String emailMailbox;
+
+    @Column(name = "email_message_id", length = 300)
+    private String emailMessageId;
 }

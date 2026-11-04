@@ -14,6 +14,9 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
 
     List<SupportTicket> findTop200ByOrderByLastActivityAtDesc();
 
+    /** The open email tickets from one address, newest first. */
+    List<SupportTicket> findAllByEmailFromIgnoreCaseAndStatusNotOrderByLastActivityAtDesc(String emailFrom, SupportTicketStatus status);
+
     long countByStatus(SupportTicketStatus status);
 
     long countByUserIdAndStatusNot(Long userId, SupportTicketStatus status);

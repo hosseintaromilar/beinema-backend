@@ -47,6 +47,8 @@ services:
       JAVA_TOOL_OPTIONS: -Xms256m -Xmx1g -Duser.timezone=Asia/Tehran -Djava.awt.headless=true
     volumes:
       - ./uploads:/app/uploads
+      # the emails that reached support@ and info@ (MAIL_INBOUND_DIR=/app/inbound-mail in api.env)
+      - ./inbound-mail:/app/inbound-mail
     depends_on:
       db:
         condition: service_healthy
@@ -80,6 +82,38 @@ services:
       TZ: Asia/Tehran
     volumes:
       - ./dkim:/etc/opendkim/keys
+
+  # incoming email: replies to support@ and info@ (port 25, the MX of beinema.ir). It takes mail
+  # only for those two addresses (no relaying for anyone), checks the sender's domain and the
+  # Spamhaus list, caps the size, and leaves each email as a file in ./inbound-mail; the backend
+  # reads them every 30 seconds and makes tickets (mail/InboundMailService). The settings below are
+  # applied after the image's own (relay) defaults and replace them.
+  mail-in:
+    image: boky/postfix:v4.4.0
+    restart: always
+    ports:
+      - "25:25"
+    environment:
+      ALLOW_EMPTY_SENDER_DOMAINS: "true"
+      TZ: Asia/Tehran
+      POSTFIX_myhostname: mail.beinema.ir
+      POSTFIX_inet_protocols: ipv4
+      POSTFIX_mynetworks: 127.0.0.0/8
+      POSTFIX_smtpd_helo_required: "yes"
+      POSTFIX_smtpd_client_restrictions: reject_unauth_pipelining
+      POSTFIX_smtpd_helo_restrictions: reject_invalid_helo_hostname, reject_non_fqdn_helo_hostname
+      POSTFIX_smtpd_relay_restrictions: reject_unauth_destination
+      POSTFIX_smtpd_sender_restrictions: reject_non_fqdn_sender, reject_unknown_sender_domain
+      POSTFIX_smtpd_recipient_restrictions: reject_unauth_pipelining, reject_non_fqdn_recipient, reject_unauth_destination, reject_rbl_client zen.spamhaus.org=127.0.0.[2..11], check_recipient_access inline:{ support@beinema.ir=OK, info@beinema.ir=OK }, reject
+      POSTFIX_virtual_mailbox_domains: beinema.ir
+      POSTFIX_virtual_mailbox_base: /var/mail/inbound
+      POSTFIX_virtual_mailbox_maps: inline:{ support@beinema.ir=support/, info@beinema.ir=info/ }
+      POSTFIX_virtual_uid_maps: static:5000
+      POSTFIX_virtual_gid_maps: static:5000
+      POSTFIX_message_size_limit: "5242880"
+      POSTFIX_smtpd_client_message_rate_limit: "20"
+    volumes:
+      - ./inbound-mail:/var/mail/inbound
 
   caddy:
     image: caddy:2

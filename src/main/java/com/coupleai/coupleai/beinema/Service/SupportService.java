@@ -36,6 +36,7 @@ public class SupportService {
     private final SupportTicketMessageRepository messageRepository;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
+    private final com.coupleai.coupleai.beinema.mail.SmtpMailer mailer;
 
     public record TicketSummary(Long id, String subject, String category, String status, boolean unread,
                                 Long lastActivityAt, Long createdAt, String userName) {
@@ -131,6 +132,10 @@ public class SupportService {
     public TicketView adminReply(Long ticketId, String body) {
         SupportTicket ticket = anyTicket(ticketId);
         String text = clean(body, MAX_BODY, "متن پاسخ را بنویس.");
+        if (ticket.getEmailFrom() != null) {
+            // a ticket that came by email is answered by email too, in the same thread
+            answerByEmail(ticket, text);
+        }
         addMessage(ticket.getId(), true, currentUserService.getCurrentUser().getId(), text);
         ticket.setStatus(SupportTicketStatus.ANSWERED);
         ticket.setUnreadByUser(true);
@@ -145,6 +150,62 @@ public class SupportService {
         ticket.setStatus(SupportTicketStatus.CLOSED);
         ticketRepository.save(ticket);
         return adminView(ticketId);
+    }
+
+    /**
+     * An email that reached support@ or info@: joins the ticket it answers (the [#id] in the subject,
+     * from the same address), or the address's open email ticket, or starts a new one. userId is the
+     * account of the address, or 0. Returns the ticket's id.
+     */
+    @Transactional
+    public Long fromEmail(Long userId, String from, String mailbox, String subject, String body, String messageId) {
+        String text = body.length() > MAX_BODY ? body.substring(0, MAX_BODY - 1) + "…" : body;
+        SupportTicket ticket = null;
+        java.util.regex.Matcher tag = java.util.regex.Pattern.compile("\\[#(\\d{1,10})]").matcher(subject == null ? "" : subject);
+        if (tag.find()) {
+            ticket = ticketRepository.findById(Long.valueOf(tag.group(1)))
+                    .filter(found -> from.equalsIgnoreCase(found.getEmailFrom()))
+                    .orElse(null);
+        }
+        if (ticket == null) {
+            ticket = ticketRepository.findAllByEmailFromIgnoreCaseAndStatusNotOrderByLastActivityAtDesc(from, SupportTicketStatus.CLOSED)
+                    .stream().findFirst().orElse(null);
+        }
+        if (ticket == null) {
+            ticket = new SupportTicket();
+            ticket.setUserId(userId == null ? 0L : userId);
+            String title = subject == null || subject.isBlank() ? "ایمیل از " + from
+                    : subject.replaceAll("^(?i)((re|fwd?|پاسخ)\\s*:\\s*)+", "").strip();
+            ticket.setSubject(title.length() > MAX_SUBJECT ? title.substring(0, MAX_SUBJECT) : title);
+            ticket.setCategory("EMAIL");
+            ticket.setEmailFrom(from);
+        }
+        ticket.setEmailMailbox(mailbox);
+        if (messageId != null && messageId.length() <= 300) {
+            ticket.setEmailMessageId(messageId);
+        }
+        ticket.setStatus(SupportTicketStatus.OPEN);
+        ticket.setLastActivityAt(Instant.now());
+        ticket = ticketRepository.save(ticket);
+        addMessage(ticket.getId(), false, ticket.getUserId() == 0L ? null : ticket.getUserId(), text);
+        return ticket.getId();
+    }
+
+    private void answerByEmail(SupportTicket ticket, String text) {
+        String box = "info".equals(ticket.getEmailMailbox()) ? "info" : "support";
+        String subject = ticket.getSubject().replaceAll("\\s*\\[#\\d+]$", "");
+        Map<String, String> headers = new java.util.LinkedHashMap<>();
+        if (ticket.getEmailMessageId() != null) {
+            headers.put("In-Reply-To", ticket.getEmailMessageId());
+            headers.put("References", ticket.getEmailMessageId());
+        }
+        try {
+            mailer.send(new com.coupleai.coupleai.beinema.mail.SmtpMailer.Mail(ticket.getEmailFrom(), box + "@beinema.ir",
+                    "info".equals(box) ? "بین‌ما" : "پشتیبانی بین‌ما",
+                    "Re: " + subject + " [#" + ticket.getId() + "]", text, null, null, headers));
+        } catch (RuntimeException failure) {
+            throw new IllegalArgumentException("ایمیل پاسخ فرستاده نشد؛ پاسخ ثبت نشد. کمی بعد دوباره بفرست.");
+        }
     }
 
     public long openCount() {
@@ -186,10 +247,13 @@ public class SupportService {
     }
 
     private TicketSummary summary(SupportTicket ticket, String userName) {
+        // a ticket from email shows its address next to the name (or alone, for an unknown address)
+        String who = ticket.getEmailFrom() == null || userName == null ? userName
+                : ticket.getUserId() == 0L ? ticket.getEmailFrom() : userName + " · " + ticket.getEmailFrom();
         return new TicketSummary(ticket.getId(), ticket.getSubject(), ticket.getCategory(), ticket.getStatus().name(),
                 ticket.isUnreadByUser(),
                 ticket.getLastActivityAt() == null ? null : ticket.getLastActivityAt().toEpochMilli(),
-                millis(ticket.getCreatedAt()), userName);
+                millis(ticket.getCreatedAt()), who);
     }
 
     private String nameOf(Long userId) {

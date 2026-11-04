@@ -49,7 +49,8 @@ class SupportServiceTest {
         tickets = mock(SupportTicketRepository.class);
         messages = mock(SupportTicketMessageRepository.class);
         current = mock(CurrentUserService.class);
-        service = new SupportService(tickets, messages, mock(UserRepository.class), current);
+        service = new SupportService(tickets, messages, mock(UserRepository.class), current,
+                mock(com.coupleai.coupleai.beinema.mail.SmtpMailer.class));
         sara = user(1L, "سارا");
         admin = user(9L, "پشتیبان");
         when(tickets.save(any(SupportTicket.class))).thenAnswer(call -> {
