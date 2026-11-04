@@ -32,6 +32,10 @@ import java.util.HexFormat;
 import java.util.Locale;
 
 /**
+ * Signing in with only an email: a six-digit code each time, and for a new address the person's name
+ * after the code, then the account is made (start, verifyLogin, complete). The older way, an email
+ * and a password confirmed with a code, still works for accounts that have one.
+ *
  * Sign-up and sign-in with an email and a password, the address confirmed with a six-digit code
  * (docs: 03-email-login-spec-FA.md). The free session needs a confirmed address and is given once
  * per normalized address, also if the account is removed and made again. Answers never tell whether
@@ -82,6 +86,125 @@ public class EmailAuthService {
     }
 
     public record Result(String status, String message, String email) {
+    }
+
+    /**
+     * After a right code: signed in (auth), or a new address that still needs a name. The ticket
+     * then proves the code was right for half an hour, without keeping anything on the server.
+     */
+    public record LoginResult(String status, AuthResponse auth, String ticket, String email) {
+    }
+
+    static final Duration TICKET_LIFE = Duration.ofMinutes(30);
+
+    // ------------------------------------------------------------------ signing in with a code
+
+    /** Sends a code to any valid address; the same answer whether or not it has an account. */
+    @Transactional
+    public Result start(String rawEmail, String ip) {
+        requireMail();
+        String email = requireAddress(rawEmail);
+        String normalized = EmailAddresses.normalize(email);
+        User user = verifiedAccount(email, normalized).orElse(null);
+        issue(normalized, user == null ? email : sendTo(user, email), user, EmailCode.EMAIL_LOGIN, ip);
+        return new Result("CODE_SENT", "کد ۶ رقمی به " + email + " فرستاده شد. اگر نرسید، پوشهٔ اسپم را هم ببین.", email);
+    }
+
+    /** The code from the email: a known address is signed in; a new one gets a ticket for its name. */
+    @Transactional
+    public LoginResult verifyLogin(String rawEmail, String code) {
+        String email = requireAddress(rawEmail);
+        String normalized = EmailAddresses.normalize(email);
+        consume(normalized, EmailCode.EMAIL_LOGIN, code);
+        User user = verifiedAccount(email, normalized).orElse(null);
+        if (user != null) {
+            if (user.getEmailNormalized() == null) {
+                // a Google account signing in by email for the first time
+                user.setEmailNormalized(normalized);
+                userRepository.save(user);
+            }
+            return new LoginResult("SIGNED_IN", authService.signIn(user), null, email);
+        }
+        long until = Instant.now().plus(TICKET_LIFE).getEpochSecond();
+        return new LoginResult("NEEDS_NAME", null, ticket(email, until), email);
+    }
+
+    /** The name of a new person whose code was right: the account is made, confirmed, and signed in. */
+    @Transactional
+    public AuthResponse complete(String ticket, String rawFirst, String rawLast, String referralCode, String ip) {
+        String email = fromTicket(ticket);
+        String normalized = EmailAddresses.normalize(email);
+        User existing = verifiedAccount(email, normalized).orElse(null);
+        if (existing != null) {
+            // the same ticket twice (a double tap): already made
+            return authService.signIn(existing);
+        }
+        String first = personName(rawFirst, "نام");
+        String last = personName(rawLast, "نام خانوادگی");
+        if (ip != null && userRepository.countByCreatedAtAfterAndSignupIp(LocalDateTime.now().minusDays(1), ip) >= SIGNUPS_PER_IP_PER_DAY) {
+            throw new IllegalArgumentException("از این اینترنت امروز چند حساب ساخته شده؛ فردا دوباره امتحان کن.");
+        }
+        // an old unconfirmed sign-up with a password for the same address gives way to this one
+        userRepository.findByEmailNormalized(normalized).filter(old -> !old.isEmailVerified()).ifPresent(old -> {
+            old.setEmailNormalized(null);
+            userRepository.save(old);
+        });
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("این ایمیل به حساب دیگری وصل است؛ به پشتیبانی پیام بده.");
+        }
+        User user = userRepository.save(User.builder()
+                .name(first + " " + last)
+                .firstName(first)
+                .lastName(last)
+                .email(email)
+                .contactEmail(email)
+                // no password: this account signs in with a code each time
+                .password(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
+                .passwordSet(false)
+                .status(UserStatus.ACTIVE)
+                .role(UserRole.USER)
+                .emailVerified(false)
+                .signupIp(ip)
+                .build());
+        walletService.getOrCreate(user);
+        referralService.rewardNewUser(user, referralCode);
+        confirm(user, normalized);
+        return authService.signIn(user);
+    }
+
+    private static String sendTo(User user, String typed) {
+        return user.getContactEmail() != null ? user.getContactEmail() : typed;
+    }
+
+    private static String personName(String raw, String label) {
+        String name = raw == null ? "" : raw.trim().replaceAll("\\s+", " ");
+        if (name.length() < 2 || name.length() > 50) {
+            throw new IllegalArgumentException(label + " را بنویس (۲ تا ۵۰ نویسه).");
+        }
+        return name;
+    }
+
+    private String ticket(String email, long until) {
+        String body = java.util.Base64.getUrlEncoder().withoutPadding()
+                .encodeToString((email + "|" + until).getBytes(StandardCharsets.UTF_8));
+        return body + "." + hash(body, "ticket", "");
+    }
+
+    private String fromTicket(String ticket) {
+        String fail = "زمان ساختن حساب گذشته؛ دوباره ایمیلت را بنویس و کد تازه بگیر.";
+        if (ticket == null || ticket.indexOf('.') < 0) {
+            throw new IllegalArgumentException(fail);
+        }
+        String body = ticket.substring(0, ticket.indexOf('.'));
+        String mac = ticket.substring(ticket.indexOf('.') + 1);
+        if (!MessageDigest.isEqual(mac.getBytes(StandardCharsets.US_ASCII), hash(body, "ticket", "").getBytes(StandardCharsets.US_ASCII))) {
+            throw new IllegalArgumentException(fail);
+        }
+        String[] parts = new String(java.util.Base64.getUrlDecoder().decode(body), StandardCharsets.UTF_8).split("\\|");
+        if (parts.length != 2 || Long.parseLong(parts[1]) < Instant.now().getEpochSecond()) {
+            throw new IllegalArgumentException(fail);
+        }
+        return parts[0];
     }
 
     public boolean available() {
@@ -322,6 +445,10 @@ public class EmailAuthService {
             case EmailCode.PASSWORD_RESET -> send(sendTo, "کد بازیابی رمز بین‌ما: " + code,
                     "سلام،\n\nبرای تغییر رمز حسابت در بین‌ما این کد را وارد کن: " + code + " (" + persian + ")\n"
                             + "کد تا ۱۰ دقیقه معتبر است. اگر درخواست نداده‌ای، کاری لازم نیست؛ رمزت عوض نمی‌شود.\n\n— تیم بین‌ما");
+            case EmailCode.EMAIL_LOGIN -> send(sendTo, "کد ورود به بین‌ما: " + code,
+                    "سلام" + name + "،\n\nکد ورود تو به بین‌ما:\n\n" + code + " (" + persian + ")\n\n"
+                            + "این کد تا ۱۰ دقیقه معتبر است و فقط یک بار کار می‌کند. اگر تو درخواست نداده‌ای، این ایمیل را نادیده بگیر؛ "
+                            + "بدون این کد کسی وارد حسابت نمی‌شود.\n\n— تیم بین‌ما");
             case EmailCode.MIGRATION_VERIFY, EmailCode.EMAIL_CHANGE -> send(sendTo, "تأیید ایمیل حساب بین‌ما: " + code,
                     "سلام" + name + "،\n\nبرای امن‌تر شدن حسابت، از این به بعد ورود با ایمیل هم ممکن است. کد تأیید: "
                             + code + " (" + persian + ")\nاین کد ۱۰ دقیقه اعتبار دارد.\n\n— تیم بین‌ما");

@@ -162,6 +162,12 @@ public class SecurityConfig {
 
                                 "/api/auth/google/config",
 
+                                "/api/auth/email/start",
+
+                                "/api/auth/email/verify",
+
+                                "/api/auth/email/complete",
+
                                 "/api/auth/signup",
 
                                 "/api/auth/verify-email",

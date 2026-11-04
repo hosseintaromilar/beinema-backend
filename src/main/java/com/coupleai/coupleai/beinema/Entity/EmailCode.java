@@ -22,6 +22,8 @@ public class EmailCode extends BaseEntity {
     public static final String PASSWORD_RESET = "password_reset";
     public static final String EMAIL_CHANGE = "email_change";
     public static final String MIGRATION_VERIFY = "migration_verify";
+    /** Signing in or up with only the address: the code is the whole proof. */
+    public static final String EMAIL_LOGIN = "email_login";
 
     @Column(name = "email_normalized", length = 150, nullable = false)
     private String emailNormalized;

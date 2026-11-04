@@ -26,6 +26,25 @@ public class EmailAuthController {
     }
 
     /** Body: email, password, displayName, referralCode (optional). */
+    /** Body: email. Sends a sign-in code (also for a new address). */
+    @PostMapping("/api/auth/email/start")
+    public EmailAuthService.Result start(@RequestBody Map<String, String> body, HttpServletRequest request) {
+        return emailAuthService.start(body.get("email"), address(request));
+    }
+
+    /** Body: email, code. Signed in, or NEEDS_NAME with a ticket for /complete. */
+    @PostMapping("/api/auth/email/verify")
+    public EmailAuthService.LoginResult verifyLogin(@RequestBody Map<String, String> body) {
+        return emailAuthService.verifyLogin(body.get("email"), body.get("code"));
+    }
+
+    /** Body: ticket, firstName, lastName, referralCode. Makes the account of a new address. */
+    @PostMapping("/api/auth/email/complete")
+    public AuthResponse complete(@RequestBody Map<String, String> body, HttpServletRequest request) {
+        return emailAuthService.complete(body.get("ticket"), body.get("firstName"), body.get("lastName"),
+                body.get("referralCode"), address(request));
+    }
+
     @PostMapping("/api/auth/signup")
     public EmailAuthService.Result signup(@RequestBody Map<String, String> body, HttpServletRequest request) {
         return emailAuthService.signup(body.get("email"), body.get("password"), body.get("displayName"),
