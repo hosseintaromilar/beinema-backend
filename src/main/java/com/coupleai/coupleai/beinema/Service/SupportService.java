@@ -38,6 +38,12 @@ public class SupportService {
     private final CurrentUserService currentUserService;
     private final com.coupleai.coupleai.beinema.mail.SmtpMailer mailer;
 
+    /** Where support is told of a new ticket or a person's reply (SUPPORT_NOTIFY_EMAIL); empty: nobody. */
+    @org.springframework.beans.factory.annotation.Value("${beinema.support.notify-email:}")
+    private String notifyEmail;
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SupportService.class);
+
     public record TicketSummary(Long id, String subject, String category, String status, boolean unread,
                                 Long lastActivityAt, Long createdAt, String userName) {
     }
@@ -67,6 +73,7 @@ public class SupportService {
         ticket.setLastActivityAt(Instant.now());
         ticket = ticketRepository.save(ticket);
         addMessage(ticket.getId(), false, user.getId(), text);
+        tellSupport(ticket, user.visibleName(), text, true);
         return view(ticket);
     }
 
@@ -96,6 +103,7 @@ public class SupportService {
         ticket.setStatus(SupportTicketStatus.OPEN);
         ticket.setLastActivityAt(Instant.now());
         ticketRepository.save(ticket);
+        tellSupport(ticket, nameOf(ticket.getUserId()), text, false);
         return view(ticket);
     }
 
@@ -171,6 +179,7 @@ public class SupportService {
             ticket = ticketRepository.findAllByEmailFromIgnoreCaseAndStatusNotOrderByLastActivityAtDesc(from, SupportTicketStatus.CLOSED)
                     .stream().findFirst().orElse(null);
         }
+        boolean fresh = ticket == null;
         if (ticket == null) {
             ticket = new SupportTicket();
             ticket.setUserId(userId == null ? 0L : userId);
@@ -188,7 +197,34 @@ public class SupportService {
         ticket.setLastActivityAt(Instant.now());
         ticket = ticketRepository.save(ticket);
         addMessage(ticket.getId(), false, ticket.getUserId() == 0L ? null : ticket.getUserId(), text);
+        tellSupport(ticket, from + " (ایمیل)", text, fresh);
         return ticket.getId();
+    }
+
+    /**
+     * An email to support about a new ticket or a person's reply, sent in the background so a
+     * slow or failing mail server never holds up or breaks the ticket. Only the start of the text.
+     */
+    private void tellSupport(SupportTicket ticket, String who, String text, boolean fresh) {
+        if (notifyEmail == null || notifyEmail.isBlank() || !mailer.configured()) {
+            return;
+        }
+        String subject = (fresh ? "تیکت تازه" : "پاسخ تازه در تیکت") + " #" + ticket.getId() + ": " + ticket.getSubject();
+        String body = (fresh ? "یک تیکت تازه ثبت شد." : "کاربر به تیکت جواب داد.") + "\n\n"
+                + "از: " + who + "\n"
+                + "موضوع: " + ticket.getSubject() + "\n\n"
+                + (text.length() > 600 ? text.substring(0, 600) + "…" : text) + "\n\n"
+                + "برای دیدن و جواب دادن: https://admin.beinema.ir/tickets";
+        String to = notifyEmail.trim();
+        Thread thread = new Thread(() -> {
+            try {
+                mailer.send(to, subject, body);
+            } catch (RuntimeException failure) {
+                log.warn("Support was not told of ticket {}: {}", ticket.getId(), failure.getMessage());
+            }
+        }, "beinema-ticket-" + ticket.getId());
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private void answerByEmail(SupportTicket ticket, String text) {
