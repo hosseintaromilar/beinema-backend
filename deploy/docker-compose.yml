@@ -63,6 +63,24 @@ services:
     environment:
       BACKEND_URL: http://api:8080
 
+  # outgoing email (sign-up codes and the like): Postfix sends straight to the receivers'
+  # servers on port 25 and signs with DKIM. No port is published; only the containers here
+  # reach it, on mail:587 (MAIL_HOST/MAIL_PORT/MAIL_TLS in api.env). The DKIM key stays in
+  # ./dkim; its public half goes in the DNS as mail._domainkey.beinema.ir.
+  mail:
+    image: boky/postfix:v4.4.0
+    restart: always
+    environment:
+      ALLOWED_SENDER_DOMAINS: beinema.ir
+      POSTFIX_myhostname: mail.beinema.ir
+      # the server has no IPv6 route out
+      POSTFIX_inet_protocols: ipv4
+      DKIM_AUTOGENERATE: "true"
+      DKIM_SELECTOR: mail
+      TZ: Asia/Tehran
+    volumes:
+      - ./dkim:/etc/opendkim/keys
+
   caddy:
     image: caddy:2
     restart: always
