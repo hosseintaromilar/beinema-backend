@@ -15,4 +15,6 @@ public interface BlogCommentRepository extends JpaRepository<BlogComment, Long> 
     List<BlogComment> findTop200ByOrderByIdDesc();
 
     long countByStatus(BlogCommentStatus status);
+
+    List<BlogComment> findAllByPostId(Long postId);
 }

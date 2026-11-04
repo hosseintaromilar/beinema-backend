@@ -13,6 +13,8 @@ public interface BlogPostRepository extends JpaRepository<BlogPost, Long> {
 
     boolean existsBySlug(String slug);
 
+    boolean existsByImagePath(String imagePath);
+
     List<BlogPost> findAllByOrderByIdDesc();
 
     List<BlogPost> findAllByStatusOrderByPublishedAtDesc(BlogPostStatus status);

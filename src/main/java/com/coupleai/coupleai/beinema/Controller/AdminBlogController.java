@@ -23,6 +23,7 @@ public class AdminBlogController {
     private final com.coupleai.coupleai.beinema.Service.BlogImageGenerator blogImageGenerator;
     private final com.coupleai.coupleai.beinema.Service.BlogWriter blogWriter;
     private final com.coupleai.coupleai.beinema.Service.FileStorageService fileStorageService;
+    private final com.coupleai.coupleai.beinema.Service.BlogCleanupService blogCleanupService;
 
     @GetMapping
     public List<BlogPost> list() {
@@ -71,6 +72,20 @@ public class AdminBlogController {
     public BlogService.PostView uploadImage(@PathVariable Long id,
                                             @org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         blogService.addUploadedImage(id, fileStorageService.storeBlogImage(file));
+        return blogService.view(id);
+    }
+
+    /** Removes a rejected post with its versions, pictures and comments. */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    public Map<String, String> delete(@PathVariable Long id) {
+        blogCleanupService.deletePost(id);
+        return Map.of("status", "DELETED");
+    }
+
+    /** Removes one picture option (not the chosen one). */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/image/{imageId}")
+    public BlogService.PostView deleteImage(@PathVariable Long id, @PathVariable Long imageId) {
+        blogCleanupService.deleteImage(id, imageId);
         return blogService.view(id);
     }
 

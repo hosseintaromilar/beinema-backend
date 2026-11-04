@@ -10,4 +10,6 @@ public interface BlogImageRepository extends JpaRepository<BlogImage, Long> {
     List<BlogImage> findAllByPostIdAndVersionNumberOrderByIdAsc(Long postId, int versionNumber);
 
     List<BlogImage> findAllByPostId(Long postId);
+
+    boolean existsByStoredPath(String storedPath);
 }
