@@ -3,6 +3,8 @@
 # The site's own nginx forwards /api and /uploads to the backend.
 
 beinema.ir {
+	# browsers open the site only over https from now on (a year)
+	header Strict-Transport-Security "max-age=31536000"
 	encode gzip
 	reverse_proxy web:80 {
 		# live chat (server-sent events) goes out as it comes
@@ -15,6 +17,8 @@ www.beinema.ir {
 }
 
 admin.beinema.ir {
+	# browsers open the site only over https from now on (a year)
+	header Strict-Transport-Security "max-age=31536000"
 	encode gzip
 	reverse_proxy admin:80 {
 		flush_interval -1
