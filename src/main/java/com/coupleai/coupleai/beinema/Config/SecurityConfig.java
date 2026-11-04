@@ -225,6 +225,18 @@ public class SecurityConfig {
                         .permitAll()
 
 
+                        // the written blog pages, the site map and pictures also answer HEAD, as checkers ask first
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.HEAD,
+                                "/api/blog-pages",
+                                "/api/blog-pages/*",
+                                "/api/blog",
+                                "/api/blog/*",
+                                "/uploads/**"
+                        )
+                        .permitAll()
+
+
                         .requestMatchers(
 
                                 org.springframework.http.HttpMethod.OPTIONS,
