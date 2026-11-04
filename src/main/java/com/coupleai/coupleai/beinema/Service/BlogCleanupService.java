@@ -13,7 +13,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Removing what the blog no longer needs, so the server does not fill up and the editor loads
@@ -25,6 +29,25 @@ import java.util.List;
 public class BlogCleanupService {
 
     private static final Logger log = LoggerFactory.getLogger(BlogCleanupService.class);
+    private static final Pattern PICTURE = Pattern.compile("!\\[[^\\]]*\\]\\((/uploads/blog/[^)\\s]+)\\)");
+
+    /** The pictures a text shows: our own uploads only. */
+    public static Set<String> picturesIn(String markdown) {
+        Set<String> paths = new LinkedHashSet<>();
+        Matcher matcher = PICTURE.matcher(markdown == null ? "" : markdown);
+        while (matcher.find()) {
+            paths.add(matcher.group(1));
+        }
+        return paths;
+    }
+
+    /** After an edit: the pictures taken out of the text lose their file, when nothing else shows them. */
+    @Transactional
+    public void dropUnusedPictures(Set<String> before, String after) {
+        Set<String> gone = new LinkedHashSet<>(before);
+        gone.removeAll(picturesIn(after));
+        gone.forEach(this::removeFile);
+    }
 
     private final BlogPostRepository postRepository;
     private final BlogPostVersionRepository versionRepository;
@@ -41,12 +64,16 @@ public class BlogCleanupService {
             throw new IllegalArgumentException("فقط مطلب ردشده حذف می‌شود؛ اول ردش کن.");
         }
         List<BlogImage> images = imageRepository.findAllByPostId(postId);
+        Set<String> inText = new LinkedHashSet<>();
+        versionRepository.findAllByPostIdOrderByVersionNumberAsc(postId)
+                .forEach(version -> inText.addAll(picturesIn(version.getBodyMarkdown())));
         imageRepository.deleteAll(images);
         commentRepository.deleteAll(commentRepository.findAllByPostId(postId));
         versionRepository.deleteAll(versionRepository.findAllByPostIdOrderByVersionNumberAsc(postId));
         postRepository.delete(post);
         images.forEach(image -> removeFile(image.getStoredPath()));
         removeFile(post.getImagePath());
+        inText.forEach(this::removeFile);
         log.info("Blog post {} ({}) removed with {} picture options", postId, post.getSlug(), images.size());
     }
 
@@ -70,7 +97,8 @@ public class BlogCleanupService {
             return;
         }
         // another option or post may still show the same file
-        boolean used = imageRepository.existsByStoredPath(path) || postRepository.existsByImagePath(path);
+        boolean used = imageRepository.existsByStoredPath(path) || postRepository.existsByImagePath(path)
+                || versionRepository.existsByBodyMarkdownContaining(path);
         if (!used) {
             fileStorageService.deleteIfManaged(path);
         }

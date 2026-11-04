@@ -49,6 +49,15 @@ class BlogPageHtmlTest {
     }
 
     @Test
+    void aPictureInTheTextIsShownOnlyFromOurUploads() {
+        String html = BlogPageHtml.markdown("متن\n\n![دو صندلی](/uploads/blog/a.webp)\n\n![بد](https://evil.example/x.png)");
+
+        assertTrue(html.contains("<figure class=\"blog-figure\"><img src=\"/uploads/blog/a.webp\" alt=\"دو صندلی\""));
+        assertTrue(html.contains("<figcaption>دو صندلی</figcaption>"));
+        assertFalse(html.contains("<img src=\"https://evil.example"));
+    }
+
+    @Test
     void aPostCannotInjectMarkup() {
         String html = BlogPageHtml.post(SHELL, "https://x.ir",
                 post("a", "<b>t</b>", "<script>x</script> [بد](//evil.com) [بد](https://evil.com) </script><script>y"),

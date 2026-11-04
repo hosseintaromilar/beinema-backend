@@ -125,6 +125,9 @@ public final class BlogPageHtml {
                 + "<script type=\"application/json\" id=\"blog-seed\">" + json(seed) + "</script>");
     }
 
+    /** A line of its own: a picture from our own uploads, with its caption. */
+    private static final Pattern PICTURE = Pattern.compile("^!\\[([^\\]]*)\\]\\((/uploads/[^)\\s]+)\\)$");
+
     static String markdown(String source) {
         StringBuilder html = new StringBuilder();
         List<String> paragraph = new ArrayList<>();
@@ -135,7 +138,17 @@ public final class BlogPageHtml {
             Matcher heading = HEADING.matcher(line);
             Matcher bullet = BULLET.matcher(line);
             Matcher numbered = NUMBERED.matcher(line);
-            if (line.isEmpty()) {
+            Matcher picture = PICTURE.matcher(line);
+            if (picture.matches()) {
+                flushParagraph(html, paragraph);
+                flushList(html, items, ordered);
+                html.append("<figure class=\"blog-figure\"><img src=\"").append(escape(picture.group(2)))
+                        .append("\" alt=\"").append(escape(picture.group(1))).append("\" loading=\"lazy\">");
+                if (!picture.group(1).isBlank()) {
+                    html.append("<figcaption>").append(escape(picture.group(1))).append("</figcaption>");
+                }
+                html.append("</figure>");
+            } else if (line.isEmpty()) {
                 flushParagraph(html, paragraph);
                 flushList(html, items, ordered);
             } else if (heading.matches()) {

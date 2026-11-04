@@ -11,4 +11,7 @@ public interface BlogPostVersionRepository extends JpaRepository<BlogPostVersion
     Optional<BlogPostVersion> findByPostIdAndVersionNumber(Long postId, int versionNumber);
 
     List<BlogPostVersion> findAllByPostIdOrderByVersionNumberAsc(Long postId);
+
+    /** Whether any version of any post still shows this picture in its text. */
+    boolean existsByBodyMarkdownContaining(String text);
 }

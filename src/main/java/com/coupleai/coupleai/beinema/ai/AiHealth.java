@@ -61,6 +61,21 @@ public class AiHealth {
     /** Rooms whose session was running when the service went down, with that session's number. */
     private final Map<Long, Integer> stoppedSessions = new LinkedHashMap<>();
 
+    /** Mail for the admin when the service goes down for want of credit or errors, and when it is back. */
+    private com.coupleai.coupleai.beinema.mail.SmtpMailer mailer;
+
+    @org.springframework.beans.factory.annotation.Value("${beinema.support.notify-email:}")
+    private String notifyEmail;
+
+    /** At most one «down» email an hour, though the service may go up and down many times. */
+    private Instant lastDownMail;
+    private boolean downMailed;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setMailer(com.coupleai.coupleai.beinema.mail.SmtpMailer mailer) {
+        this.mailer = mailer;
+    }
+
     public AiHealth(ChatRoomRepository chatRoomRepository, AiIncidentRepository incidentRepository,
                     AiSessionPauseRepository pauseRepository, AdminAlertRepository alertRepository) {
         this.chatRoomRepository = chatRoomRepository;
@@ -259,6 +274,41 @@ public class AiHealth {
         } catch (RuntimeException failure) {
             log.warn("Could not save the admin alert {}: {}", kind, failure.getMessage());
         }
+        mailAdmin(kind, detail);
+    }
+
+    private void mailAdmin(String kind, String detail) {
+        if (mailer == null || notifyEmail == null || notifyEmail.isBlank() || !mailer.configured()) {
+            return;
+        }
+        boolean noCredit = AdminAlert.NO_CREDIT.equals(kind);
+        boolean down = noCredit || AdminAlert.ERROR_SPIKE.equals(kind);
+        boolean back = AdminAlert.RECOVERED.equals(kind);
+        Instant now = Instant.now();
+        if ((!down && !back) || (back && !downMailed)
+                || (down && lastDownMail != null && lastDownMail.isAfter(now.minus(Duration.ofHours(1))))) {
+            return;
+        }
+        if (down) {
+            lastDownMail = now;
+        }
+        downMailed = down;
+        String subject = noCredit ? "شارژ متیس تمام شد؛ همراه‌های بین‌ما متوقف‌اند"
+                : down ? "سرویس هوش مصنوعی بین‌ما خطا می‌دهد" : "سرویس هوش مصنوعی بین‌ما دوباره کار می‌کند";
+        String body = detail + "\n\n"
+                + (noCredit ? "حساب متیس را شارژ کن. بعد از شارژ، سرویس خودش دوباره امتحان می‌کند؛ اگر خواستی زودتر "
+                + "برگردد، در پنل «سرویس هوش مصنوعی» دکمهٔ «بستن مدار» را بزن.\n\n" : "")
+                + "https://admin.beinema.ir/ai";
+        String to = notifyEmail.trim();
+        Thread thread = new Thread(() -> {
+            try {
+                mailer.send(to, subject, body);
+            } catch (RuntimeException failure) {
+                log.warn("The admin was not mailed about {}: {}", kind, failure.getMessage());
+            }
+        }, "beinema-ai-alert");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private void prune(Instant now) {

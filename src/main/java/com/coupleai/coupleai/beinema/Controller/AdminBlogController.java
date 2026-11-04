@@ -97,8 +97,22 @@ public class AdminBlogController {
     /** The admin's edit of the current version. Body: title, slug, summary, bodyMarkdown, tags. */
     @org.springframework.web.bind.annotation.PutMapping("/{id}")
     public BlogService.PostView edit(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        return blogService.edit(id, new BlogService.Draft(body.get("title"), body.get("slug"), body.get("summary"),
-                body.get("bodyMarkdown"), body.get("tags"), null, null));
+        BlogService.PostView before = blogService.view(id);
+        java.util.Set<String> pictures = com.coupleai.coupleai.beinema.Service.BlogCleanupService.picturesIn(
+                blogService.currentVersion(before.post()).getBodyMarkdown());
+        BlogService.PostView after = blogService.edit(id, new BlogService.Draft(body.get("title"), body.get("slug"),
+                body.get("summary"), body.get("bodyMarkdown"), body.get("tags"), null, null));
+        // a picture taken out of the text no longer takes room on the server
+        blogCleanupService.dropUnusedPictures(pictures, body.get("bodyMarkdown"));
+        return after;
+    }
+
+    /** A picture for inside the text (jpg, png, webp, up to 5 MB); the editor puts its line where the cursor is. */
+    @PostMapping(value = "/{id}/inline-image", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, String> inlineImage(@PathVariable Long id,
+                                           @org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        blogService.view(id);
+        return Map.of("path", fileStorageService.storeBlogImage(file));
     }
 
     /** Body: { "slugs": ["…"] }: the posts suggested at the end of this one (published, at most four). */
