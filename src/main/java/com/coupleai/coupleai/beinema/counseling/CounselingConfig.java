@@ -41,6 +41,10 @@ public class CounselingConfig {
     @Value("${beinema.brain.kit-workflow-ids:}")
     private String kitWorkflowIds = "";
 
+    /** The workflows that get today's market prices in their packet ([MARKET]): the financial companion. */
+    @Value("${beinema.brain.market-workflow-ids:}")
+    private String marketWorkflowIds = "";
+
     @Value("${beinema.brain.recent-messages:16}")
     private int recentMessages = 16;
 
@@ -78,6 +82,11 @@ public class CounselingConfig {
     /** True when this companion works with the kit (see kitWorkflowIds). */
     public boolean isKitWorkflow(String botId) {
         return listed(kitWorkflowIds, botId);
+    }
+
+    /** True when this companion gets the market prices (see marketWorkflowIds). */
+    public boolean isMarketWorkflow(String botId) {
+        return listed(marketWorkflowIds, botId);
     }
 
     private static boolean listed(String list, String botId) {

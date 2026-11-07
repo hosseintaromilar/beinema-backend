@@ -47,6 +47,10 @@ public final class VoicePacketBuilder {
             out.append("about=").append(d.briefReferTo.stream().map(id -> "#" + id).reduce((a, b) -> a + "," + b).orElse(""))
                     .append('\n');
         }
+        if (m.market() != null && !m.market().isBlank()) {
+            // the only figures the voice may give about markets; the brief says when to use them
+            out.append("[MARKET]\n").append(m.market());
+        }
         if ("TEACH".equals(d.action) && !d.lessonScript.isBlank()) {
             out.append("[LESSON]\n").append(d.lessonScript);
         }

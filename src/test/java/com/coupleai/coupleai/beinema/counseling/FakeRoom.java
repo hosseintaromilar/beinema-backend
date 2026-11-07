@@ -170,7 +170,8 @@ class FakeRoom {
         });
         when(milestoneRepository.findAllByChatRoomIdOrderByIdAsc(ROOM)).thenAnswer(call -> new ArrayList<>(milestones));
         loader = new TurnMaterialLoader(rooms, participants, messageRepository, attachments, intentRepository, questionRepository,
-                decisionRepository, stateStore, new KnowledgeRetriever(new KnowledgeBase()), inbox, config, milestoneRepository, agents);
+                decisionRepository, stateStore, new KnowledgeRetriever(new KnowledgeBase()), inbox, config, milestoneRepository, agents,
+                new com.coupleai.coupleai.beinema.market.MarketDataService());
         persistence = new TurnPersistence(decisionRepository, stateRepository, stateStore, intentRepository, ledger, questionService,
                 milestoneRepository);
         orchestrator = new TurnOrchestrator(loader, brain, config, persistence, questionService, realtime, eventHub, pauses,

@@ -45,7 +45,9 @@ public record TurnMaterial(
         /** The agent's name from the admin panel ("نادر"), or empty. */
         String counselorName,
         /** Names of everyone by role, also of a partner who left (their earlier messages keep a name). */
-        Map<String, String> namesByRole
+        Map<String, String> namesByRole,
+        /** Today's market prices for the financial companion ([MARKET]), or empty for every other room. */
+        String market
 ) {
 
     /** The stages of their own path each partner has reached (OWNER -> W, D...). */

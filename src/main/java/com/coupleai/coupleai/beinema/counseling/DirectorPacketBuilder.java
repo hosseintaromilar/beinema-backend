@@ -68,6 +68,9 @@ public final class DirectorPacketBuilder {
             m.cards().forEach(card -> out.append(card.text()).append('\n'));
         }
         out.append("[LESSONS]\n").append(lessons(m));
+        if (m.market() != null && !m.market().isBlank()) {
+            out.append("[MARKET]\n").append(m.market());
+        }
         out.append("[RECENT_MESSAGES]\n");
         if (m.recent().isEmpty()) {
             out.append("none\n");

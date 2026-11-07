@@ -53,6 +53,7 @@ public class TurnMaterialLoader {
     private final CounselingConfig config;
     private final com.coupleai.coupleai.beinema.Repository.PersonMilestoneRepository milestoneRepository;
     private final com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository;
+    private final com.coupleai.coupleai.beinema.market.MarketDataService marketData;
 
     @Transactional(readOnly = true)
     public TurnMaterial load(Long roomId) {
@@ -202,7 +203,9 @@ public class TurnMaterialLoader {
                         .filter(name -> name != null && !name.isBlank())
                         .findFirst()
                         .orElse(""),
-                namesByRole);
+                namesByRole,
+                chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isMarketWorkflow)
+                        ? marketData.block() : "");
     }
 
     /** Whether this person wrote again after the given message (their newer words make a reply to the old ones stale). */
