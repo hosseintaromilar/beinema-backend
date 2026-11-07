@@ -44,4 +44,18 @@ class CounselorSignalTest {
         assertEquals("THANKS", CounselorSignal.stickerName(content));
         assertEquals(CounselorSignal.emojiFor("THANKS"), CounselorSignal.stripSticker(content));
     }
+
+    @Test
+    void theSessionsOwnStickersAreForThePlatformOnly() {
+        // the new set is there for the brain
+        assertEquals("NEUTRAL", CounselorSignal.normalize("neutral"));
+        assertEquals("CALM_BOTH", CounselorSignal.normalize("calm_both"));
+        // the session's moments are not: the platform shows them itself
+        assertNull(CounselorSignal.normalize("WRAP_UP"));
+        assertNull(CounselorSignal.normalize("FEW_MINUTES_LEFT"));
+        assertNull(CounselorSignal.normalize("WAITING_PARTNER"));
+        assertEquals("WRAP_UP", CounselorSignal.systemToken("wrap_up"));
+        assertNull(CounselorSignal.systemToken("LISTEN"));
+        assertEquals("WAITING_PARTNER", CounselorSignal.stickerName(CounselorSignal.stickerContent("WAITING_PARTNER")));
+    }
 }

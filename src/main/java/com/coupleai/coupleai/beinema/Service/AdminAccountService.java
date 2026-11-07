@@ -132,6 +132,7 @@ public class AdminAccountService {
         view.put("balance", walletService.getOrCreate(user).getBalance());
         view.put("freeLeft", billingService.freeLeft(user));
         view.put("packages", billingService.offerFor(user).myPackages());
+        view.put("cancelledPackages", billingService.cancelledOf(userId));
         view.put("transactions", transactionRepository.findTop50ByUser_IdOrderByCreatedAtDesc(userId).stream()
                 .limit(20)
                 .map(item -> {

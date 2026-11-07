@@ -28,6 +28,8 @@ public class InboxWiring {
         billingService.onRenewalFailed((user, what) -> inboxService.system(user.getId(), "تمدید اشتراک انجام نشد",
                 "اعتبار حسابت برای تمدید " + what + " کافی نبود و اشتراک متوقف شد. هر وقت خواستی، دوباره شروعش کن.",
                 "اعتبار حساب", "/dashboard/wallet"));
+        billingService.onRefundRecorded((user, what) -> inboxService.system(user.getId(), "بسته‌ات لغو شد",
+                what + " اگر سؤالی داری، از بخش پشتیبانی بپرس.", "کیف پول", "/dashboard/wallet"));
         referralService.onGift(user -> inboxService.system(user.getId(), "یک جلسهٔ رایگان هدیه گرفتی",
                 "یک جلسهٔ رایگان به حسابت اضافه شد. ممنون که بین‌ما را معرفی کردی.", null, null));
     }

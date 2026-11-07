@@ -72,6 +72,14 @@ public class SessionPackage extends BaseEntity {
     @Column(name = "refund_paid_at")
     private Instant refundPaidAt;
 
+    /** CARD: paid back to the person's bank card by the admin; WALLET: back to their credit at once. */
+    @Column(name = "refund_method", length = 10)
+    private String refundMethod;
+
+    /** The admin's note on the cancellation (the ticket, the reason). */
+    @Column(name = "refund_note", length = 300)
+    private String refundNote;
+
     public int sessionsLeft() {
         return Math.max(0, sessionsTotal - (sessionsUsed == null ? 0 : sessionsUsed));
     }

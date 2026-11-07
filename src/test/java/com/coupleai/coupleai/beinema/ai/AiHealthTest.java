@@ -84,9 +84,19 @@ class AiHealthTest {
         when(rooms.findById(9L)).thenReturn(Optional.of(room));
 
         health.failed(new MetisCallException(AiError.NO_CREDIT, "402"));
+        // a real outage takes time; with none between the two calls there would be nothing to give back
+        sleepQuietly(30);
         health.reset();
 
         assertTrue(room.getSessionStartedAt().isAfter(started), "the clock was moved on by the outage");
         verify(pauses).save(any(AiSessionPause.class));
+    }
+
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException stop) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

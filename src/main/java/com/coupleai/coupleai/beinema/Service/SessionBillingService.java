@@ -110,7 +110,8 @@ public class SessionBillingService {
 
     /** A bundle someone bought that still has sessions and time left. */
     public record OwnedPackage(Long id, String tier, String title, int sessionsLeft, int sessionsTotal, long expiresAt,
-                               boolean refundable, boolean recurring, boolean autoRenew, long refundIfCancelled) {
+                               boolean refundable, boolean recurring, boolean autoRenew, long refundIfCancelled,
+                               long price) {
     }
 
     /** The public part, for the counselor pages: free sessions, the price and the bundles. */
@@ -327,7 +328,7 @@ public class SessionBillingService {
         return new OwnedPackage(item.getId(), item.getTier(), titleOf(item.getTier()), item.sessionsLeft(),
                 item.getSessionsTotal(), item.getExpiresAt().toEpochMilli(),
                 plan != null && plan.refundable(), plan != null && plan.recurring(),
-                Boolean.TRUE.equals(item.getAutoRenew()), refundFor(item));
+                Boolean.TRUE.equals(item.getAutoRenew()), refundFor(item), item.getPrice() == null ? 0 : item.getPrice());
     }
 
     /**
@@ -352,25 +353,78 @@ public class SessionBillingService {
         throw new IllegalArgumentException("برای بازگشت وجه از بخش «پشتیبانی» تیکت بزن.");
     }
 
-    /** The admin, answering a refund ticket: the bundle stops now and the refund waits to be paid back. */
+    /** The admin, answering a refund ticket: the rule's amount, to the bank card. */
     @Transactional
     public OwnedPackage cancelForRefund(Long packageId) {
+        return cancelForRefund(packageId, null, "CARD", null);
+    }
+
+    /**
+     * The admin cancels a bundle after a refund: it stops at once (its sessions can no longer be used,
+     * a subscription no longer renews) and the refund is recorded. amount: null for the rule's
+     * amount, or what the admin decided (from nothing up to what was paid; also for a bundle the rule
+     * gives nothing back). method: WALLET puts it back on the person's credit now; CARD waits for the
+     * admin to pay it to their bank card. The person is told in their notifications.
+     */
+    @Transactional
+    public OwnedPackage cancelForRefund(Long packageId, Long amount, String method, String note) {
         SessionPackage bundle = packageRepository.findById(packageId)
                 .orElseThrow(() -> new IllegalArgumentException("این بسته پیدا نشد."));
-        SessionPackageTier plan = SessionPackageTier.of(bundle.getTier());
         if (bundle.getCancelledAt() != null || !bundle.getExpiresAt().isAfter(Instant.now())) {
             throw new IllegalArgumentException("این بسته دیگر فعال نیست.");
         }
-        if (plan == null || !plan.refundable()) {
-            throw new IllegalArgumentException("این بسته بازگشت وجه ندارد.");
+        long paid = bundle.getPrice() == null ? 0 : bundle.getPrice();
+        long refund = amount == null ? refundFor(bundle) : amount;
+        if (refund < 0 || refund > paid) {
+            throw new IllegalArgumentException("مبلغ بازگشت باید بین صفر و مبلغ خرید (" + toman(paid) + ") باشد.");
         }
-        long refund = refundFor(bundle);
+        boolean toWallet = "WALLET".equals(method);
         Instant now = Instant.now();
         bundle.setCancelledAt(now);
         bundle.setExpiresAt(now);
+        bundle.setAutoRenew(false);
         bundle.setRefundAmount(refund);
-        bundle.setRefundStatus(refund > 0 ? "PENDING" : "NONE");
-        return owned(packageRepository.save(bundle));
+        bundle.setRefundMethod(toWallet ? "WALLET" : "CARD");
+        bundle.setRefundNote(note == null || note.isBlank() ? null : note.strip().substring(0, Math.min(300, note.strip().length())));
+        User user = userRepository.findById(bundle.getUserId()).orElse(null);
+        if (refund == 0) {
+            bundle.setRefundStatus("NONE");
+        } else if (toWallet) {
+            walletService.credit(user, refund, WalletTransactionType.REFUND,
+                    "بازگشت وجه " + titleOf(bundle.getTier()), "refund:" + bundle.getId());
+            bundle.setRefundStatus("PAID");
+            bundle.setRefundPaidAt(now);
+        } else {
+            bundle.setRefundStatus("PENDING");
+        }
+        OwnedPackage result = owned(packageRepository.save(bundle));
+        if (refundRecorded != null && user != null) {
+            String what = titleOf(bundle.getTier()) + " لغو شد. "
+                    + (refund == 0 ? "جلسه‌های مانده‌اش دیگر قابل استفاده نیست."
+                    : toWallet ? toman(refund) + " به اعتبار حسابت برگشت."
+                    : toman(refund) + " به کارت بانکی‌ات واریز می‌شود.");
+            refundRecorded.accept(user, what);
+        }
+        return result;
+    }
+
+    /** The bundles of a person that were cancelled, newest first, for the admin's view of the account. */
+    public List<java.util.Map<String, Object>> cancelledOf(Long userId) {
+        return packageRepository.findAllByUserIdOrderByIdDesc(userId).stream()
+                .filter(item -> item.getCancelledAt() != null)
+                .map(item -> {
+                    java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+                    row.put("id", item.getId());
+                    row.put("title", titleOf(item.getTier()));
+                    row.put("price", item.getPrice());
+                    row.put("cancelledAt", item.getCancelledAt().toEpochMilli());
+                    row.put("refundAmount", item.getRefundAmount());
+                    row.put("refundStatus", item.getRefundStatus());
+                    row.put("refundMethod", item.getRefundMethod());
+                    row.put("refundNote", item.getRefundNote());
+                    return row;
+                })
+                .toList();
     }
 
     /** Monthly subscriptions renew from the wallet at the price they were bought at, until cancelled. */
@@ -422,6 +476,13 @@ public class SessionBillingService {
 
     public void onRenewalFailed(java.util.function.BiConsumer<User, String> listener) {
         this.renewalFailed = listener;
+    }
+
+    private java.util.function.BiConsumer<User, String> refundRecorded;
+
+    /** The person is told that a bundle of theirs was cancelled and where the money goes. */
+    public void onRefundRecorded(java.util.function.BiConsumer<User, String> listener) {
+        this.refundRecorded = listener;
     }
 
     /** Refunds waiting for the admin, newest first. */

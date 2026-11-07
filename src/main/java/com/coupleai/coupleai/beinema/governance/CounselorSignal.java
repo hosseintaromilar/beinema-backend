@@ -68,6 +68,34 @@ public record CounselorSignal(String reactionToken, String stickerToken) {
         EMOJI.put("WAITFORME", "\u231B");            // منتظر بمون
         EMOJI.put("ALWAYSWITH", "\uD83D\uDC9A");    // همیشه در کنارتم
         EMOJI.put("ALLOK", "\uD83D\uDC4C");         // همه چی خوبه
+
+        // the new set (the two halves of the logo, /stickers/v2); the prompts learn them in a later step
+        EMOJI.put("WELCOME", "👋");         // خوش اومدید
+        EMOJI.put("WELCOME_SOLO", "👋");    // خوش اومدی
+        EMOJI.put("THINKING_AGENT", "🤔");  // یه لحظه، دارم فکر می‌کنم
+        EMOJI.put("WAIT_A_MOMENT", "⌛");   // یه لحظه صبر کنید
+        EMOJI.put("YOUR_TURN", "💬");       // نوبت توئه
+        EMOJI.put("OTHER_SIDE", "❓");      // نظر طرف مقابل چیه؟
+        EMOJI.put("CALM_BOTH", "🌬");       // یه نفس بکشیم
+        EMOJI.put("CALM_DOWN", "🌬");       // آروم باشیم
+        EMOJI.put("EMPATHY", "🫶");         // درکت می‌کنم
+        EMOJI.put("WELL_DONE", "⭐");       // آفرین، قدم خوبی بود
+        EMOJI.put("NEUTRAL", "⚖");          // طرف هیچ‌کس نیستم
+        EMOJI.put("WAITING_PARTNER", "⌛"); // منتظر همراهت هستیم
+        EMOJI.put("FEW_MINUTES_LEFT", "⏰"); // چند دقیقه مونده
+        EMOJI.put("WRAP_UP", "👋");         // جمع‌بندی و خداحافظی
+    }
+
+    /**
+     * Stickers of the session's own moments: the platform shows them itself (someone waits for the
+     * partner, a few minutes are left, the session ends), so the brain may not send them.
+     */
+    private static final Set<String> SYSTEM_ONLY = Set.of("WAITING_PARTNER", "FEW_MINUTES_LEFT", "WRAP_UP");
+
+    /** A sticker the platform shows by itself at a moment of the session; null if not one of those. */
+    public static String systemToken(String token) {
+        String normalized = token == null ? null : token.trim().toUpperCase(Locale.ROOT);
+        return normalized != null && SYSTEM_ONLY.contains(normalized) ? normalized : null;
     }
 
     private static final Pattern STICKER_MARKER = Pattern.compile(
@@ -108,7 +136,8 @@ public record CounselorSignal(String reactionToken, String stickerToken) {
             return null;
         }
         String normalized = token.trim().toUpperCase(Locale.ROOT);
-        return EMOJI.containsKey(normalized) && !HELD_BACK.contains(normalized) ? normalized : null;
+        return EMOJI.containsKey(normalized) && !HELD_BACK.contains(normalized) && !SYSTEM_ONLY.contains(normalized)
+                ? normalized : null;
     }
 
     public static String emojiFor(String token) {

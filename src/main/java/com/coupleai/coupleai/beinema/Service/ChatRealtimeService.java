@@ -198,10 +198,21 @@ public class ChatRealtimeService {
         );
     }
 
+    /** A sticker of the session's own moment (waiting for the partner, minutes left, the end), in the companion's name. */
+    @Transactional
+    public Message saveSystemStickerAndPublish(Long chatRoomId, Long agentId, String token) {
+        String normalized = CounselorSignal.systemToken(token);
+        return normalized == null ? null : saveSticker(chatRoomId, agentId, normalized, null);
+    }
+
     /** Sends a counselor sticker as a reply to a partner's message. */
     @Transactional
     public Message saveStickerAndPublish(Long chatRoomId, Long agentId, String token, Long replyToMessageId) {
         String normalized = CounselorSignal.normalize(token);
+        return normalized == null ? null : saveSticker(chatRoomId, agentId, normalized, replyToMessageId);
+    }
+
+    private Message saveSticker(Long chatRoomId, Long agentId, String normalized, Long replyToMessageId) {
         if (normalized == null) {
             return null;
         }

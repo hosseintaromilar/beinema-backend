@@ -258,4 +258,52 @@ class SessionBillingServiceTest {
         wallet.setBalance(100_000L);
         assertDoesNotThrow(() -> billing.requireCanStart(room, owner));
     }
+
+    private SessionPackage refundable(String tier, long price, int total, int used) {
+        SessionPackage bundle = bundle(total, used);
+        bundle.setId(40L);
+        bundle.setTier(tier);
+        bundle.setPrice(price);
+        bundle.setAutoRenew(true);
+        when(packages.findById(40L)).thenReturn(Optional.of(bundle));
+        when(packages.save(any(SessionPackage.class))).thenAnswer(call -> call.getArgument(0));
+        return bundle;
+    }
+
+    @Test
+    void aCancelledBundleStopsAtOnceAndItsRefundGoesBackToTheWalletWhenChosen() {
+        // the trial gives nothing back by the rule, but the admin decided to return 200,000
+        SessionPackage bundle = refundable("TRIAL", 295_000L, 2, 1);
+
+        billing.cancelForRefund(40L, 200_000L, "WALLET", "تیکت ۱۲");
+
+        assertTrue(bundle.getCancelledAt() != null && !bundle.getExpiresAt().isAfter(Instant.now()));
+        assertFalse(bundle.getAutoRenew());
+        assertEquals("PAID", bundle.getRefundStatus());
+        assertEquals("WALLET", bundle.getRefundMethod());
+        assertEquals("تیکت ۱۲", bundle.getRefundNote());
+        verify(wallets).credit(eq(owner), eq(200_000L), eq(com.coupleai.coupleai.beinema.Enum.WalletTransactionType.REFUND),
+                anyString(), eq("refund:40"));
+    }
+
+    @Test
+    void withoutAnAmountTheRulesRefundWaitsToBePaidToTheCard() {
+        SessionPackage bundle = refundable("MAIN", 995_000L, 8, 0);
+
+        billing.cancelForRefund(40L, null, "CARD", null);
+
+        assertEquals("PENDING", bundle.getRefundStatus());
+        assertEquals(SessionBillingService.refundFor(bundle), bundle.getRefundAmount());
+        verify(wallets, never()).credit(any(), anyLong(), any(), anyString(), anyString());
+    }
+
+    @Test
+    void neverMoreThanWasPaidAndNeverTwice() {
+        SessionPackage bundle = refundable("MAIN", 995_000L, 8, 0);
+
+        assertThrows(IllegalArgumentException.class, () -> billing.cancelForRefund(40L, 1_000_000L, "CARD", null));
+        billing.cancelForRefund(40L, 0L, "CARD", null);
+        assertEquals("NONE", bundle.getRefundStatus());
+        assertThrows(IllegalArgumentException.class, () -> billing.cancelForRefund(40L, 0L, "CARD", null));
+    }
 }

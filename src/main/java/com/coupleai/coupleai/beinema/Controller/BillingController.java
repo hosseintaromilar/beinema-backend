@@ -78,8 +78,14 @@ public class BillingController {
 
     /** The admin cancels a bundle after a refund ticket; the refund is recorded to be paid back. */
     @PostMapping("/api/admin/packages/{id}/cancel")
-    public SessionBillingService.OwnedPackage cancelForRefund(@PathVariable Long id) {
-        return billingService.cancelForRefund(id);
+    public SessionBillingService.OwnedPackage cancelForRefund(@PathVariable Long id,
+                                                             @RequestBody(required = false) Map<String, Object> body) {
+        if (body == null) {
+            return billingService.cancelForRefund(id);
+        }
+        Object amount = body.get("amount");
+        Long value = amount == null || String.valueOf(amount).isBlank() ? null : Long.valueOf(String.valueOf(amount).replaceAll("[^0-9]", ""));
+        return billingService.cancelForRefund(id, value, (String) body.get("method"), (String) body.get("note"));
     }
 
     @GetMapping("/api/admin/refunds")

@@ -133,6 +133,10 @@ public class SessionLifecycleService {
     @Value("${beinema.session.partner-wait-minutes:5}")
     private int partnerWaitMinutes;
 
+    /** How many minutes before the end the «چند دقیقه مونده» sticker shows; 0: never. */
+    @Value("${beinema.session.few-minutes-left:5}")
+    private int fewMinutesLeft;
+
     /** The shortest break between two sessions. */
     @Value("${beinema.session.min-break-minutes:15}")
     private int minBreakMinutes;
@@ -312,6 +316,7 @@ public class SessionLifecycleService {
         Closing closing = null;
         Begun begun = null;
         boolean offer = false;
+        boolean fewLeft = false;
         ChatRoom fresh;
         synchronized (lock(room.getId())) {
             fresh = chatRoomRepository.findById(room.getId()).orElse(room);
@@ -340,6 +345,9 @@ public class SessionLifecycleService {
                     fresh.setBreakProposedAt(now);
                     chatRoomRepository.save(fresh);
                     offer = true;
+                } else if (fewMinutesLeft > 0 && now.isBefore(timeUp)
+                        && !now.isBefore(timeUp.minusSeconds(fewMinutesLeft * 60L))) {
+                    fewLeft = true;
                 }
             }
         }
@@ -352,6 +360,8 @@ public class SessionLifecycleService {
             }
         } else if (begun != null && once("begin:" + fresh.getId() + ":" + number(fresh) + ":" + begun.openedAt())) {
             noticeLatecomers(fresh.getId(), begun.late(), begun.present(), number(fresh) == 1);
+        } else if (fewLeft && once("few:" + fresh.getId() + ":" + number(fresh) + ":" + fresh.getSessionStartedAt().toEpochMilli())) {
+            sticker(fresh, "FEW_MINUTES_LEFT");
         }
         return fresh;
     }
@@ -408,6 +418,7 @@ public class SessionLifecycleService {
         ChatRoom room = requireMemberRoom(roomId);
         User user = currentUserService.getCurrentUser();
         SessionMoment moment;
+        boolean waiting = false;
         synchronized (lock(roomId)) {
             room = chatRoomRepository.findById(roomId).orElse(room);
             Instant now = clock.instant();
@@ -437,6 +448,7 @@ public class SessionLifecycleService {
                 mine.setSessionReadyAt(now);
                 participantRepository.save(mine);
                 moment = opened(room, people, mine);
+                waiting = people.size() >= 2 && waitsForPartner(room, people) && !allReady(people);
             } else if (mine.getSessionReadyAt() == null) {
                 mine.setSessionReadyAt(now);
                 participantRepository.save(mine);
@@ -444,6 +456,9 @@ public class SessionLifecycleService {
             } else {
                 return describe(room);
             }
+        }
+        if (waiting) {
+            sticker(room, "WAITING_PARTNER");
         }
         events.publishEvent(moment);
         return describe(refresh(room));
@@ -864,6 +879,7 @@ public class SessionLifecycleService {
         relationshipInsightService.refreshAfterSession(roomId, closing.user());
 
         if (!forGood) {
+            sticker(room, "WRAP_UP");
             say(room, closingText(closing));
         }
         log.info("Session {} of room {} closed", number, roomId);
@@ -1067,6 +1083,15 @@ public class SessionLifecycleService {
             out.append(c >= '0' && c <= '9' ? (char) ('۰' + (c - '0')) : c);
         }
         return out.toString();
+    }
+
+    /** A sticker of the session's own moment, in the companion's name; a failure never stops the session. */
+    private void sticker(ChatRoom room, String token) {
+        try {
+            chatRealtimeService.saveSystemStickerAndPublish(room.getId(), agentId(room.getId()), token);
+        } catch (RuntimeException failure) {
+            log.warn("Could not show the {} sticker in room {}: {}", token, room.getId(), failure.getMessage());
+        }
     }
 
     private void say(ChatRoom room, String text) {
