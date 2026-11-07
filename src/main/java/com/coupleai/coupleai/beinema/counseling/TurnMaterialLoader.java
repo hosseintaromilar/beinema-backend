@@ -191,6 +191,11 @@ public class TurnMaterialLoader {
             tags.add(DirectorPacketBuilder.OWN_METHOD);
         }
 
+        if (chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isMarketWorkflow)) {
+            tags = new java.util.HashSet<>(tags);
+            tags.add(FinanceKit.TAG);
+        }
+
         if (chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isKitWorkflow)) {
             tags = new java.util.HashSet<>(tags);
             tags.add(ElikaKit.TAG);

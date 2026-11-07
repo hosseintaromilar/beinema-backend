@@ -59,6 +59,7 @@ public class ChatRoomService {
     private final com.coupleai.coupleai.beinema.Repository.ClarifyingQuestionRepository clarifyingQuestionRepository;
     private final com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository directorDecisionRecordRepository;
     private final com.coupleai.coupleai.beinema.Repository.CoupleTestRepository coupleTestRepository;
+    private final com.coupleai.coupleai.beinema.Repository.FinanceCardRepository financeCardRepository;
     private final com.coupleai.coupleai.beinema.Repository.SessionMemoryRepository sessionMemoryRepository;
     private final com.coupleai.coupleai.beinema.Repository.ServiceFeedbackRepository serviceFeedbackRepository;
     private final com.coupleai.coupleai.beinema.Repository.PersonMilestoneRepository personMilestoneRepository;
@@ -666,6 +667,7 @@ public class ChatRoomService {
         clarifyingQuestionRepository.deleteAllByChatRoomId(chatRoomId);
         directorDecisionRecordRepository.deleteAllByChatRoomId(chatRoomId);
         coupleTestRepository.deleteAllByChatRoomId(chatRoomId);
+        financeCardRepository.deleteAllByChatRoomId(chatRoomId);
         sessionMemoryRepository.deleteAllByChatRoomId(chatRoomId);
         serviceFeedbackRepository.deleteAllByChatRoomId(chatRoomId);
         personMilestoneRepository.deleteAllByChatRoomId(chatRoomId);

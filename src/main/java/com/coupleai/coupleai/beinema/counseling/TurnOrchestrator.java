@@ -72,6 +72,10 @@ public class TurnOrchestrator {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private CoupleTestService coupleTests;
 
+    /** Absent in tests; only the financial companion's rooms use it. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private FinanceService financeService;
+
     /** Absent in tests. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private SessionEndCheckService endChecks;
@@ -171,6 +175,10 @@ public class TurnOrchestrator {
         String packet = DirectorPacketBuilder.build(m, null);
         if (kit && coupleTests != null) {
             packet += coupleTests.forDirector(m);
+        }
+        boolean finance = m.tags() != null && m.tags().contains(FinanceKit.TAG) && financeService != null;
+        if (finance) {
+            packet += financeService.forDirector(m);
         }
         Decided decided = decide(m, packet);
         markSeen(roomId, lastSeen, true);
@@ -319,6 +327,9 @@ public class TurnOrchestrator {
         }
         if (kit) {
             addKitCards(m, d, items, notes);
+        }
+        if (finance) {
+            addFinanceCards(m, d, items, notes);
         }
         persistence.finish(stored.decisionId(), voiceRaw, voiceMs, notes);
         inbox.processed(roomId, trigger, m.notes());
@@ -603,6 +614,29 @@ public class TurnOrchestrator {
         }
         joined.addAll(rest);
         return joined;
+    }
+
+    /** The financial companion: figures it heard go to the picture's form; a card comes after its words. */
+    private void addFinanceCards(TurnMaterial m, DirectorDecision d, List<Item> items, List<String> notes) {
+        if (!d.financeHints.isEmpty()) {
+            financeService.hint(m.roomId(), d.financeHints);
+            notes.add("finance: figures offered in the form " + d.financeHints.keySet());
+        }
+        if (d.financeCard == null) {
+            return;
+        }
+        if (!"NONE".equals(d.safetyLevel)) {
+            notes.add("finance: no card at safety level " + d.safetyLevel);
+            return;
+        }
+        String label = switch (d.financeCard) {
+            case "RISK" -> "آزمونک ریسک‌پذیری";
+            case "PICTURE" -> "تصویر مالی شما";
+            case "MARKET" -> "گزارش بازار";
+            default -> "سناریوهای پیشنهادی";
+        };
+        financeService.open(m.roomId(), d.financeCard, notes).ifPresent(card ->
+                items.add(new CardItem(KitMarkers.content(card.getKind(), card.getPublicId(), label))));
     }
 
     /** A lesson's card comes before her words about it; a test's card after her invitation. */

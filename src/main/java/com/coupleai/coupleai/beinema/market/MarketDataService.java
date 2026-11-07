@@ -57,7 +57,18 @@ public class MarketDataService {
             new Item("crypto-bitcoin", "بیت‌کوین", "دلار", false, false));
 
     /** One market's line: price and changes in percent (null when unknown). */
-    record Quote(String label, double price, String unit, Double day, Double week, Double month) {
+    public record Quote(String label, double price, String unit, Double day, Double week, Double month) {
+    }
+
+    /** The prices as they are now, and when they were read (null: never). */
+    public record Snapshot(List<Quote> quotes, Instant updatedAt) {
+        public boolean stale(Instant now) {
+            return updatedAt == null || Duration.between(updatedAt, now).compareTo(FRESH) > 0;
+        }
+    }
+
+    public Snapshot snapshot() {
+        return new Snapshot(quotes, updatedAt);
     }
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();

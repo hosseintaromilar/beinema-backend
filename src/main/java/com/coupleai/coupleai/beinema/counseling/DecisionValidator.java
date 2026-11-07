@@ -96,6 +96,7 @@ public final class DecisionValidator {
         readDecision(root.path("decision"), d, ctx);
         readLesson(root.path("lesson"), d);
         d.kitTest = root.path("kit_test").isTextual() ? root.path("kit_test").asText().trim() : null;
+        readFinance(root.path("finance"), d);
         readQuestionUpdates(root.path("question_updates"), d, ctx);
         readBrief(root.path("brief"), d, ctx);
         d.reviewIf = strings(root.path("review_if"), 5, 240);
@@ -104,6 +105,20 @@ public final class DecisionValidator {
         enforceSafety(d, ctx);
         enforceConsistency(d, ctx);
         return d;
+    }
+
+    private static final Set<String> FINANCE_CARDS = Set.of("RISK", "PICTURE", "MARKET", "PLAN");
+
+    /** The financial companion's card and the figures it heard; unknown values are dropped. */
+    static void readFinance(JsonNode node, DirectorDecision d) {
+        String card = node.path("card").asText("").trim().toUpperCase(Locale.ROOT);
+        d.financeCard = FINANCE_CARDS.contains(card) ? card : null;
+        node.path("hints").fields().forEachRemaining(entry -> {
+            if (entry.getValue().isNumber() && entry.getValue().asDouble() >= 0
+                    && FinanceKit.FIELDS.stream().anyMatch(field -> field.id().equals(entry.getKey()))) {
+                d.financeHints.put(entry.getKey(), entry.getValue().asDouble());
+            }
+        });
     }
 
     /** The safe default when the director could not decide: brief presence, nothing stored. */

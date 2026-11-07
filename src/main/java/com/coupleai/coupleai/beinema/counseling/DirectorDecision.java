@@ -66,6 +66,11 @@ public class DirectorDecision {
     /** Rooms with the kit: the test to give in this turn. */
     public String kitTest;
 
+    /** The financial companion: the card to send in this turn (RISK, PICTURE, MARKET, PLAN) or null. */
+    public String financeCard;
+    /** The financial companion: figures heard in the talk (field id to million tomans), offered in the picture's form. */
+    public java.util.Map<String, Double> financeHints = new java.util.LinkedHashMap<>();
+
     public QuestionSpec question;
     public List<QuestionUpdate> questionUpdates = new ArrayList<>();
 
