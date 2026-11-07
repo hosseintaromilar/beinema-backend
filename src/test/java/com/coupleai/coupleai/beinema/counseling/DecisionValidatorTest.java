@@ -193,7 +193,7 @@ class DecisionValidatorTest {
     }
 
     @Test
-    void waitIsSilentWithAValidSignalAndOtherMovesCarryNoSignal() throws Exception {
+    void waitIsSilentWithAValidSignalAndASpokenReplyKeepsOnlyTheSmallSticker() throws Exception {
         DirectorDecision silent = DecisionValidator.validate(json(
                 "{\"action\":\"WAIT\",\"signal\":{\"react\":\"listen\",\"sticker\":\"HERE\"}}", ""), ctx());
         assertEquals("SILENT", silent.route);
@@ -203,7 +203,15 @@ class DecisionValidatorTest {
         DirectorDecision spoken = DecisionValidator.validate(json(
                 "{\"action\":\"REFLECT\",\"signal\":{\"react\":\"LISTEN\"}}", ""), ctx());
         assertEquals("SPEAK", spoken.route);
-        assertNull(spoken.react);
+        assertEquals("LISTEN", spoken.react, "a spoken reply may carry a small sticker");
+
+        DirectorDecision large = DecisionValidator.validate(json(
+                "{\"action\":\"REFLECT\",\"signal\":{\"sticker\":\"HERE\"}}", ""), ctx());
+        assertNull(large.sticker, "the large sticker is only for silence");
+
+        DirectorDecision safety = DecisionValidator.validate(json(
+                "{\"action\":\"SAFETY_ASSESS\",\"signal\":{\"react\":\"HERE\"}}", ""), ctx());
+        assertNull(safety.react, "no sticker on a safety reply");
     }
 
     @Test

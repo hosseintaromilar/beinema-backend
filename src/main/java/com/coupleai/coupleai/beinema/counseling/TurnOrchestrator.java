@@ -220,6 +220,11 @@ public class TurnOrchestrator {
             return new Outcome(roomId, agentId, trigger, List.of(), true, false, null);
         }
 
+        // a small sticker under the message being answered, before the reply itself
+        if (d.react != null && trigger != null) {
+            chatRealtimeService.reactAndPublish(roomId, trigger, d.react);
+        }
+
         // 5. a lesson: the teacher fits it to the couple, then the voice says it
         LessonTeacher.Result taught = LessonTeacher.prepare(m, d, brain);
 

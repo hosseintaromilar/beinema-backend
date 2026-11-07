@@ -602,8 +602,13 @@ public final class DecisionValidator {
         }
         d.route = "WAIT".equals(d.action) ? "SILENT" : "SPEAK";
         if (!d.silent()) {
-            d.react = null;
+            // a spoken reply may carry a small sticker under the message it answers; the large one is for silence.
+            // Never on a safety reply or a governance turn (a pause or a caution).
             d.sticker = null;
+            if (d.react != null && (d.action.startsWith("SAFETY_") || !"NONE".equals(d.gov))) {
+                d.react = null;
+                d.notes.add("signal: no sticker on a safety or governance turn");
+            }
             if (d.briefDo.isBlank()) {
                 d.briefDo = "Respond briefly and warmly to the latest message.";
                 d.notes.add("brief: empty, a neutral brief was used");
