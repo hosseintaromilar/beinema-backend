@@ -28,6 +28,8 @@ public record AdminAgentResponse(
 
         String photoUrl,
 
+        String stickerSet,
+
         String aiBotId,
 
         AgentStatus status,
@@ -48,6 +50,7 @@ public record AdminAgentResponse(
                 .bio(agent.getBio())
                 .specialties(agent.getSpecialties())
                 .photoUrl(agent.getPhotoUrl())
+                .stickerSet(agent.getStickerSet())
                 .aiBotId(agent.getAiBotId())
                 .status(agent.getStatus())
                 .price(price)

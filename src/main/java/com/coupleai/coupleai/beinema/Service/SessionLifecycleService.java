@@ -1,5 +1,6 @@
 package com.coupleai.coupleai.beinema.Service;
 
+import com.coupleai.coupleai.beinema.governance.CounselorSignal;
 import com.coupleai.coupleai.beinema.DTO.ChatRoom.SessionInfo;
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
@@ -361,7 +362,7 @@ public class SessionLifecycleService {
         } else if (begun != null && once("begin:" + fresh.getId() + ":" + number(fresh) + ":" + begun.openedAt())) {
             noticeLatecomers(fresh.getId(), begun.late(), begun.present(), number(fresh) == 1);
         } else if (fewLeft && once("few:" + fresh.getId() + ":" + number(fresh) + ":" + fresh.getSessionStartedAt().toEpochMilli())) {
-            sticker(fresh, "FEW_MINUTES_LEFT");
+            say(fresh, "چند دقیقه تا پایان وقت جلسه مانده.");
         }
         return fresh;
     }
@@ -458,7 +459,7 @@ public class SessionLifecycleService {
             }
         }
         if (waiting) {
-            sticker(room, "WAITING_PARTNER");
+            sticker(room, CounselorSignal.WAITING_PARTNER);
         }
         events.publishEvent(moment);
         return describe(refresh(room));
@@ -879,7 +880,7 @@ public class SessionLifecycleService {
         relationshipInsightService.refreshAfterSession(roomId, closing.user());
 
         if (!forGood) {
-            sticker(room, "WRAP_UP");
+            sticker(room, CounselorSignal.WRAP_UP);
             say(room, closingText(closing));
         }
         log.info("Session {} of room {} closed", number, roomId);

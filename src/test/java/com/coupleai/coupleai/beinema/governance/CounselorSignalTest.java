@@ -30,7 +30,7 @@ class CounselorSignalTest {
     void unknownTokensAndOrdinaryRepliesAreIgnored() {
         assertFalse(CounselorSignal.read("ACTION=WAIT|REACT=PARTY").present());
         assertFalse(CounselorSignal.read("ACTION=WAIT|REACT=THINK").present());
-        // exists in the artwork but a specialist would not send it
+        // names of the earlier sets, no longer drawn
         assertFalse(CounselorSignal.read("ACTION=WAIT|REACT=NOWORRY").present());
         assertFalse(CounselorSignal.read("ACTION=WAIT|STICKER=AGREE").present());
         assertFalse(CounselorSignal.read("سلام، دارم گوش می‌دم.").present());
@@ -46,16 +46,17 @@ class CounselorSignalTest {
     }
 
     @Test
-    void theSessionsOwnStickersAreForThePlatformOnly() {
-        // the new set is there for the brain
-        assertEquals("NEUTRAL", CounselorSignal.normalize("neutral"));
-        assertEquals("CALM_BOTH", CounselorSignal.normalize("calm_both"));
-        // the session's moments are not: the platform shows them itself
+    void onlyTheTwentyFiveStickersOfTheCompanionsAreKnown() {
+        assertEquals("WAITFORME", CounselorSignal.normalize("waitforme"));
+        assertEquals("SORRYUPSET", CounselorSignal.normalize("SorryUpset"));
+        // the earlier sets are gone: no companion has their pictures
+        assertNull(CounselorSignal.normalize("NEUTRAL"));
+        assertNull(CounselorSignal.normalize("CALM_BOTH"));
         assertNull(CounselorSignal.normalize("WRAP_UP"));
-        assertNull(CounselorSignal.normalize("FEW_MINUTES_LEFT"));
-        assertNull(CounselorSignal.normalize("WAITING_PARTNER"));
-        assertEquals("WRAP_UP", CounselorSignal.systemToken("wrap_up"));
-        assertNull(CounselorSignal.systemToken("LISTEN"));
-        assertEquals("WAITING_PARTNER", CounselorSignal.stickerName(CounselorSignal.stickerContent("WAITING_PARTNER")));
+        assertNull(CounselorSignal.normalize("LOVE"));
+        assertNull(CounselorSignal.normalize("AGREE"));
+        // the session's own moments use two of the 25
+        assertEquals(CounselorSignal.WAITING_PARTNER, CounselorSignal.normalize(CounselorSignal.WAITING_PARTNER));
+        assertEquals(CounselorSignal.WRAP_UP, CounselorSignal.normalize(CounselorSignal.WRAP_UP));
     }
 }

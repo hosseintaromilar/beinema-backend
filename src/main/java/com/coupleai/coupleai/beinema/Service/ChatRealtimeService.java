@@ -198,10 +198,10 @@ public class ChatRealtimeService {
         );
     }
 
-    /** A sticker of the session's own moment (waiting for the partner, minutes left, the end), in the companion's name. */
+    /** A sticker of the session's own moment (waiting for the partner, the end), in the companion's name. */
     @Transactional
     public Message saveSystemStickerAndPublish(Long chatRoomId, Long agentId, String token) {
-        String normalized = CounselorSignal.systemToken(token);
+        String normalized = CounselorSignal.normalize(token);
         return normalized == null ? null : saveSticker(chatRoomId, agentId, normalized, null);
     }
 

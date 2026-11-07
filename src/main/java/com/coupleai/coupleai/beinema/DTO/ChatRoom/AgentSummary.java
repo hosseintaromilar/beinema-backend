@@ -15,4 +15,7 @@ public class AgentSummary {
 
     private String avatar;
 
+    /** The companion's own sticker folder, or null for the common stickers. */
+    private String stickerSet;
+
 }

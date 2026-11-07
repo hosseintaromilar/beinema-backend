@@ -427,6 +427,31 @@ public class SessionBillingService {
                 .toList();
     }
 
+    /** Every bundle a person ever bought, newest first, with where it stands now: the admin's purchase history. */
+    public List<java.util.Map<String, Object>> purchasesOf(Long userId) {
+        Instant now = Instant.now();
+        return packageRepository.findAllByUserIdOrderByIdDesc(userId).stream().map(item -> {
+            String state = item.getCancelledAt() != null ? "CANCELLED"
+                    : item.sessionsLeft() == 0 ? "USED"
+                    : item.getExpiresAt() != null && item.getExpiresAt().isBefore(now) ? "EXPIRED"
+                    : "ACTIVE";
+            java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("id", item.getId());
+            row.put("title", titleOf(item.getTier()));
+            row.put("state", state);
+            row.put("price", item.getPrice());
+            row.put("regularPrice", item.getRegularPrice());
+            row.put("sessionsTotal", item.getSessionsTotal());
+            row.put("sessionsUsed", item.getSessionsUsed() == null ? 0 : item.getSessionsUsed());
+            row.put("sessionsLeft", item.sessionsLeft());
+            row.put("boughtAt", item.getCreatedAt());
+            row.put("expiresAt", item.getExpiresAt() == null ? null : item.getExpiresAt().toEpochMilli());
+            row.put("renewal", Boolean.TRUE.equals(item.getRenewal()));
+            row.put("autoRenew", Boolean.TRUE.equals(item.getAutoRenew()));
+            return row;
+        }).toList();
+    }
+
     /** Monthly subscriptions renew from the wallet at the price they were bought at, until cancelled. */
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 3_600_000L, initialDelay = 120_000L)
     @Transactional

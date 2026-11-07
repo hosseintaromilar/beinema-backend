@@ -9,6 +9,9 @@ import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Enum.UserRole;
 import com.coupleai.coupleai.beinema.Enum.UserStatus;
 import com.coupleai.coupleai.beinema.Repository.AdminAccessLogRepository;
+import com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository;
+import com.coupleai.coupleai.beinema.Repository.SessionRecordRepository;
+import com.coupleai.coupleai.beinema.Repository.TopUpReceiptRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
@@ -46,6 +49,9 @@ public class AdminAccountService {
     private final ChatRoomParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
     private final WalletTransactionRepository transactionRepository;
+    private final TopUpReceiptRepository receiptRepository;
+    private final ChatRoomAgentRepository roomAgentRepository;
+    private final SessionRecordRepository sessionRecordRepository;
     private final WalletService walletService;
     private final SessionBillingService billingService;
     private final AdminAccessLogRepository logRepository;
@@ -116,8 +122,14 @@ public class AdminAccountService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> users(String query) {
-        String q = query == null ? "" : query.trim().toLowerCase();
-        return userRepository.searchForAdmin(q, PageRequest.of(0, PAGE)).stream().map(AdminAccountService::userRow).toList();
+        String q = query == null ? "" : query.trim().toLowerCase().replace("#", "");
+        List<User> found = new ArrayList<>(userRepository.searchForAdmin(q, PageRequest.of(0, PAGE)));
+        if (q.matches("[0-9]{1,12}")) {
+            userRepository.findById(Long.parseLong(q)).filter(user -> !user.isDeleted())
+                    .filter(user -> found.stream().noneMatch(other -> other.getId().equals(user.getId())))
+                    .ifPresent(user -> found.add(0, user));
+        }
+        return found.stream().map(AdminAccountService::userRow).toList();
     }
 
     @Transactional
@@ -127,18 +139,39 @@ public class AdminAccountService {
         Map<String, Object> view = userRow(user);
         view.put("firstName", user.getFirstName());
         view.put("lastName", user.getLastName());
-        view.put("phoneNumber", user.getPhoneNumber());
         view.put("createdAt", user.getCreatedAt());
+        view.put("emailVerified", user.isEmailVerified());
+        view.put("contactEmail", user.getContactEmail());
+        view.put("phoneVerified", Boolean.TRUE.equals(user.getPhoneVerified()));
+        view.put("google", user.getGoogleSubject() != null);
+        view.put("passwordSet", Boolean.TRUE.equals(user.getPasswordSet()));
+        view.put("emailOptOut", Boolean.TRUE.equals(user.getEmailOptOut()));
+        view.put("referralCode", user.getReferralCode());
+        view.put("avatarUrl", user.getAvatarUrl());
+        view.put("giftedSessions", user.getGiftedSessions() == null ? 0 : user.getGiftedSessions());
+        view.put("freeSessionsUsed", user.getFreeSessionsUsed() == null ? 0 : user.getFreeSessionsUsed());
         view.put("balance", walletService.getOrCreate(user).getBalance());
         view.put("freeLeft", billingService.freeLeft(user));
         view.put("packages", billingService.offerFor(user).myPackages());
         view.put("cancelledPackages", billingService.cancelledOf(userId));
+        view.put("purchases", billingService.purchasesOf(userId));
+        view.put("topUps", receiptRepository.findTop30ByUserIdOrderByCreatedAtDesc(userId).stream().map(item -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", item.getId());
+            row.put("amount", item.getAmount());
+            row.put("approvedAmount", item.getApprovedAmount());
+            row.put("trackingCode", item.getTrackingCode());
+            row.put("status", item.getStatus());
+            row.put("adminNote", item.getAdminNote());
+            row.put("createdAt", item.getCreatedAt());
+            return row;
+        }).toList());
         view.put("transactions", transactionRepository.findTop50ByUser_IdOrderByCreatedAtDesc(userId).stream()
-                .limit(20)
                 .map(item -> {
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("type", item.getType());
                     row.put("amount", item.getAmount());
+                    row.put("status", item.getStatus());
                     row.put("description", item.getDescription());
                     row.put("createdAt", item.getCreatedAt());
                     return row;
@@ -154,6 +187,13 @@ public class AdminAccountService {
             row.put("createdAt", room.getCreatedAt());
             row.put("people", people.stream().map(person -> person.getUser().visibleName()).toList());
             row.put("readable", chatAllowed(people));
+            row.put("mode", room.getSessionMode());
+            row.put("agents", roomAgentRepository.findActiveAgentNames(room.getId()));
+            row.put("sessions", sessionRecordRepository.countByChatRoomIdAndCompletedTrue(room.getId()));
+            row.put("sessionActive", Boolean.TRUE.equals(room.getSessionActive()));
+            row.put("lastActivityAt", messageRepository.findFirstByChatRoomAndDeletedFalseOrderBySequenceNumberDesc(room)
+                    .map(Message::getCreatedAt).orElse(null));
+            row.put("left", mine.getLeftAt() != null);
             rooms.add(row);
         }
         view.put("rooms", rooms);
@@ -236,6 +276,11 @@ public class AdminAccountService {
         logRepository.save(entry);
     }
 
+    /** The address a person really gave; the placeholders of phone-only and admin accounts are not one. */
+    private static String realEmail(String email) {
+        return email == null || email.endsWith(AuthService.PHONE_EMAIL_SUFFIX) || email.endsWith(".local") ? null : email;
+    }
+
     private static Map<String, Object> userRow(User user) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", user.getId());
@@ -243,6 +288,8 @@ public class AdminAccountService {
         row.put("name", user.visibleName());
         row.put("role", user.getRole());
         row.put("status", user.getStatus());
+        row.put("phoneNumber", user.getPhoneNumber());
+        row.put("email", realEmail(user.getEmail()));
         row.put("lastLoginAt", user.getLastLoginAt());
         row.put("chatAccess", Boolean.TRUE.equals(user.getAdminChatAccess()));
         return row;

@@ -50,6 +50,10 @@ public class Agent extends BaseEntity {
     @Column(length = 500)
     private String photoUrl;
 
+    /** The companion's own stickers (a folder under /stickers/agents, such as "nina"); empty: the common ones. */
+    @Column(name = "sticker_set", length = 30)
+    private String stickerSet;
+
 
     /**
      * شناسه Bot در سرویس AI Provider

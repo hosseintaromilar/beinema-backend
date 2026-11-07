@@ -27,6 +27,8 @@ public class AgentRequest {
 
     private String photoUrl;
 
+    private String stickerSet;
+
     private String aiBotId;
 
     private Long price;

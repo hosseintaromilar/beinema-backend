@@ -3,7 +3,6 @@ package com.coupleai.coupleai.beinema.governance;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,85 +17,44 @@ import java.util.regex.Pattern;
  */
 public record CounselorSignal(String reactionToken, String stickerToken) {
 
-    /** token -> fallback emoji (used only when the artwork is unavailable). */
+    /**
+     * The 25 stickers. Every companion has all of them, drawn from its own picture
+     * (frontend/public/stickers/agents/{set}); the room's companion decides whose face shows.
+     * token -> fallback emoji (shown only where the artwork is unavailable).
+     */
     private static final Map<String, String> EMOJI = new LinkedHashMap<>();
 
-    /**
-     * Stickers that exist in the artwork but that a specialist would not send:
-     * they take sides (AGREE, RIGHT), minimize or promise (NOWORRY, BETTER,
-     * ALLOK, ALWAYSWITH), judge (EMOTIONAL), command (CALMDOWN) or are too
-     * casual (EXCELLENT). The brain never sees them and the backend ignores
-     * them if they still arrive. Remove a name from this set to enable it.
-     */
-    private static final Set<String> HELD_BACK = Set.of(
-            "AGREE", "RIGHT", "NOWORRY", "EMOTIONAL", "CALMDOWN",
-            "BETTER", "EXCELLENT", "ALWAYSWITH", "ALLOK"
-    );
-
     static {
-        EMOJI.put("LISTEN", "\uD83D\uDC42");        // دارم گوش می‌دم
-        EMOJI.put("THINKING", "\uD83E\uDD14");      // در حال فکر کردنم
-        EMOJI.put("CALM", "\u2615");                 // آرام باش، دارم فکر می‌کنم
-        EMOJI.put("AGREE", "\uD83D\uDC4D");         // موافقم
-        EMOJI.put("ACK", "\uD83D\uDC4C");           // متوجه‌ات هستم
-        EMOJI.put("REFLECT", "\uD83D\uDCAD");       // به حرف‌هات فکر می‌کنم
-        EMOJI.put("IMPORTANT", "\u2764\uFE0F");     // حرف‌هات برام مهمه
-        EMOJI.put("QUESTION", "\u2753");             // یه سوال دارم
-        EMOJI.put("GOODTHOUGHT", "\uD83C\uDF3F");   // فکر خوبی داری
-        EMOJI.put("NOWORRY", "\uD83D\uDE0C");       // نگران نباش
-        EMOJI.put("NICE", "\u2728");                 // چه خوب!
-        EMOJI.put("PATIENT", "\u231B");              // صبورم
-        EMOJI.put("THANKS", "\uD83D\uDE4F");        // ممنون
-        EMOJI.put("THANKSALOT", "\uD83D\uDE4F");    // خیلی ممنونم
-        EMOJI.put("INTERESTING", "\u2757");          // جالب بود
-        EMOJI.put("RIGHT", "\uD83D\uDC4C");         // درست می‌گی
-        EMOJI.put("GOODIDEA", "\uD83D\uDCA1");      // ایده خوبی است
-        EMOJI.put("SORRY", "\uD83D\uDE14");         // متاسفم
-        EMOJI.put("NOTING", "\uD83D\uDCDD");        // یادداشت می‌کنم
-        EMOJI.put("EMOTIONAL", "\uD83D\uDE33");     // خیلی احساساتی شدی
-        EMOJI.put("CALMDOWN", "\uD83D\uDE0C");      // آرام باش
-        EMOJI.put("BRAVO", "\uD83D\uDC4F");         // آفرین!
-        EMOJI.put("NOTUNDERSTOOD", "\uD83C\uDF00"); // متوجه نشدم
-        EMOJI.put("HERE", "\uD83D\uDC99");          // اینجا هستم
-        EMOJI.put("BESIDE", "\uD83E\uDEC2");        // کنارت هستم
-        EMOJI.put("CONTINUE", "\u27A1\uFE0F");      // بریم ادامه بدیم
-        EMOJI.put("SORRYUPSET", "\uD83D\uDE14");    // متاسفم که ناراحت شدی
-        EMOJI.put("BETTER", "\uD83C\uDF31");        // همه چیز بهتر می‌شه
-        EMOJI.put("BYE", "\uD83D\uDC4B");           // تا بعد...
-        EMOJI.put("EXCELLENT", "\uD83D\uDE0E");     // عالیه!
-        EMOJI.put("REVIEWING", "\uD83D\uDCBB");     // دارم بررسی می‌کنم
-        EMOJI.put("WAITFORME", "\u231B");            // منتظر بمون
-        EMOJI.put("ALWAYSWITH", "\uD83D\uDC9A");    // همیشه در کنارتم
-        EMOJI.put("ALLOK", "\uD83D\uDC4C");         // همه چی خوبه
-
-        // the new set (the two halves of the logo, /stickers/v2); the prompts learn them in a later step
-        EMOJI.put("WELCOME", "👋");         // خوش اومدید
-        EMOJI.put("WELCOME_SOLO", "👋");    // خوش اومدی
-        EMOJI.put("THINKING_AGENT", "🤔");  // یه لحظه، دارم فکر می‌کنم
-        EMOJI.put("WAIT_A_MOMENT", "⌛");   // یه لحظه صبر کنید
-        EMOJI.put("YOUR_TURN", "💬");       // نوبت توئه
-        EMOJI.put("OTHER_SIDE", "❓");      // نظر طرف مقابل چیه؟
-        EMOJI.put("CALM_BOTH", "🌬");       // یه نفس بکشیم
-        EMOJI.put("CALM_DOWN", "🌬");       // آروم باشیم
-        EMOJI.put("EMPATHY", "🫶");         // درکت می‌کنم
-        EMOJI.put("WELL_DONE", "⭐");       // آفرین، قدم خوبی بود
-        EMOJI.put("NEUTRAL", "⚖");          // طرف هیچ‌کس نیستم
-        EMOJI.put("WAITING_PARTNER", "⌛"); // منتظر همراهت هستیم
-        EMOJI.put("FEW_MINUTES_LEFT", "⏰"); // چند دقیقه مونده
-        EMOJI.put("WRAP_UP", "👋");         // جمع‌بندی و خداحافظی
+        EMOJI.put("LISTEN", "👂");         // دارم گوش می‌دم
+        EMOJI.put("PATIENT", "⌛");        // صبورم
+        EMOJI.put("HERE", "💙");           // اینجا هستم
+        EMOJI.put("BESIDE", "🫂");         // کنارت هستم
+        EMOJI.put("NOTING", "📝");         // یادداشت می‌کنم
+        EMOJI.put("REVIEWING", "🔍");      // دارم بررسی می‌کنم
+        EMOJI.put("THINKING", "🤔");       // در حال فکر کردنم
+        EMOJI.put("CALM", "🌬");            // آروم باشیم
+        EMOJI.put("REFLECT", "💭");        // به حرف‌هات فکر می‌کنم
+        EMOJI.put("WAITFORME", "✋");      // یه لحظه صبر کنید
+        EMOJI.put("ACK", "🫶");            // درکت می‌کنم
+        EMOJI.put("IMPORTANT", "❤️");      // حرف‌هات برام مهمه
+        EMOJI.put("QUESTION", "❓");       // یه سؤال دارم
+        EMOJI.put("NOTUNDERSTOOD", "🌀");  // متوجه نشدم
+        EMOJI.put("SORRY", "😔");          // متأسفم
+        EMOJI.put("SORRYUPSET", "😔");     // متأسفم که ناراحت شدی
+        EMOJI.put("THANKS", "🙏");         // ممنون
+        EMOJI.put("THANKSALOT", "🙏");     // خیلی ممنونم
+        EMOJI.put("INTERESTING", "❗");    // جالب بود
+        EMOJI.put("GOODTHOUGHT", "🌿");    // فکر خوبی داری
+        EMOJI.put("GOODIDEA", "💡");       // ایده خوبیه
+        EMOJI.put("NICE", "✨");           // چه خوب!
+        EMOJI.put("BRAVO", "👏");          // آفرین!
+        EMOJI.put("CONTINUE", "➡️");       // بریم ادامه بدیم
+        EMOJI.put("BYE", "👋");            // تا بعد...
     }
 
-    /**
-     * Stickers of the session's own moments: the platform shows them itself (someone waits for the
-     * partner, a few minutes are left, the session ends), so the brain may not send them.
-     */
-    private static final Set<String> SYSTEM_ONLY = Set.of("WAITING_PARTNER", "FEW_MINUTES_LEFT", "WRAP_UP");
-
-    /** A sticker the platform shows by itself at a moment of the session; null if not one of those. */
-    public static String systemToken(String token) {
-        String normalized = token == null ? null : token.trim().toUpperCase(Locale.ROOT);
-        return normalized != null && SYSTEM_ONLY.contains(normalized) ? normalized : null;
-    }
+    /** Session moments the platform marks itself, in the companion's name: someone waits, the session ends. */
+    public static final String WAITING_PARTNER = "WAITFORME";
+    public static final String WRAP_UP = "BYE";
 
     private static final Pattern STICKER_MARKER = Pattern.compile(
             "\\[\\[STICKER\\|NAME=([A-Za-z_]+)\\]\\]"
@@ -128,16 +86,14 @@ public record CounselorSignal(String reactionToken, String stickerToken) {
     }
 
     /**
-     * Upper-cases a token and returns it only if the counselor may send it:
-     * it must be in the catalog and must not be held back.
+     * Upper-cases a token and returns it only if it is one of the 25.
      */
     public static String normalize(String token) {
         if (token == null) {
             return null;
         }
         String normalized = token.trim().toUpperCase(Locale.ROOT);
-        return EMOJI.containsKey(normalized) && !HELD_BACK.contains(normalized) && !SYSTEM_ONLY.contains(normalized)
-                ? normalized : null;
+        return EMOJI.containsKey(normalized) ? normalized : null;
     }
 
     public static String emojiFor(String token) {

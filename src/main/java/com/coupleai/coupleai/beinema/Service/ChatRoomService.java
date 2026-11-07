@@ -285,7 +285,7 @@ public class ChatRoomService {
 
                         List.of(
 
-                                AgentSummary.builder()
+                                AgentSummary.builder().stickerSet(agent.getStickerSet())
 
                                         .id(
                                                 agent.getId()
@@ -461,7 +461,7 @@ public class ChatRoomService {
 
                         List.of(
 
-                                AgentSummary.builder()
+                                AgentSummary.builder().stickerSet(agent.getStickerSet())
 
                                         .id(agent.getId())
 
@@ -568,7 +568,7 @@ public class ChatRoomService {
                             .stream()
                             .map(chatRoomAgent -> {
                                 Agent agent = chatRoomAgent.getAgent();
-                                return AgentSummary.builder()
+                                return AgentSummary.builder().stickerSet(agent.getStickerSet())
                                         .id(agent.getId())
                                         .name(agent.getName())
                                         .type(agent.getType().toString())
@@ -776,7 +776,7 @@ public class ChatRoomService {
                         .stream()
                         .map(chatRoomAgent -> {
                             Agent agent = chatRoomAgent.getAgent();
-                            return AgentSummary.builder()
+                            return AgentSummary.builder().stickerSet(agent.getStickerSet())
                                     .id(agent.getId())
                                     .name(agent.getName())
                                     .type(agent.getType().toString())

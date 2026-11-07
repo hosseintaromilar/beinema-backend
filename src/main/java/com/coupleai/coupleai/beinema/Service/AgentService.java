@@ -106,6 +106,7 @@ public class AgentService {
                 .bio(clean(request.getBio()))
                 .specialties(clean(request.getSpecialties()))
                 .photoUrl(clean(request.getPhotoUrl()))
+                .stickerSet(stickerSetOf(request.getStickerSet()))
                 .aiBotId(requireText(request.getAiBotId(), "شناسه بات"))
                 .status(request.getStatus() == null ? AgentStatus.ACTIVE : request.getStatus())
                 .build();
@@ -130,6 +131,7 @@ public class AgentService {
         agent.setBio(clean(request.getBio()));
         agent.setSpecialties(clean(request.getSpecialties()));
         agent.setPhotoUrl(clean(request.getPhotoUrl()));
+        agent.setStickerSet(stickerSetOf(request.getStickerSet()));
         agent.setAiBotId(requireText(request.getAiBotId(), "شناسه بات"));
         agent.setStatus(request.getStatus() == null ? AgentStatus.ACTIVE : request.getStatus());
         Agent saved = agentRepository.save(agent);
@@ -217,5 +219,11 @@ public class AgentService {
         }
         String value = raw.trim();
         return value.isEmpty() ? null : value;
+    }
+
+    /** A sticker folder name: lowercase latin letters, digits and dashes; anything else means none. */
+    private static String stickerSetOf(String value) {
+        String name = value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
+        return name.matches("[a-z0-9-]{1,30}") ? name : null;
     }
 }

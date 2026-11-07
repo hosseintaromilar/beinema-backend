@@ -45,7 +45,7 @@ public class SupportService {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SupportService.class);
 
     public record TicketSummary(Long id, String subject, String category, String status, boolean unread,
-                                Long lastActivityAt, Long createdAt, String userName) {
+                                Long lastActivityAt, Long createdAt, String userName, Long userId) {
     }
 
     public record TicketMessage(Long id, boolean fromSupport, String body, Long createdAt) {
@@ -289,7 +289,9 @@ public class SupportService {
         return new TicketSummary(ticket.getId(), ticket.getSubject(), ticket.getCategory(), ticket.getStatus().name(),
                 ticket.isUnreadByUser(),
                 ticket.getLastActivityAt() == null ? null : ticket.getLastActivityAt().toEpochMilli(),
-                millis(ticket.getCreatedAt()), who);
+                millis(ticket.getCreatedAt()), who,
+                // only the admin's view (with a name) links to the account; 0 is an email from an unknown address
+                userName == null || ticket.getUserId() == null || ticket.getUserId() == 0L ? null : ticket.getUserId());
     }
 
     private String nameOf(Long userId) {
