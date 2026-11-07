@@ -61,14 +61,14 @@ public class MarketDataService {
     }
 
     /** The prices as they are now, and when they were read (null: never). */
-    public record Snapshot(List<Quote> quotes, Instant updatedAt) {
+    public record Snapshot(List<Quote> quotes, Instant updatedAt, OfficialInflation.Rates inflation) {
         public boolean stale(Instant now) {
             return updatedAt == null || Duration.between(updatedAt, now).compareTo(FRESH) > 0;
         }
     }
 
     public Snapshot snapshot() {
-        return new Snapshot(quotes, updatedAt);
+        return new Snapshot(quotes, updatedAt, inflation);
     }
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
@@ -79,6 +79,10 @@ public class MarketDataService {
 
     private volatile List<Quote> quotes = List.of();
     private volatile Instant updatedAt;
+    /** The Statistical Center's rates; they change once a month, so they are read every six hours. */
+    private volatile OfficialInflation.Rates inflation;
+    private volatile Instant inflationReadAt;
+    private OfficialInflation official;
 
     @Scheduled(initialDelayString = "${beinema.market.initial-delay-ms:20000}", fixedDelayString = "${beinema.market.refresh-ms:3600000}")
     public void refresh() {
@@ -117,11 +121,49 @@ public class MarketDataService {
         } catch (Exception failure) {
             log.warn("Market prices could not be read: {}", failure.getMessage());
         }
+        readInflation();
+    }
+
+    private void readInflation() {
+        if (inflationReadAt != null && Duration.between(inflationReadAt, Instant.now()).compareTo(FRESH) < 0) {
+            return;
+        }
+        try {
+            if (official == null) {
+                official = new OfficialInflation();
+            }
+            OfficialInflation.Rates read = official.read();
+            if (read.consumer() != null || read.producer() != null) {
+                inflation = read;
+                inflationReadAt = Instant.now();
+                log.info("Official inflation read: consumer {}", read.consumer() == null ? "missing"
+                        : read.consumer().percent() + "% (" + read.consumer().period() + ")");
+            } else {
+                log.warn("The inflation rates were not found on amar.org.ir");
+            }
+        } catch (Exception failure) {
+            log.warn("The official inflation could not be read: {}", failure.getMessage());
+        }
+    }
+
+    /** The official rates as one line of [MARKET]; when missing, the brain is told not to give one. */
+    static String inflationLine(OfficialInflation.Rates rates) {
+        if (rates == null || rates.consumer() == null) {
+            return "official inflation: unavailable now; never give a rate from memory, say it needs checking with the Statistical Center of Iran (amar.org.ir).\n";
+        }
+        StringBuilder out = new StringBuilder("official inflation (Statistical Center of Iran, amar.org.ir): consumer ")
+                .append(String.format(Locale.ROOT, "%.1f%%", rates.consumer().percent()))
+                .append(" (").append(rates.consumer().period()).append(')');
+        if (rates.producer() != null) {
+            out.append(", producer ").append(String.format(Locale.ROOT, "%.1f%%", rates.producer().percent()))
+                    .append(" (").append(rates.producer().period()).append(')');
+        }
+        return out.append(". Give it with its period and source, as the official rate.\n").toString();
     }
 
     /** The [MARKET] block of the financial companion's packet. */
     public String block() {
-        return block(quotes, updatedAt, Instant.now());
+        return block(quotes, updatedAt, Instant.now()) + inflationLine(inflation);
     }
 
     static String block(List<Quote> quotes, Instant updatedAt, Instant now) {
@@ -143,7 +185,7 @@ public class MarketDataService {
                     .append(" | week ").append(percent(quote.week()))
                     .append(" | month ").append(percent(quote.month())).append('\n');
         }
-        out.append("not here: bank deposit rates, inflation, housing prices. Never give a figure for them from memory; say they need checking with an official source.\n");
+        out.append("not here: bank deposit rates and housing prices. Never give a figure for them from memory; say they need checking with an official source.\n");
         return out.toString();
     }
 

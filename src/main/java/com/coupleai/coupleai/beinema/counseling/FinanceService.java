@@ -81,6 +81,9 @@ public class FinanceService {
                 Map<String, Object> data = new LinkedHashMap<>();
                 data.put("quotes", now.quotes());
                 data.put("updatedAt", now.updatedAt().toEpochMilli());
+                if (now.inflation() != null) {
+                    data.put("inflation", now.inflation());
+                }
                 return Optional.of(save(roomId, kind, data));
             }
             case FinanceCard.PLAN -> {
@@ -219,6 +222,7 @@ public class FinanceService {
                 view.put("quotes", data.get("quotes"));
                 view.put("updatedAt", data.get("updatedAt"));
                 view.put("source", "tgju.org، tsetmc.com");
+                view.put("inflation", data.get("inflation"));
             }
             default -> {
                 view.put("plan", data.get("plan"));
