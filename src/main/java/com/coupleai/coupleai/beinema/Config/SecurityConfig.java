@@ -146,6 +146,9 @@ public class SecurityConfig {
 
                         .requestMatchers(
 
+                                // the general guide: anyone may talk to it, logged in or not
+                                "/api/guide/messages",
+
                                 "/api/auth/register",
 
                                 "/api/auth/login",
