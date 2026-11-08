@@ -27,6 +27,9 @@ public final class VoiceOutputParser {
     /** A line of the packet the voice copied into its words. */
     private static final Pattern PACKET_LEAK = Pattern.compile("(?m)\\btype=(CHOOSE|CONFIRM)\\b( to [A-Z]+( \\([^)\\n]*\\))?)?[ \\t]*");
     private static final Pattern OPTION = Pattern.compile("^\\s*\\[\\[OPT\\|([A-Za-z0-9]{1,12})\\]\\]\\s*(.+?)\\s*$");
+    /** Any marker the voice is not allowed to write, e.g. an invented [[CARD|FINANCIAL_PICTURE]]; cards come from the backend. */
+    private static final Pattern UNKNOWN_MARKER = Pattern.compile(
+            "[ \\t]*\\[\\[(?!(?:BREAK|STICKER|REPLY|QUESTION|/QUESTION|OPT)(?:\\||\\]\\]))[^\\[\\]\\n]{0,80}\\]\\][ \\t]*");
 
     public record Result(String text, String questionText, Map<String, String> options, boolean questionBlock,
                          String error, List<String> notes) {
@@ -50,6 +53,11 @@ public final class VoiceOutputParser {
         }
         // a stray governance line or director leak never reaches the couple
         String text = PACKET_LEAK.matcher(new GovernancePacketParser().strip(raw.replace("\r", ""))).replaceAll("");
+        Matcher unknown = UNKNOWN_MARKER.matcher(text);
+        if (unknown.find()) {
+            notes.add("voice: an unknown marker was dropped: " + unknown.group().trim());
+            text = UNKNOWN_MARKER.matcher(text).replaceAll("").replaceAll("\n{3,}", "\n\n");
+        }
         int open = text.indexOf(OPEN);
         if (open < 0) {
             return new Result(text.trim(), null, Map.of(), false, null, notes);

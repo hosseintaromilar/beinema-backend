@@ -19,6 +19,17 @@ class VoiceOutputParserTest {
     }
 
     @Test
+    void anInventedMarkerIsDroppedAndTheKnownOnesStay() {
+        VoiceOutputParser.Result result = VoiceOutputParser.parse(
+                "بیا یه تصویر از وضعیتت ببینیم.\n[[CARD|FINANCIAL_PICTURE]]\n[[BREAK|PAUSE=1]]\nاین فرم رو پر کن. [[REPLY]]\n[[STICKER|NAME=NICE]]");
+        assertFalse(result.text().contains("CARD"), result.text());
+        assertTrue(result.text().contains("[[BREAK|PAUSE=1]]"));
+        assertTrue(result.text().contains("[[REPLY]]"));
+        assertTrue(result.text().contains("[[STICKER|NAME=NICE]]"));
+        assertEquals(1, result.notes().size());
+    }
+
+    @Test
     void theQuestionBlockIsSeparatedFromTheLeadIn() {
         String raw = "می‌خوام مطمئن شم درست فهمیدم.\n"
                 + "[[QUESTION]]\n"
