@@ -212,6 +212,22 @@ class FakeRoom {
         return message;
     }
 
+    /** A reading of this person's want that they already confirmed: advice and lessons may follow. */
+    void confirmedReading(User who, String role) {
+        ClientIntent intent = new ClientIntent();
+        intent.setChatRoomId(ROOM);
+        intent.setParticipantUserId(who.getId());
+        intent.setParticipantRole(role);
+        intent.setKind(com.coupleai.coupleai.beinema.Enum.IntentKind.WANT);
+        intent.setQuote("می‌خوام شب‌ها با دعوا شروع نشه");
+        intent.setInterpretation("wants evenings without a fight");
+        intent.setEpistemic(com.coupleai.coupleai.beinema.Enum.IntentEpistemic.CONFIRMED_BY_CLIENT);
+        intent.setStatus(com.coupleai.coupleai.beinema.Enum.IntentStatus.CONFIRMED);
+        intent.setConfidence(0.9);
+        intent.setImportance("HIGH");
+        keep(intents, intent);
+    }
+
     private <T extends com.coupleai.coupleai.beinema.Entity.BaseEntity> T keep(Map<Long, T> table, T entity) {
         if (entity.getId() == null) {
             entity.setId(++ids);

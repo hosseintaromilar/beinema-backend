@@ -55,6 +55,10 @@ public class TurnMaterialLoader {
     private final com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository;
     private final com.coupleai.coupleai.beinema.market.MarketDataService marketData;
 
+    /** The lesson cards of the teaching form; absent in the tests that do not need it. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.teach.TeachCardService teachCards;
+
     @Transactional(readOnly = true)
     public TurnMaterial load(Long roomId) {
         ChatRoom room = chatRoomRepository.findById(roomId)
@@ -196,6 +200,15 @@ public class TurnMaterialLoader {
             tags.add(FinanceKit.TAG);
         }
 
+        String teaching = "";
+        if (chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isTeachWorkflow)) {
+            tags = new java.util.HashSet<>(tags);
+            tags.add(TeachKit.TAG);
+            if (teachCards != null) {
+                teaching = teachCards.teachingBlock(roomId, roleByUserId);
+            }
+        }
+
         if (chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isKitWorkflow)) {
             tags = new java.util.HashSet<>(tags);
             tags.add(ElikaKit.TAG);
@@ -210,7 +223,8 @@ public class TurnMaterialLoader {
                         .orElse(""),
                 namesByRole,
                 chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isMarketWorkflow)
-                        ? marketData.block() : "");
+                        ? marketData.block() : "",
+                teaching);
     }
 
     /** Whether this person wrote again after the given message (their newer words make a reply to the old ones stale). */

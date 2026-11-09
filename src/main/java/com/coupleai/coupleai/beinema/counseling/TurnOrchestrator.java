@@ -72,6 +72,10 @@ public class TurnOrchestrator {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private CoupleTestService coupleTests;
 
+    /** The lesson cards of the teaching form; absent in the tests that do not need it. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.teach.TeachCardService teachCards;
+
     /** Absent in tests; only the financial companion's rooms use it. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private FinanceService financeService;
@@ -103,7 +107,11 @@ public class TurnOrchestrator {
     }
 
     /** A card of the kit: a test or a lesson. */
-    public record CardItem(String content) implements Item {
+    /** A card in its own message; visibleTo: only that member sees it (a lesson card), else everyone. */
+    public record CardItem(String content, Long visibleTo) implements Item {
+        public CardItem(String content) {
+            this(content, null);
+        }
     }
 
     /** remaining: what is delivered after the sender is released, with typing pauses. */
@@ -233,8 +241,9 @@ public class TurnOrchestrator {
             chatRealtimeService.reactAndPublish(roomId, trigger, d.react);
         }
 
-        // 5. a lesson: the teacher fits it to the couple, then the voice says it
-        LessonTeacher.Result taught = LessonTeacher.prepare(m, d, brain);
+        // 5. a lesson: the teacher fits it to the couple, then the voice says it; in the teaching form
+        // it becomes a card for that one person and the voice only introduces it
+        LessonTeacher.Result taught = teachCard(m, d) ? null : LessonTeacher.prepare(m, d, brain);
 
         // 6. the voice (still writing: keep the typing sign up for both partners)
         chatRealtimeService.publishAgentTyping(roomId, 9000, writingPhase(d));
@@ -542,7 +551,8 @@ public class TurnOrchestrator {
                 config.getQuestionsPerSession(),
                 m.screen().high(),
                 m.snapshot().safety.level,
-                m.reachedStages()
+                m.reachedStages(),
+                m.hasNewMessages()
         );
     }
 
@@ -639,8 +649,53 @@ public class TurnOrchestrator {
                 items.add(new CardItem(KitMarkers.content(card.getKind(), card.getPublicId(), label))));
     }
 
+    /**
+     * The teaching form: the teacher fits our lesson to this person into a card, kept for them and
+     * shown only to them; the voice says in a line or two why it comes now and asks them to read it.
+     * True when the turn is a lesson card (made, or made from the lesson's own words).
+     */
+    private boolean teachCard(TurnMaterial m, DirectorDecision d) {
+        if (!"TEACH".equals(d.action) || !TeachKit.owns(d.lessonId) || teachCards == null
+                || m.tags() == null || !m.tags().contains(TeachKit.TAG)) {
+            return false;
+        }
+        Long userId = m.userIdOf(d.addressee);
+        TeachCardTeacher.Fitted fitted = userId == null ? null : TeachCardTeacher.prepare(m, d, brain);
+        if (fitted == null) {
+            d.notes.add("teach: no card (no person or no lesson)");
+            return false;
+        }
+        if (TeachCardTeacher.SAFETY.equals(fitted.note())) {
+            // the teacher saw danger in the talk: no lesson now, a careful answer instead
+            d.notes.add("teach: the teacher saw a safety concern; no card");
+            d.action = "RESPOND";
+            d.lessonId = null;
+            d.briefDo = "Do not teach now. Answer the latest message carefully; if anything points to danger to the child "
+                    + "or to someone at home, ask first whether they are safe right now.";
+            d.briefLength = "SHORT";
+            return true;
+        }
+        com.coupleai.coupleai.beinema.teach.TeachCard card = teachCards.save(m.roomId(), userId, d.lessonId,
+                d.lessonReadiness, fitted);
+        d.teachCardId = card.getPublicId();
+        d.teachCardFor = userId;
+        d.teachCardTitle = card.getTitle();
+        d.notes.add(fitted.note());
+        d.briefDo = "A lesson card «" + card.getTitle() + "» was just sent to " + m.nameOf(d.addressee)
+                + "; only they see it. In one or two sentences say why it comes now, linked to what they do now ("
+                + d.lessonTheirWay + "), and ask them to read it and answer its small question at the end.";
+        d.briefMustNot.add("do not repeat the lesson's points; the card holds them");
+        d.briefLength = "SHORT";
+        return true;
+    }
+
     /** A lesson's card comes before her words about it; a test's card after her invitation. */
     private void addKitCards(TurnMaterial m, DirectorDecision d, List<Item> items, List<String> notes) {
+        if (d.teachCardId != null) {
+            items.add(new CardItem(KitMarkers.content(KitMarkers.TEACH, d.teachCardId, "درس: " + d.teachCardTitle),
+                    d.teachCardFor));
+            return;
+        }
         if ("TEACH".equals(d.action) && d.lessonId != null) {
             ElikaKit.lesson(d.lessonId).ifPresent(lesson -> items.add(0, new CardItem(
                     KitMarkers.content(KitMarkers.LESSON, lesson.id(), "درس: " + lesson.faTitle()))));
@@ -660,7 +715,11 @@ public class TurnOrchestrator {
 
     private void deliver(Long roomId, Long agentId, Long triggerId, Item item) {
         if (item instanceof CardItem card) {
-            chatRealtimeService.saveAgentAndPublish(roomId, agentId, card.content());
+            if (card.visibleTo() != null) {
+                chatRealtimeService.savePrivateAgentAndPublish(roomId, agentId, card.visibleTo(), card.content());
+            } else {
+                chatRealtimeService.saveAgentAndPublish(roomId, agentId, card.content());
+            }
             return;
         }
         if (item instanceof TextItem text) {

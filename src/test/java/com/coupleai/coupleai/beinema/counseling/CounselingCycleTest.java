@@ -407,6 +407,7 @@ class CounselingCycleTest {
 
     @Test
     void theDirectorDecidesToTeachTheTeacherPreparesItAndTheVoiceSaysIt() {
+        f.confirmedReading(f.hossein, "MEMBER");
         f.say(f.hossein, "هر شب اولین جمله‌اش اینه که باز هم دیر کردی. منم دیگه جوابشو با طعنه می‌دم.");
         f.brain.directorReplies.add(CounselingCycleTest::teachSevenDeadlyHabits);
         f.brain.teacherReply = """
@@ -448,6 +449,7 @@ class CounselingCycleTest {
 
     @Test
     void whenTheTeacherFailsTheLessonsOwnTextIsTaught() {
+        f.confirmedReading(f.hossein, "MEMBER");
         f.say(f.hossein, "هر شب اولین جمله‌اش اینه که باز هم دیر کردی.");
         f.brain.directorReplies.add(CounselingCycleTest::teachSevenDeadlyHabits);
         f.brain.teacherReply = "{\"schema\":\"lesson.v1\",\"error\":\"TEACHER_FAILED\"}";

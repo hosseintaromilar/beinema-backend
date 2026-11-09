@@ -47,7 +47,9 @@ public record TurnMaterial(
         /** Names of everyone by role, also of a partner who left (their earlier messages keep a name). */
         Map<String, String> namesByRole,
         /** Today's market prices for the financial companion ([MARKET]), or empty for every other room. */
-        String market
+        String market,
+        /** The lesson cards of this room and whether each was understood (the teaching form); "" when none. */
+        String teaching
 ) {
 
     /** The stages of their own path each partner has reached (OWNER -> W, D...). */

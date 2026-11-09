@@ -257,6 +257,26 @@ public class ChatRealtimeService {
         return reply;
     }
 
+    /** A companion's message that only one member of the room sees (a lesson card made for them). */
+    @Transactional
+    public Message savePrivateAgentAndPublish(Long chatRoomId, Long agentId, Long userId, String content) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+        int nextSequence = messageRepository.findMaxSequenceNumberByChatRoom(chatRoom).orElse(0) + 1;
+        Message message = Message.builder()
+                .chatRoom(chatRoom)
+                .senderType(MessageSenderType.AGENT)
+                .senderId(agentId == null ? 0L : agentId)
+                .content(content == null ? "" : content)
+                .status(MessageStatus.SENT)
+                .sequenceNumber(nextSequence)
+                .visibleToUserId(userId)
+                .build();
+        messageRepository.saveAndFlush(message);
+        chatRoomEventHub.publishToUser(chatRoomId, userId, toResponse(chatRoom, message));
+        return message;
+    }
+
     /** A platform notice that only one member of the room sees, now and in the history. */
     @Transactional
     public Message savePrivateSystemAndPublish(Long chatRoomId, Long userId, String content) {

@@ -46,6 +46,7 @@ public class ChatRoomService {
     private final SessionBillingService sessionBillingService;
     private final RelationshipInsightRepository relationshipInsightRepository;
     private final com.coupleai.coupleai.beinema.mirror.MirrorReportRepository mirrorReportRepository;
+    private final com.coupleai.coupleai.beinema.teach.TeachCardRepository teachCardRepository;
     private final RelationshipInsightService relationshipInsightService;
     private final ParticipationPauseService participationPauseService;
     private final AgentAccessRepository agentAccessRepository;
@@ -678,6 +679,7 @@ public class ChatRoomService {
         invitationRepository.deleteAllByChatRoom(chatRoom);
         relationshipInsightRepository.deleteAllByChatRoom(chatRoom);
         mirrorReportRepository.deleteAllByChatRoomId(chatRoomId);
+        teachCardRepository.deleteAllByChatRoomId(chatRoomId);
         agentAccessRepository.deleteByChatRoomId(chatRoomId);
         governanceLogRepository.deleteByChatRoomId(chatRoomId);
         chatFileService.deleteRoomFiles(chatRoomId);

@@ -39,6 +39,17 @@ public final class DecisionValidator {
             "ASK_CLARIFYING", "EXPLORE_DOING", "FACILITATE_EVALUATION", "SUPPORT_PLANNING", "FOLLOW_UP_PLAN",
             "REVISIT_WANT", "RETURN_TO_THREAD", "WAIT", "SUMMARIZE", "TEACH"
     );
+    static final Set<String> PHASES = Set.of("UNDERSTAND", "CONFIRM", "ADVISE");
+    /** Moves that give a view, a step or a lesson: only after a confirmed reading of the problem or the want. */
+    static final Set<String> ADVICE_ACTIONS = Set.of("SUPPORT_PLANNING", "FOLLOW_UP_PLAN", "FACILITATE_EVALUATION", "TEACH");
+    /** Moves that may carry a view when the director does not say the phase. */
+    static final Set<String> MAY_ADVISE = Set.of("RESPOND", "REFLECT", "SUMMARIZE", "OTHER");
+    static final String GATE_BRIEF = "Do not advise yet: nothing they confirmed says what the real problem or their want is. "
+            + "If the latest message asks a plain factual question (time left, how Beinema works), answer it in one sentence. "
+            + "Otherwise, if a basic fact is still missing (who they are to the people involved, ages, since when, how often, "
+            + "how strongly, safety), ask that one thing; if the facts are there, say in one or two sentences what you think "
+            + "may be going on, clearly as a guess and in their own words, and ask whether it fits.";
+
     private static final Set<String> KINDS = Set.of(
             "WANT", "BEHAVIOR", "FEELING", "PERCEPTION_OF_PARTNER", "ANSWER_TO_QUESTION", "NEW_INFO", "RESISTANCE",
             "CONTRADICTION", "WANT_CHANGE", "SAFETY_SIGNAL", "QUESTION_TO_COUNSELOR", "GREETING", "OTHER"
@@ -71,7 +82,9 @@ public final class DecisionValidator {
             int maxQuestionsPerSession,
             boolean screenHigh,
             String currentSafetyLevel,
-            Map<String, Set<String>> reachedStages
+            Map<String, Set<String>> reachedStages,
+            /** someone wrote: the flow of the session applies (a moment alone, like a welcome, is not held) */
+            boolean answering
     ) {
     }
 
@@ -94,15 +107,17 @@ public final class DecisionValidator {
         readPlans(root.path("plans"), d, ctx);
         readMilestones(root.path("milestones"), d, ctx);
         readDecision(root.path("decision"), d, ctx);
-        readLesson(root.path("lesson"), d);
         d.kitTest = root.path("kit_test").isTextual() ? root.path("kit_test").asText().trim() : null;
         readFinance(root.path("finance"), d);
         readQuestionUpdates(root.path("question_updates"), d, ctx);
         readBrief(root.path("brief"), d, ctx);
+        // after the brief: the teaching form may replace it with finding out what they do first
+        readLesson(root.path("lesson"), d, ctx);
         d.reviewIf = strings(root.path("review_if"), 5, 240);
         readSafety(root.path("safety"), d, ctx);
         readQuestion(root.path("question"), d, ctx);
         enforceSafety(d, ctx);
+        enforceFlow(d, ctx);
         enforceConsistency(d, ctx);
         return d;
     }
@@ -431,6 +446,7 @@ public final class DecisionValidator {
             d.notes.add("decision: addressee " + d.addressee + " is not in the room");
             d.addressee = ctx.defaultAddressee();
         }
+        d.phase = oneOf(n.path("phase").asText(""), PHASES, "");
         d.purpose = clip(n.path("purpose").asText(""), 300);
         d.rationale = clip(n.path("rationale").asText(""), 600);
         for (String rule : strings(n.path("rules_used"), 10, 20)) {
@@ -464,7 +480,14 @@ public final class DecisionValidator {
     }
 
     /** TEACH needs a lesson of kb/lessons.json; without one the move becomes an ordinary reply. */
-    private static void readLesson(JsonNode lesson, DirectorDecision d) {
+    static final Set<String> READINESS = Set.of("KNOW", "ACCEPT", "DO");
+    static final String LOOK_DEEPER = "Their way of handling it is sound: do not correct it and do not teach. Look deeper at "
+            + "why the problem stays: how consistently it is done, what happens right before, and what else may be going on; "
+            + "ask one question about that.";
+    static final String EXPLORE_FIRST = "Do not teach yet. Find out what they do now when this happens, in their own words "
+            + "(what they say and do, step by step), and ask whether it gets them what they want.";
+
+    private static void readLesson(JsonNode lesson, DirectorDecision d, Context ctx) {
         String id = lesson.path("id").asText("").trim().toUpperCase(Locale.ROOT);
         if (!"TEACH".equals(d.action)) {
             if (!id.isEmpty()) {
@@ -479,6 +502,39 @@ public final class DecisionValidator {
         }
         d.lessonId = id;
         d.lessonWhy = clip(lesson.path("why").asText(""), 300);
+        if (TeachKit.owns(id)) {
+            teachingForm(lesson, d, ctx);
+        }
+    }
+
+    /**
+     * The teaching form: a lesson only after the person's own way of handling the problem was found
+     * and judged not to work. The director names that way in their words with the message it came
+     * from; without it, the move becomes finding out what they do now.
+     */
+    static void teachingForm(JsonNode lesson, DirectorDecision d, Context ctx) {
+        String way = clip(lesson.path("their_way").asText(""), 400);
+        String verdict = lesson.path("verdict").asText("").trim().toUpperCase(Locale.ROOT);
+        Long evidence = lesson.path("evidence").canConvertToLong() ? lesson.path("evidence").asLong() : null;
+        String role = evidence == null ? null : ctx.roleByMessageId().get(evidence);
+        String refusal = way.isBlank() ? "no their_way"
+                : !"MISFIT".equals(verdict) ? "verdict is not MISFIT"
+                : role == null || !PartnerRole.isPartner(role) ? "no evidence message of a partner"
+                : !"BOTH".equals(d.addressee) && !d.addressee.equals(role) ? "the evidence is not the addressee's"
+                : null;
+        if (refusal != null) {
+            d.notes.add("teach: " + d.lessonId + " held, " + refusal + "; finding out what they do first");
+            d.phase = "UNDERSTAND";
+            d.action = "EXPLORE_DOING";
+            d.lessonId = null;
+            d.briefDo = "FITS".equals(verdict) && !way.isBlank() ? LOOK_DEEPER : EXPLORE_FIRST;
+            d.briefMustNot.add("no lesson, advice or step yet");
+            return;
+        }
+        d.addressee = role;
+        d.lessonTheirWay = way;
+        d.lessonEvidence = evidence;
+        d.lessonReadiness = oneOf(lesson.path("readiness").asText(""), READINESS, "KNOW");
     }
 
     private static void readQuestion(JsonNode q, DirectorDecision d, Context ctx) {
@@ -609,6 +665,45 @@ public final class DecisionValidator {
         d.route = "SPEAK";
         d.react = null;
         d.sticker = null;
+    }
+
+    /**
+     * The flow of a session: get to know them, put a guess to them and have it confirmed, and only then
+     * advise. A view, a step, a plan or a lesson before they confirmed a reading of the problem or the want
+     * becomes a question: the missing fact, or the guess put to them. Safety and governance are never held.
+     */
+    static void enforceFlow(DirectorDecision d, Context ctx) {
+        if (!ctx.answering() || d.action.startsWith("SAFETY_") || !"NONE".equals(d.gov) || "WAIT".equals(d.action)
+                || "END_SESSION".equals(d.action)) {
+            return;
+        }
+        boolean advising = "ADVISE".equals(d.phase) || ADVICE_ACTIONS.contains(d.action)
+                || (d.phase.isEmpty() && MAY_ADVISE.contains(d.action));
+        if (!advising) {
+            return;
+        }
+        boolean confirmed = "BOTH".equals(d.addressee)
+                ? ctx.partnersPresent().stream().anyMatch(role -> hasConfirmedReading(role, d, ctx))
+                : hasConfirmedReading(d.addressee, d, ctx);
+        if (confirmed) {
+            if (d.phase.isEmpty()) {
+                d.phase = "ADVISE";
+            }
+            return;
+        }
+        d.notes.add("flow: " + d.action + (d.phase.isEmpty() ? "" : " (" + d.phase + ")")
+                + " before a confirmed reading became a question");
+        d.action = "ASK_OPEN";
+        d.phase = "CONFIRM";
+        d.briefDo = GATE_BRIEF;
+        d.briefMustNot.add("no advice, tip, step, plan, exercise, reading or label yet");
+        d.briefLength = "SHORT";
+        d.plans.clear();
+        d.lessonId = null;
+        if ("PLAN".equals(d.financeCard)) {
+            // the plan of scenarios is advice; the risk quiz, the picture and the market are getting to know them
+            d.financeCard = null;
+        }
     }
 
     private static void enforceConsistency(DirectorDecision d, Context ctx) {

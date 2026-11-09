@@ -19,8 +19,10 @@ public final class KitMarkers {
     public static final String PICTURE = "PICTURE";
     public static final String MARKET = "MARKET";
     public static final String PLAN = "PLAN";
+    /** A lesson card of the teaching form, made for one person and shown only to them. */
+    public static final String TEACH = "TEACH";
 
-    private static final Pattern CARD = Pattern.compile("\\[\\[KIT\\|(TEST|RESULT|LESSON|ENDCHECK|MODE|RISK|PICTURE|MARKET|PLAN)=([A-Za-z0-9-]{3,40})\\]\\]\\s*");
+    private static final Pattern CARD = Pattern.compile("\\[\\[KIT\\|(TEST|RESULT|LESSON|ENDCHECK|MODE|RISK|PICTURE|MARKET|PLAN|TEACH)=([A-Za-z0-9-]{3,40})\\]\\]\\s*");
 
     private KitMarkers() {
     }

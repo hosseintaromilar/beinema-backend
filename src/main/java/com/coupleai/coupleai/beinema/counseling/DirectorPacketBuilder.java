@@ -126,6 +126,9 @@ public final class DirectorPacketBuilder {
 
     /** What the counselor can teach (action TEACH), and what it already taught. */
     static String lessons(TurnMaterial m) {
+        if (m.tags() != null && m.tags().contains(TeachKit.TAG)) {
+            return teachLessons(m);
+        }
         boolean kit = m.tags() != null && m.tags().contains(ElikaKit.TAG);
         if (!kit && m.tags() != null && m.tags().contains(OWN_METHOD)) {
             return "none\n";
@@ -144,6 +147,23 @@ public final class DirectorPacketBuilder {
             out.append(" | when: ").append(lesson.when()).append('\n');
         }
         out.append(teachingNote(m, taught));
+        return out.toString();
+    }
+
+    /**
+     * The teaching form's lessons: id, title, the belief it is about, what must come first, when it fits; then the cards
+     * already given in this room and whether each was understood.
+     */
+    static String teachLessons(TurnMaterial m) {
+        StringBuilder out = new StringBuilder();
+        for (TeachKit.TeachLesson lesson : TeachKit.all()) {
+            out.append(lesson.id()).append(" | ").append(lesson.faTitle())
+                    .append(" | the belief: ").append(lesson.belief())
+                    .append(" | needs first: ").append(lesson.prerequisites().isEmpty() ? "-" : String.join(", ", lesson.prerequisites()))
+                    .append(" | when: ").append(lesson.when()).append('\n');
+        }
+        out.append("CARDS GIVEN IN THIS ROOM:\n")
+                .append(m.teaching() == null || m.teaching().isBlank() ? "none\n" : m.teaching());
         return out.toString();
     }
 

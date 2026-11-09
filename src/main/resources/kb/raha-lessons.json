@@ -1,0 +1,306 @@
+{
+  "beliefs": [
+    {
+      "id": "L-RAHA-LEAVING-IS-ABANDONING",
+      "fa_title": "رفتن یعنی رها کردن نیست",
+      "when": "A child cries at separations (nursery, school, the parent leaving) and the parent lingers, sneaks out, goes back or takes the child home, because leaving while the child cries feels like abandoning them.",
+      "prerequisites": [],
+      "belief": "اگر بچه‌ام گریه کند و من بروم، یعنی تنهایش گذاشته‌ام و پدر یا مادر خوبی نیستم.",
+      "leads_to": "می‌مانی تا آرام شود، یواشکی می‌روی، یا برش می‌گردانی خانه.",
+      "result": "بچه یاد می‌گیرد جدایی چیز ترسناکی است و گریه‌اش هر روز طولانی‌تر می‌شود.",
+      "why_not": [
+        "بچه از روی رفتار تو می‌فهمد موقعیت امن است یا نه. وقتی تو مردد و نگرانی، او هم نگران‌تر می‌شود.",
+        "گریهٔ موقع جدایی در بچه‌های کوچک طبیعی است و معمولاً کمی بعد از رفتن والد آرام می‌شود.",
+        "رها کردن یعنی نرفتن به دنبالش. وقتی می‌گویی کی برمی‌گردی و دقیقاً برمی‌گردی، او یاد می‌گیرد به تو اعتماد کند."
+      ],
+      "truer_belief": "خداحافظی کوتاه و مطمئن، مراقبت است. دارم به بچه‌ام یاد می‌دهم که می‌روم و برمی‌گردم.",
+      "reflect": "وقتی دم در گریه می‌کند، دقیقاً چه فکری از ذهنت می‌گذرد؟",
+      "check": {
+        "question": "طبق این درس، چه چیزی بیشتر به آرام شدن بچه کمک می‌کند؟",
+        "options": ["ماندن تا وقتی کاملاً آرام شود", "خداحافظی کوتاه و مطمئن و برگشتن سر ساعت", "یواشکی رفتن که گریه نکند"],
+        "answer": 1
+      },
+      "practice": "P-GOODBYE",
+      "avoid": ["If the crying comes with fear of a specific person or place, injuries, lost belongings or refusing a specific part of the day, look at safety (bullying, abuse) first; this lesson is not for that."]
+    },
+    {
+      "id": "L-RAHA-CRYING-MEANS-FAILURE",
+      "fa_title": "گریهٔ بچه یعنی شکست من نیست",
+      "when": "The parent treats the child's crying, anger or fear as something to stop at once (giving in, distracting, 'stop crying', explaining), because a crying child feels like a sign of their failure.",
+      "prerequisites": [],
+      "belief": "اگر بچه‌ام گریه می‌کند یا عصبانی است، یعنی من کارم را بد انجام داده‌ام و باید فوراً تمامش کنم.",
+      "leads_to": "سریع کوتاه می‌آیی، حواسش را پرت می‌کنی، یا می‌گویی «گریه نکن» و توضیح می‌دهی.",
+      "result": "بچه یاد نمی‌گیرد با احساسش کنار بیاید و گاهی یاد می‌گیرد گریه راه رسیدن به خواسته است.",
+      "why_not": [
+        "احساس‌های سخت بخشی از بزرگ شدن‌اند؛ وجودشان نشانهٔ بد بودن تو نیست.",
+        "کار والد قطع کردن احساس نیست؛ همراهی با آن است تا بچه کم‌کم یاد بگیرد آرام شود.",
+        "می‌شود احساس را پذیرفت و همزمان مرز رفتار را نگه داشت."
+      ],
+      "truer_belief": "احساس بچه‌ام طبیعی است. کار من کنارش بودن و اسم گذاشتن روی حسش است، نه خاموش کردنش.",
+      "reflect": "وقتی گریه‌اش شروع می‌شود، در خودت چه حسی بالا می‌آید؟",
+      "check": {
+        "question": "طبق این درس، وقتی بچه ناراحت است کار اصلی والد چیست؟",
+        "options": ["هر طور شده گریه را زود تمام کند", "احساسش را ببیند و اسم بگذارد و مرز رفتار را نگه دارد", "به خواسته‌اش عمل کند تا آرام شود"],
+        "answer": 1
+      },
+      "practice": "P-EMOTION-COACHING",
+      "avoid": ["Never say the child's feeling is wrong, and never tell the parent to give in to the demand."]
+    },
+    {
+      "id": "L-RAHA-YELLING-WORKS",
+      "fa_title": "داد زدن اقتدار نیست",
+      "when": "The parent shouts, threatens, uses harsh words or hits because they believe the child only listens when they are loud or frightening.",
+      "prerequisites": [],
+      "belief": "اگر داد نزنم یا نترسانمش، حرفم را جدی نمی‌گیرد.",
+      "leads_to": "صدایت بالا می‌رود، تهدید می‌کنی یا حرف تند می‌زنی.",
+      "result": "شاید لحظه‌ای ساکت شود، ولی دعوا تکرار می‌شود و بچه یاد می‌گیرد در عصبانیت باید داد زد.",
+      "why_not": [
+        "آکادمی اطفال آمریکا داد زدن و حرف تحقیرآمیز را برای تربیت بی‌اثر و آسیب‌زا می‌داند.",
+        "بچهٔ ترسیده آمادهٔ یاد گرفتن نیست؛ فقط می‌خواهد از موقعیت فرار کند.",
+        "جدی گرفته شدن از ثابت بودن و پیگیری می‌آید، نه از بلند بودن صدا."
+      ],
+      "truer_belief": "آرامش و ثابت بودن من اقتدار است. حرفی که آرام می‌زنم و پایش می‌ایستم، جدی‌تر گرفته می‌شود.",
+      "reflect": "آخرین باری که صدایت بالا رفت، قبلش چه چیزی را به خودت گفته بودی؟",
+      "check": {
+        "question": "طبق این درس، حرف والد از کجا جدی گرفته می‌شود؟",
+        "options": ["از بلند بودن صدا", "از آرام گفتن و همیشه پای حرف ایستادن", "از تهدید کردن"],
+        "answer": 1
+      },
+      "practice": "P-CALM-DISCIPLINE",
+      "avoid": ["Never shame the parent for having lost their temper. If the parent hits the child or the child is afraid at home, it is a safety matter first."]
+    },
+    {
+      "id": "L-RAHA-GIVING-IN-IS-KIND",
+      "fa_title": "مهربانی یعنی برداشتن مرز نیست",
+      "when": "Rules change with the parent's mood or the parent gives in after enough crying, because holding the limit feels unkind or hurtful.",
+      "prerequisites": ["L-RAHA-CRYING-MEANS-FAILURE"],
+      "belief": "اگر کوتاه نیایم، بچه‌ام دلش می‌شکند و من مادر یا پدر بی‌رحمی می‌شوم.",
+      "leads_to": "بعد از گریه یا اصرار زیاد، قانون را کنار می‌گذاری.",
+      "result": "بچه یاد می‌گیرد با گریهٔ بیشتر می‌شود قانون را عوض کرد، و بحث‌ها بیشتر می‌شود.",
+      "why_not": [
+        "قانون ثابت و قابل پیش‌بینی به بچه احساس امنیت می‌دهد؛ دنیایی که قانونش هر روز عوض شود، بی‌قرارش می‌کند.",
+        "مهربانی یعنی همدلی با احساسش، نه برداشتن مرز رفتارش.",
+        "وقتی پای حرفت می‌ایستی، بچه می‌فهمد حرف تو قابل اعتماد است."
+      ],
+      "truer_belief": "می‌توانم هم مهربان باشم هم محکم: احساسش را می‌پذیرم و قانون را نگه می‌دارم.",
+      "reflect": "وقتی کوتاه می‌آیی، در آن لحظه از چه چیزی می‌خواهی دور شوی؟",
+      "check": {
+        "question": "طبق این درس، مهربانی با بچه یعنی چه؟",
+        "options": ["هر وقت گریه کرد قانون را برداریم", "احساسش را بپذیریم و قانون را ثابت نگه داریم", "هیچ قانونی نگذاریم"],
+        "answer": 1
+      },
+      "practice": "P-RULES-CONSISTENCY",
+      "avoid": ["Never suggest frightening or hitting as a consequence."]
+    },
+    {
+      "id": "L-RAHA-ATTENTION-ONLY-WHEN-BAD",
+      "fa_title": "توجه من رفتار را بزرگ می‌کند",
+      "when": "Most of the parent's attention goes to misbehavior and little to the moments the child does well, because good behavior seems not to need a response.",
+      "prerequisites": [],
+      "belief": "وقتی بچه‌ام خوب است لازم نیست چیزی بگویم؛ فقط بدی‌اش را باید درست کنم.",
+      "leads_to": "بیشتر وقتی حرف می‌زنی و نگاهش می‌کنی که کار بدی کرده.",
+      "result": "بچه یاد می‌گیرد راه گرفتن توجه تو بدرفتاری است.",
+      "why_not": [
+        "توجهی که بلافاصله بعد از یک رفتار می‌آید، احتمال تکرار همان رفتار را بیشتر می‌کند؛ حتی اگر آن توجه دعوا باشد.",
+        "توجه والد قوی‌ترین ابزار تربیت است.",
+        "دیدن رفتار خوب به بچه نشان می‌دهد دقیقاً چه کاری را تکرار کند."
+      ],
+      "truer_belief": "توجه من مثل آب دادن است؛ به هر رفتاری بدهم، همان بیشتر رشد می‌کند.",
+      "reflect": "امروز چند بار رفتار خوبش را دیدی و به زبان آوردی؟",
+      "check": {
+        "question": "طبق این درس، کدام رفتار بیشتر تکرار می‌شود؟",
+        "options": ["رفتاری که توجه بیشتری می‌گیرد", "رفتاری که دیده نمی‌شود", "فقط رفتاری که تنبیه می‌شود"],
+        "answer": 0
+      },
+      "practice": "P-POSITIVE-ATTENTION",
+      "avoid": ["Never suggest ignoring dangerous or hurtful behavior."]
+    },
+    {
+      "id": "L-RAHA-CHOICE-IS-WEAKNESS",
+      "fa_title": "انتخاب دادن ضعف نیست",
+      "when": "Daily routines turn into power struggles because the parent believes the child must obey orders without any say, and giving a choice means losing control.",
+      "prerequisites": [],
+      "belief": "بچه باید بی‌چون‌وچرا حرفم را گوش کند؛ اگر به او انتخاب بدهم، کنترل را از دست داده‌ام.",
+      "leads_to": "فقط دستور می‌دهی و هر «نه» را با اصرار و دعوا جواب می‌دهی.",
+      "result": "کارهای ساده مثل لباس پوشیدن یا حمام هر روز به جنگ قدرت تبدیل می‌شود.",
+      "why_not": [
+        "بچه هم می‌خواهد حس کند کنترلی دارد؛ دستور مستقیم اغلب «نه» می‌شنود.",
+        "انتخاب بین دو گزینه‌ای که هر دو را خودت قبول داری، کنترل را از تو نمی‌گیرد.",
+        "وقتی بچه انتخاب می‌کند، کار را مال خودش می‌داند و همکاری‌اش بیشتر می‌شود."
+      ],
+      "truer_belief": "اصل کار را من تعیین می‌کنم؛ دادن یک انتخاب کوچک همکاری بچه را بیشتر می‌کند.",
+      "reflect": "کدام کار روزانه بیشتر از همه به دعوا می‌کشد؟",
+      "check": {
+        "question": "کدام جمله یک انتخاب درست طبق این درس است؟",
+        "options": ["«می‌خوای مسواک بزنی یا نه؟»", "«اول مسواک می‌زنی یا اول لباس خواب می‌پوشی؟»", "«هر کاری دوست داری بکن»"],
+        "answer": 1
+      },
+      "practice": "P-SMALL-CHOICES",
+      "avoid": ["Never offer a choice the parent cannot accept."]
+    },
+    {
+      "id": "L-RAHA-PROTECT-FROM-PARTNER",
+      "fa_title": "یک صدا بودن ما از هر قانونی مهم‌تر است",
+      "when": "The two parents set different rules or undo each other's decisions in front of the child, because one believes they must protect the child from the other's strictness or softness.",
+      "prerequisites": ["L-RAHA-GIVING-IN-IS-KIND"],
+      "belief": "برای اینکه بچه‌ام آسیب نبیند، باید جلوی تصمیم همسرم را بگیرم.",
+      "leads_to": "جلوی بچه حرف همسرت را خنثی می‌کنی یا قانون دیگری می‌گذاری.",
+      "result": "بچه یاد می‌گیرد سراغ کسی برود که راحت‌تر کوتاه می‌آید، و اختلاف شما بیشتر می‌شود.",
+      "why_not": [
+        "قانون‌های متفاوت بچه را گیج و بی‌قرار می‌کند.",
+        "لازم نیست در همه چیز هم‌نظر باشید؛ کافی است روی چند قانون پایه توافق کنید.",
+        "اختلاف دربارهٔ بچه را می‌شود دور از او حل کرد."
+      ],
+      "truer_belief": "من و همسرم با هم از بچه محافظت می‌کنیم، نه از همدیگر. اختلافمان را دور از او حل می‌کنیم.",
+      "reflect": "آخرین باری که حرف همسرت را جلوی بچه عوض کردی، نگران چه بودی؟",
+      "check": {
+        "question": "طبق این درس، اختلاف والدین دربارهٔ بچه را کجا حل کنیم؟",
+        "options": ["همان‌جا جلوی بچه", "دور از بچه، در یک وقت آرام", "از بچه بپرسیم حق با کیست"],
+        "answer": 1
+      },
+      "practice": "P-ONE-VOICE",
+      "avoid": ["Never take one parent's side. If one parent is afraid of the other, or the child is in danger at home, it is a safety matter first."]
+    },
+    {
+      "id": "L-RAHA-HE-WILL-TELL-ME",
+      "fa_title": "بچه‌ها همیشه نمی‌گویند",
+      "when": "A child shows changes (not wanting to go to school, crying before school, lost belongings, sleep or eating changes) and the parent assumes that if someone were hurting them, the child would say so.",
+      "prerequisites": [],
+      "belief": "اگر کسی بچه‌ام را اذیت کند، خودش به من می‌گوید.",
+      "leads_to": "نشانه‌ها را به لجبازی یا بهانه‌گیری نسبت می‌دهی و فقط اصرار می‌کنی که برود.",
+      "result": "اگر واقعاً کسی اذیتش کند، ممکن است دیر بفهمی.",
+      "why_not": [
+        "خیلی از بچه‌هایی که اذیت یا قلدری می‌شوند، از کسی کمک نمی‌خواهند؛ گاهی چون می‌ترسند یا خجالت می‌کشند.",
+        "تغییر رفتار، مثل نخواستن مدرسه، گم شدن وسایل، زخم بی‌دلیل، یا تغییر خواب و غذا، می‌تواند نشانه باشد.",
+        "این نشانه‌ها همیشه یعنی قلدری نیست، ولی ارزش دیدن و پرسیدن دارد."
+      ],
+      "truer_belief": "سکوت بچه یعنی همه‌چیز خوب است، نیست. نشانه‌ها را می‌بینم و جایی امن برای گفتنش می‌سازم.",
+      "reflect": "در این مدت چه تغییری در رفتار یا حالش دیده‌ای؟",
+      "check": {
+        "question": "طبق این درس، اگر کسی بچه را اذیت کند، معمولاً چه می‌شود؟",
+        "options": ["همیشه بلافاصله به والدین می‌گوید", "ممکن است چیزی نگوید و فقط رفتارش عوض شود", "هیچ نشانه‌ای ندارد"],
+        "answer": 1
+      },
+      "practice": "P-BULLYING-SIGNS",
+      "avoid": ["If the child is in danger now or there are signs of abuse, give the safety numbers first (اورژانس اجتماعی ۱۲۳)."]
+    }
+  ],
+  "practices": [
+    {
+      "id": "P-GOODBYE",
+      "title": "خداحافظی کوتاه و قابل پیش‌بینی",
+      "steps": [
+        "یک خداحافظی کوتاه و ثابت داشته باش و هر روز همان را تکرار کن.",
+        "با اطمینان و لبخند خداحافظی کن و برو؛ یواشکی نرو.",
+        "بگو کی برمی‌گردی و دقیقاً همان وقت برگرد.",
+        "جدایی‌های کوتاه را با کسی که بچه می‌شناسد تمرین کن و کم‌کم طولانی‌ترش کن.",
+        "به مربی بگو بچه سختش است تا موقع خداحافظی و بعدش کمکش کند.",
+        "اگر اضطراب جدایی خیلی شدید است یا چند هفته ادامه پیدا کرده، با پزشک کودک مشورت کن."
+      ],
+      "sources": [
+        {"name": "NHS (سازمان سلامت ملی بریتانیا): Separation anxiety", "url": "https://www.nhs.uk/baby/babys-development/behaviour/separation-anxiety/"},
+        {"name": "MedlinePlus (کتابخانهٔ ملی پزشکی آمریکا): Separation anxiety in children", "url": "https://medlineplus.gov/ency/article/001542.htm"}
+      ]
+    },
+    {
+      "id": "P-EMOTION-COACHING",
+      "title": "مربی‌گری احساس",
+      "steps": [
+        "ببین: متوجه شو بچه احساس شدیدی دارد.",
+        "ارتباط بگیر: نزدیکش برو و توجهت را به او بده.",
+        "گوش کن: بگذار بگوید یا نشان بدهد چه شده.",
+        "اسم بگذار: احساسش را ساده بگو، مثلاً «به نظر می‌رسه عصبانی شدی».",
+        "بعد با هم راه‌حل پیدا کنید: احساس را بپذیر و مرز رفتار را نگه دار، مثلاً «عصبانی شدن اشکالی نداره، ولی پرت کردن اسباب‌بازی نه».",
+        "اگر وسط قشقرق است، صبر کن هر دو آرام شوید؛ اول خودت را آرام کن."
+      ],
+      "sources": [
+        {"name": "CDC (مرکز کنترل و پیشگیری بیماری آمریکا): Tips for Noticing and Naming Emotions", "url": "https://www.cdc.gov/parenting-toddlers/noticing-and-naming/emotion-coaching.html"}
+      ]
+    },
+    {
+      "id": "P-CALM-DISCIPLINE",
+      "title": "تربیت آرام و محکم",
+      "steps": [
+        "درست و غلط را با کلمه‌ها و رفتار آرام یاد بده.",
+        "قانون‌های روشن و ثابت داشته باش.",
+        "اگر بچه رعایت نکرد، پیامدش را آرام و محکم توضیح بده و اجرا کن.",
+        "قبل از اینکه حرف بزنی، اول خودت را آرام کن؛ اگر عصبانی هستی و جای بچه امن است، چند لحظه کنار برو.",
+        "هرگز کتک نزن و حرف تحقیرآمیز نزن؛ این‌ها بی‌اثر و آسیب‌زا هستند."
+      ],
+      "sources": [
+        {"name": "AAP (آکادمی اطفال آمریکا): What's the Best Way to Discipline My Child?", "url": "https://www.healthychildren.org/English/family-life/family-dynamics/communication-discipline/Pages/Disciplining-Your-Child.aspx"}
+      ]
+    },
+    {
+      "id": "P-RULES-CONSISTENCY",
+      "title": "قانون ثابت و پیگیری",
+      "steps": [
+        "چند قانون و روال ساده داشته باش تا بچه بداند چه انتظاری از او هست.",
+        "هر بار به یک رفتار، یک‌جور واکنش نشان بده.",
+        "کاری را که گفتی انجام می‌دهی، انجام بده.",
+        "پیامد را بلافاصله بعد از رفتار و همیشه به همان شکل اجرا کن و بگو چرا.",
+        "انتظار داشته باش ناراحت شود؛ احساسش را بپذیر ولی کوتاه نیا.",
+        "قانون یا روال تازه را وقتی بگو که بچه آرام است و می‌تواند گوش کند."
+      ],
+      "sources": [
+        {"name": "CDC: Tips for Relying on Routines and Rules", "url": "https://www.cdc.gov/parenting-toddlers/structure-rules/index.html"},
+        {"name": "CDC: Tips for Responding to Behavior", "url": "https://www.cdc.gov/parenting-toddlers/responding-to-behavior/index.html"}
+      ]
+    },
+    {
+      "id": "P-POSITIVE-ATTENTION",
+      "title": "توجه مثبت",
+      "steps": [
+        "رفتاری را که دوست داری بیشتر شود، همان لحظه ببین و به زبان بیاور، مثلاً «ممنون که صبر کردی و کنارم ماندی».",
+        "مشخص بگو چه کار خوبی کرد، نه فقط «آفرین».",
+        "به بدرفتاری‌های کوچکِ بی‌خطر توجه نکن تا تقویت نشوند.",
+        "رفتار خطرناک یا آزاردهنده را هیچ‌وقت نادیده نگیر."
+      ],
+      "sources": [
+        {"name": "CDC: Tips for Responding to Behavior", "url": "https://www.cdc.gov/parenting-toddlers/responding-to-behavior/index.html"},
+        {"name": "AAP: What's the Best Way to Discipline My Child?", "url": "https://www.healthychildren.org/English/family-life/family-dynamics/communication-discipline/Pages/Disciplining-Your-Child.aspx"}
+      ]
+    },
+    {
+      "id": "P-SMALL-CHOICES",
+      "title": "انتخاب‌های کوچک و پیشگیری از قشقرق",
+      "steps": [
+        "به‌جای سؤال بله و نه، بین دو گزینه انتخاب بده که هر دو را قبول داری.",
+        "گرسنگی و خستگی را پیش‌بینی کن؛ میان‌وعده همراه داشته باش و خواب را حفظ کن.",
+        "هر روز به یک شکل رفتار کن؛ ثابت بودن قشقرق‌ها را کمتر می‌کند.",
+        "اگر بچه کتک زد، گاز گرفت یا پرت کرد، نادیده نگیر؛ همان لحظه متوقفش کن.",
+        "وقتی خودت خسته و عصبانی هستی، با همسر یا یک نزدیک جابه‌جا شو."
+      ],
+      "sources": [
+        {"name": "AAP: Top Tips for Surviving Tantrums", "url": "https://www.healthychildren.org/English/family-life/family-dynamics/communication-discipline/Pages/Temper-Tantrums.aspx"}
+      ]
+    },
+    {
+      "id": "P-ONE-VOICE",
+      "title": "یک صدا بودن والدین",
+      "steps": [
+        "با همسرت و هر کس که از بچه مراقبت می‌کند، چند قانون پایه بگذارید که همه رعایت کنند.",
+        "اگر جلوی بچه نظرتان فرق داشت، بگویید «بعداً با هم حرف می‌زنیم» و همان‌جا خنثی نکنید.",
+        "اختلاف را در یک وقت آرام و دور از بچه حل کنید.",
+        "قانون‌ها را هر دو یک‌جور اجرا کنید."
+      ],
+      "sources": [
+        {"name": "AAP: What's the Best Way to Discipline My Child?", "url": "https://www.healthychildren.org/English/family-life/family-dynamics/communication-discipline/Pages/Disciplining-Your-Child.aspx"}
+      ]
+    },
+    {
+      "id": "P-BULLYING-SIGNS",
+      "title": "دیدن نشانه‌های آزار در مدرسه",
+      "steps": [
+        "به این نشانه‌ها توجه کن: زخم بی‌دلیل، گم شدن یا خراب شدن وسایل، سردرد و دل‌درد مکرر یا تمارض، تغییر غذا یا خواب، افت درسی یا نخواستن مدرسه، از دست دادن دوستان.",
+        "در یک لحظهٔ آرام و بدون سؤال‌پیچ کردن با او حرف بزن و بگو اگر کسی اذیتش کرد، تقصیر او نیست و کمکش می‌کنی.",
+        "با معلم یا مدرسه صحبت کن تا زنگ تفریح و رفتار بچه‌ها را زیر نظر بگیرند.",
+        "این نشانه‌ها می‌توانند دلیل‌های دیگری هم داشته باشند؛ اگر نگرانی ادامه داشت، با پزشک یا مشاور مدرسه مشورت کن.",
+        "اگر بچه در خطر فوری است یا نشانهٔ آزار جدی دیدی، همان لحظه کمک بگیر: اورژانس اجتماعی ۱۲۳."
+      ],
+      "sources": [
+        {"name": "StopBullying.gov (دولت آمریکا): Warning Signs for Bullying", "url": "https://www.stopbullying.gov/bullying/warning-signs"}
+      ]
+    }
+  ]
+}

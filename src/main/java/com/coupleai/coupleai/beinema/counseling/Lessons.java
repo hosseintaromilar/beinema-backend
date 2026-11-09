@@ -41,6 +41,9 @@ public final class Lessons {
         if (id != null && id.trim().toUpperCase().startsWith(ElikaKit.LESSON_PREFIX)) {
             return ElikaKit.lesson(id);
         }
+        if (TeachKit.owns(id)) {
+            return TeachKit.lesson(id).map(TeachKit.TeachLesson::asLesson);
+        }
         return id == null ? Optional.empty() : Optional.ofNullable(loaded().get(id.trim().toUpperCase()));
     }
 

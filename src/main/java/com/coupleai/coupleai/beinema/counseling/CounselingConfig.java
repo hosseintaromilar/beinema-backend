@@ -45,6 +45,10 @@ public class CounselingConfig {
     @Value("${beinema.brain.market-workflow-ids:}")
     private String marketWorkflowIds = "";
 
+    /** Companions that teach with lesson cards (TeachKit): first Raha. */
+    @Value("${beinema.brain.teach-workflow-ids:}")
+    private String teachWorkflowIds = "";
+
     @Value("${beinema.brain.recent-messages:16}")
     private int recentMessages = 16;
 
@@ -82,6 +86,11 @@ public class CounselingConfig {
     /** True when this companion works with the kit (see kitWorkflowIds). */
     public boolean isKitWorkflow(String botId) {
         return listed(kitWorkflowIds, botId);
+    }
+
+    /** True when this companion teaches with lesson cards (see teachWorkflowIds). */
+    public boolean isTeachWorkflow(String botId) {
+        return listed(teachWorkflowIds, botId);
     }
 
     /** True when this companion gets the market prices (see marketWorkflowIds). */

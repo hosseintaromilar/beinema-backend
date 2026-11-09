@@ -40,7 +40,8 @@ class DecisionValidatorTest {
                 3,
                 false,
                 currentSafety,
-                reached
+                reached,
+                true
         );
     }
 
@@ -240,6 +241,42 @@ class DecisionValidatorTest {
     }
 
     @Test
+    void noAdviceBeforeTheyConfirmedWhatTheProblemIs() throws Exception {
+        DirectorDecision advice = DecisionValidator.validate(json(
+                "{\"action\":\"RESPOND\",\"phase\":\"ADVISE\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("ASK_OPEN", advice.action, "a view before a confirmed reading becomes a question");
+        assertEquals("CONFIRM", advice.phase);
+        assertEquals(DecisionValidator.GATE_BRIEF, advice.briefDo);
+        assertTrue(advice.briefMustNot.stream().anyMatch(rule -> rule.startsWith("no advice")));
+
+        DirectorDecision planning = DecisionValidator.validate(json(
+                "{\"action\":\"SUPPORT_PLANNING\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("ASK_OPEN", planning.action, "planning is advice too");
+
+        DirectorDecision asking = DecisionValidator.validate(json(
+                "{\"action\":\"ASK_OPEN\",\"phase\":\"UNDERSTAND\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("ASK_OPEN", asking.action);
+        assertEquals("say it", asking.briefDo, "getting to know them is left as it is");
+    }
+
+    @Test
+    void adviceOnceTheyConfirmedAReading() throws Exception {
+        intents.put(31L, new DecisionValidator.IntentView(31L, "OWNER", "CONFIRMED"));
+        DirectorDecision advice = DecisionValidator.validate(json(
+                "{\"action\":\"RESPOND\",\"phase\":\"ADVISE\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("RESPOND", advice.action);
+        assertEquals("ADVISE", advice.phase);
+        assertEquals("say it", advice.briefDo);
+    }
+
+    @Test
+    void safetyIsNeverHeldByTheFlow() throws Exception {
+        DirectorDecision safety = DecisionValidator.validate(json(
+                "{\"action\":\"SAFETY_RESPONSE\",\"phase\":\"ADVISE\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("SAFETY_RESPONSE", safety.action);
+    }
+
+    @Test
     void withBothHereTheCompanionMayStillListen() throws Exception {
         DirectorDecision waited = DecisionValidator.validate(json("{\"action\":\"WAIT\",\"addressee\":\"BOTH\"}", ""), ctx());
         assertEquals("WAIT", waited.action);
@@ -260,6 +297,7 @@ class DecisionValidatorTest {
     @Test
     void teachingNeedsALessonOfTheKnowledgeBase() throws Exception {
         String teach = "{\"action\":\"TEACH\",\"addressee\":\"BOTH\",\"governance\":{\"gov\":\"NONE\"}}";
+        intents.put(31L, new DecisionValidator.IntentView(31L, "OWNER", "CONFIRMED"));
 
         DirectorDecision d = DecisionValidator.validate(json(teach,
                 "\"lesson\":{\"id\":\"l-seven-deadly\",\"why\":\"they keep blaming each other\"}"), ctx());

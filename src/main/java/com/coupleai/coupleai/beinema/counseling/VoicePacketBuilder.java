@@ -29,12 +29,17 @@ public final class VoicePacketBuilder {
         participants(out, m);
         out.append("[BRIEF]\n")
                 .append("action=").append(d.action).append("OTHER".equals(d.action) ? " (" + d.actionLabel + ")" : "").append('\n')
+                .append("phase=").append(d.phase.isEmpty() ? "-" : d.phase).append('\n')
                 .append("addressee=").append(addressee(m, d.addressee)).append('\n')
                 .append("purpose=").append(d.purpose).append('\n')
                 .append("do=").append(d.briefDo).append('\n');
         List<String> mustNot = new java.util.ArrayList<>(d.briefMustNot);
         if (!"ASK_CLARIFYING".equals(d.action)) {
             mustNot.add(NO_ECHO);
+        }
+        if (!"ADVISE".equals(d.phase)) {
+            // until they confirmed what the real problem is, the voice gets to know them or puts a guess to them
+            mustNot.add("no advice, tip, step, plan, reading or label: this turn only gets to know them or puts a guess to them");
         }
         if (!mustNot.isEmpty()) {
             out.append("must_not=").append(String.join("; ", mustNot)).append('\n');

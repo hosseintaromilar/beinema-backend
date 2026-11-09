@@ -43,6 +43,12 @@ public class DirectorDecision {
 
     // the move
     public String action = "LISTENING";
+    /**
+     * Where the session is with this person: UNDERSTAND (still getting to know them), CONFIRM (putting a
+     * guess about the problem or the want to them) or ADVISE (a view, a reading, a step or a plan).
+     * ADVISE is allowed only once they confirmed a reading (DecisionValidator.enforceFlow).
+     */
+    public String phase = "";
     public String actionLabel = "";
     public String route = "SPEAK";
     public String addressee = "BOTH";
@@ -59,6 +65,15 @@ public class DirectorDecision {
 
     /** TEACH: the lesson (kb/lessons.json) and why it helps now. */
     public String lessonId;
+    /** The teaching form: what they do now (their words), the message it came from, and where they stand. */
+    public String lessonTheirWay = "";
+    public Long lessonEvidence;
+    /** KNOW (does not know the idea), ACCEPT (knows, does not accept it) or DO (accepts, cannot do it yet). */
+    public String lessonReadiness = "KNOW";
+    /** The card made for this lesson (TeachCardService), shown only to lessonFor. */
+    public String teachCardId;
+    public Long teachCardFor;
+    public String teachCardTitle;
     public String lessonWhy = "";
     /** TEACH: what the teacher lane prepared for the voice (filled after validation). */
     public String lessonScript = "";
