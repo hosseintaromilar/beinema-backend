@@ -86,6 +86,14 @@ public class UserService {
     }
 
 
+    /** The person's own switch: does the nightly mirror of their conversations also come by email? */
+    @Transactional
+    public UserResponse setMirrorEmail(Authentication authentication, boolean enabled) {
+        User user = loadByAuthentication(authentication);
+        user.setMirrorEmailOff(!enabled);
+        return UserResponse.from(userRepository.save(user));
+    }
+
     /** The person's own switch: may the management read their chats for support? */
     @Transactional
     public UserResponse setAdminChatAccess(Authentication authentication, boolean enabled) {

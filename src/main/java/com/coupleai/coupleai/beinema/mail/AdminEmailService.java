@@ -207,7 +207,7 @@ public class AdminEmailService {
     }
 
     /** The address to write to: the one the person gave, or the account's email if it is a real one. */
-    static String address(User user) {
+    public static String address(User user) {
         if (user.getContactEmail() != null && !user.getContactEmail().isBlank()) {
             return user.getContactEmail();
         }

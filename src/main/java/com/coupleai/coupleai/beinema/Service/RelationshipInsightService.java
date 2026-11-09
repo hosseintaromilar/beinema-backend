@@ -135,11 +135,37 @@ public class RelationshipInsightService {
         }
     }
 
+    /**
+     * The mirror for the nightly report: the one written after the last session if it is newer
+     * than since (no new call to the AI), else written now. Null when the conversation is still
+     * too short for one. Throws when writing it failed, so the night job tries again later.
+     */
+    @Transactional
+    public RelationshipInsight freshFor(Long chatRoomId, java.time.Instant since) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new IllegalArgumentException("گفتگو پیدا نشد."));
+        RelationshipInsight current = insightRepository.findByChatRoom(chatRoom).orElse(null);
+        if (current != null && current.getAnalyzedAt() != null
+                && !current.getAnalyzedAt().atZone(ZoneId.systemDefault()).toInstant().isBefore(since)) {
+            return current;
+        }
+        User asker = participantRepository.findAllByChatRoom(chatRoom).stream()
+                .map(ChatRoomParticipant::getUser)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("این گفتگو عضوی ندارد."));
+        refresh(asker, chatRoom);
+        return insightRepository.findByChatRoom(chatRoom)
+                .filter(written -> written.getAnalyzedAt() != null)
+                .orElse(null);
+    }
+
     private RelationshipInsightResponse refresh(User user, ChatRoom chatRoom) {
         Long chatRoomId = chatRoom.getId();
         List<Message> messages = messageRepository
                 .findByChatRoomIdAndDeletedFalseOrderBySequenceNumberAsc(chatRoomId).stream()
-                .filter(message -> message.getVisibleToUserId() == null)
+                // only what both people saw in the room: never a private note, a sealed message to the
+                // companion or a safety message shown to one of them
+                .filter(message -> message.getVisibleToUserId() == null && !Boolean.TRUE.equals(message.getConfidential()))
                 .toList();
 
         long userMessageCount = messages.stream()
@@ -268,6 +294,7 @@ public class RelationshipInsightService {
             // only what the two people and the companion said; system notices are noise here
             if (message.getContent() == null || message.getContent().isBlank()
                     || message.getVisibleToUserId() != null
+                    || Boolean.TRUE.equals(message.getConfidential())
                     || (message.getSenderType() != MessageSenderType.USER
                         && message.getSenderType() != MessageSenderType.AGENT)) {
                 continue;

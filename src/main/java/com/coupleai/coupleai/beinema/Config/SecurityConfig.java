@@ -171,6 +171,9 @@ public class SecurityConfig {
 
                                 "/api/email/unsubscribe",
 
+                                // the link in the nightly mirror email that turns it off
+                                "/api/email/mirror-off",
+
                                 "/api/auth/email/start",
 
                                 "/api/auth/email/verify",

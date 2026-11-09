@@ -58,6 +58,14 @@ public class UserController {
         return userService.updateProfile(authentication, request);
     }
 
+    @PutMapping("/me/mirror-email")
+    public UserResponse setMirrorEmail(
+            Authentication authentication,
+            @RequestBody java.util.Map<String, Boolean> body
+    ) {
+        return userService.setMirrorEmail(authentication, Boolean.TRUE.equals(body.get("enabled")));
+    }
+
     @PutMapping("/me/admin-chat-access")
     public UserResponse setAdminChatAccess(
             Authentication authentication,

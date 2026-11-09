@@ -33,6 +33,9 @@ public class UserResponse {
 
     private boolean adminChatAccess;
 
+    /** The nightly mirror of each conversation also comes by email (on unless turned off). */
+    private boolean mirrorEmail;
+
     private String status;
 
     private boolean emailVerified;
@@ -73,6 +76,7 @@ public class UserResponse {
                 .role(user.getRole().name())
                 .supervisor(Boolean.TRUE.equals(user.getSupervisor()))
                 .adminChatAccess(Boolean.TRUE.equals(user.getAdminChatAccess()))
+                .mirrorEmail(!Boolean.TRUE.equals(user.getMirrorEmailOff()))
 
                 .status(user.getStatus().name())
 

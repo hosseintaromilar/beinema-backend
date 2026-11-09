@@ -13,5 +13,8 @@ public interface SessionRecordRepository extends JpaRepository<SessionRecord, Lo
 
     long countByChatRoomIdAndCompletedTrue(Long chatRoomId);
 
+    /** The sessions with a conversation in them that ended in a window (the nightly mirror). */
+    List<SessionRecord> findAllByEndedAtGreaterThanAndEndedAtLessThanEqualAndCompletedTrue(Instant from, Instant to);
+
     List<SessionRecord> findAllByChatRoomIdAndOpenedAtAfterOrderByOpenedAtAsc(Long chatRoomId, Instant after);
 }
