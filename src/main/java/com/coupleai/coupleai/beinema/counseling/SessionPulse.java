@@ -84,8 +84,9 @@ public class SessionPulse {
             return;
         }
         List<ChatRoomParticipant> people = participantRepository.findAllByChatRoom(room);
-        boolean someoneHere = people.stream().anyMatch(person -> person.getUser() != null
-                && eventHub.isPresent(room.getId(), person.getUser().getId()));
+        int present = (int) people.stream().filter(person -> person.getUser() != null
+                && eventHub.isPresent(room.getId(), person.getUser().getId())).count();
+        boolean someoneHere = present > 0;
         boolean paused = people.stream().anyMatch(person -> Boolean.TRUE.equals(person.getReentryPending())
                 || (person.getPausedUntil() != null && person.getPausedUntil().isAfter(Instant.now())));
         if (!someoneHere || paused) {
@@ -116,7 +117,7 @@ public class SessionPulse {
         }
         Spell spell = spells.get(room.getId());
         int nudges = spell != null && spell.personSequence() == personSequence ? spell.nudges() : 0;
-        String moment = decide(now, lastAny, lastPerson, lastSpoken, nudges, quietMinutes, listenMinutes);
+        String moment = decide(now, lastAny, lastPerson, lastSpoken, nudges, quietMinutes, listenMinutes, present);
         if (moment == null) {
             return;
         }
@@ -127,14 +128,26 @@ public class SessionPulse {
         turnRunner.momentAsync(room.getId(), "[SYSTEM | SESSION] " + moment);
     }
 
-    /** The moment due now, or null. nudges: how often the quiet was already broken with no one answering. */
+    /**
+     * The moment due now, or null. nudges: how often the quiet was already broken with no one answering.
+     * present: how many of the people are on the page. When the companion spoke last, the turn is theirs:
+     * one person alone is never asked again (a person thinks, writes, or steps away, and that is fine),
+     * and two are asked at most once, after twice the quiet.
+     */
     static String decide(LocalDateTime now, LocalDateTime lastAny, LocalDateTime lastPerson, LocalDateTime lastSpoken,
-                         int nudges, long quietMinutes, long listenMinutes) {
+                         int nudges, long quietMinutes, long listenMinutes, int present) {
         if (lastAny == null || lastPerson == null) {
             // nobody has written yet: the welcome already said what to do, and it is not repeated
             return null;
         }
         long idle = Duration.between(lastAny, now).toMinutes();
+        boolean theirTurn = lastSpoken != null && !lastPerson.isAfter(lastSpoken);
+        if (theirTurn) {
+            if (present <= 1 || nudges >= 1 || idle < quietMinutes * 2) {
+                return null;
+            }
+            return "ROOM_QUIET minutes=" + idle + " nudge=1";
+        }
         if (idle >= quietMinutes) {
             return nudges >= MAX_NUDGES ? null : "ROOM_QUIET minutes=" + idle + " nudge=" + (nudges + 1);
         }
