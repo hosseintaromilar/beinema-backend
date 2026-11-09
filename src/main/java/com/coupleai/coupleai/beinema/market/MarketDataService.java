@@ -290,7 +290,7 @@ public class MarketDataService {
     }
 
     /** A Gregorian day as a Jalali date, 1405/08/16. */
-    static String jalali(LocalDate day) {
+    public static String jalali(LocalDate day) {
         int gy = day.getYear();
         int gm = day.getMonthValue();
         int gd = day.getDayOfMonth();

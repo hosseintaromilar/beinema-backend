@@ -149,6 +149,10 @@ public class SecurityConfig {
                                 // the general guide: anyone may talk to it, logged in or not
                                 "/api/guide/messages",
 
+                                // the visit log: every page sends a view and a heartbeat
+                                "/api/analytics/view",
+                                "/api/analytics/ping",
+
                                 "/api/auth/register",
 
                                 "/api/auth/login",
