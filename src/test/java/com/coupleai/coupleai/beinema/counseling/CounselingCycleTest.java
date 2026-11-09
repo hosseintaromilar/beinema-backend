@@ -227,7 +227,7 @@ class CounselingCycleTest {
         assertTrue(f.brain.directorPackets.get(1).contains("[REVIEW]\nREPAIR:"));
         DirectorDecisionRecord record = f.decisions.values().iterator().next();
         assertEquals(DecisionStatus.FALLBACK, record.getStatus());
-        assertEquals("LISTENING", record.getAction());
+        assertEquals("RESPOND", record.getAction());
         assertTrue(f.intents.isEmpty(), "nothing guessed was stored");
         assertTrue(f.memory().goal.isBlank());
         assertNotNull(f.state.getLastProcessedMessageId(), "the message got a reply and is not answered twice");

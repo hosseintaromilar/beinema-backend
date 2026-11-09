@@ -124,12 +124,16 @@ public final class DecisionValidator {
     /** The safe default when the director could not decide: brief presence, nothing stored. */
     public static DirectorDecision fallback(String addressee, String reason) {
         DirectorDecision d = new DirectorDecision();
-        d.action = "LISTENING";
+        // a bare «I am here» line right after a direct question reads as not listening: answer what was said
+        d.action = "RESPOND";
         d.route = "SPEAK";
         d.addressee = addressee == null ? "BOTH" : addressee;
-        d.purpose = "stay present while the decision could not be made";
+        d.purpose = "answer the latest message while the decision could not be made";
         d.rationale = "fallback: " + reason;
-        d.briefDo = "Stay present with one very short, warm sentence. No question, no analysis.";
+        d.briefDo = "Answer the latest message directly and briefly. If it is a question, answer that very question; "
+                + "if it is a complaint about you, say sorry once in a few words and answer it.";
+        d.briefMustNot.add("do not assume anything they did not say (who they are, a child's sex or age, how often or how badly)");
+        d.briefMustNot.add("no label or diagnosis");
         d.briefLength = "SHORT";
         d.notes.add("fallback: " + reason);
         return d;
@@ -614,6 +618,17 @@ public final class DecisionValidator {
             d.action = "RESPOND";
             d.briefDo = "Respond briefly and warmly to the latest message and keep the conversation open.";
             d.briefMustNot.add("do not say that the time is over, that the session ends or that you stop for today");
+        }
+        if (ctx.partnersPresent().size() <= 1 && ("WAIT".equals(d.action) || "LISTENING".equals(d.action))
+                && "NONE".equals(d.gov)) {
+            // with one person here, every message is to the companion: silence or a bare «I am listening» line
+            // after «what?» or a direct question reads as not listening at all
+            d.notes.add("decision: " + d.action + " with one person present became RESPOND");
+            d.action = "RESPOND";
+            if (d.briefDo.isBlank()) {
+                d.briefDo = "Answer the latest message directly. If it is a question, answer that very question.";
+            }
+            d.briefMustNot.add("no filler line such as «دارم گوش می‌دم» or «داره برات سخته» instead of an answer");
         }
         d.route = "WAIT".equals(d.action) ? "SILENT" : "SPEAK";
         if (!d.silent()) {

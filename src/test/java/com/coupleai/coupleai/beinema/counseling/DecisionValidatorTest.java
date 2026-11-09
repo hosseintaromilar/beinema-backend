@@ -25,9 +25,11 @@ class DecisionValidatorTest {
     private Map<String, Set<String>> reached = new LinkedHashMap<>();
     private String currentSafety = "NONE";
 
+    private Set<String> present = Set.of("OWNER", "MEMBER");
+
     private DecisionValidator.Context ctx() {
         return new DecisionValidator.Context(
-                Set.of("OWNER", "MEMBER"),
+                present,
                 "OWNER",
                 Map.of("OWNER", List.of(PersianText.loose(OWNER_SAID)), "MEMBER", List.of(PersianText.loose("من خسته شدم"))),
                 Map.of(1203L, "OWNER", 1204L, "MEMBER", 1199L, "COUNSELOR"),
@@ -227,9 +229,29 @@ class DecisionValidatorTest {
     }
 
     @Test
-    void theFallbackOnlyStaysPresent() {
+    void withOnePersonHereSilenceAndBareListeningBecomeAnAnswer() throws Exception {
+        present = Set.of("OWNER");
+        DirectorDecision waited = DecisionValidator.validate(json("{\"action\":\"WAIT\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("RESPOND", waited.action, "alone, «what?» is said to the companion");
+        assertEquals("SPEAK", waited.route);
+        DirectorDecision listened = DecisionValidator.validate(json("{\"action\":\"LISTENING\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("RESPOND", listened.action);
+        assertTrue(listened.briefMustNot.stream().anyMatch(rule -> rule.contains("دارم گوش می‌دم")));
+    }
+
+    @Test
+    void withBothHereTheCompanionMayStillListen() throws Exception {
+        DirectorDecision waited = DecisionValidator.validate(json("{\"action\":\"WAIT\",\"addressee\":\"BOTH\"}", ""), ctx());
+        assertEquals("WAIT", waited.action);
+        assertEquals("SILENT", waited.route);
+    }
+
+    @Test
+    void theFallbackAnswersTheLatestMessageWithoutGuessing() {
         DirectorDecision d = DecisionValidator.fallback("MEMBER", "INVALID_JSON");
-        assertEquals("LISTENING", d.action);
+        assertEquals("RESPOND", d.action, "a bare «I am here» after a direct question reads as not listening");
+        assertTrue(d.briefDo.contains("Answer the latest message"));
+        assertTrue(d.briefMustNot.stream().anyMatch(rule -> rule.contains("do not assume")));
         assertEquals("MEMBER", d.addressee);
         assertTrue(d.intents.isEmpty());
         assertNull(d.question);
