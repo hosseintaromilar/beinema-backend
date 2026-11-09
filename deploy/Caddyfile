@@ -19,6 +19,8 @@ www.beinema.ir {
 admin.beinema.ir {
 	# browsers open the site only over https from now on (a year)
 	header Strict-Transport-Security "max-age=31536000"
+	# the admin panel is never for search engines
+	header X-Robots-Tag "noindex, nofollow"
 	encode gzip
 	reverse_proxy admin:80 {
 		flush_interval -1

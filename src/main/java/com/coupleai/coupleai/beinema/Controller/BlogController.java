@@ -40,7 +40,10 @@ public class BlogController {
                 .append("  <url><loc>").append(siteUrl).append("/</loc></url>\n")
                 .append("  <url><loc>").append(siteUrl).append("/about</loc></url>\n")
                 .append("  <url><loc>").append(siteUrl).append("/agents</loc></url>\n")
-                .append("  <url><loc>").append(siteUrl).append("/blog</loc></url>\n");
+                .append("  <url><loc>").append(siteUrl).append("/blog</loc></url>\n")
+                .append("  <url><loc>").append(siteUrl).append("/contact</loc></url>\n")
+                .append("  <url><loc>").append(siteUrl).append("/privacy</loc></url>\n")
+                .append("  <url><loc>").append(siteUrl).append("/terms</loc></url>\n");
         for (BlogPost post : blogService.published()) {
             xml.append("  <url><loc>").append(siteUrl).append("/blog/").append(post.getSlug()).append("</loc>");
             if (post.getPublishedAt() != null) {
