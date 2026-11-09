@@ -221,6 +221,53 @@ public class MirrorReportService {
                 siteUrl + "/api/email/mirror-off?u=" + user.getId() + "&t=" + token(user.getId()));
     }
 
+    /**
+     * A sample mirror to this person's own address, through the real mail server and with real
+     * links: their newest conversation (with its mirror panel open) and their own «stop» link.
+     * The words are the newest mirror of one of their conversations, or a made-up sample when
+     * they have none. Returns the address it went to.
+     */
+    public String sendSample(User user) {
+        String to = AdminEmailService.address(user);
+        if (to == null) {
+            throw new IllegalArgumentException("برای حساب تو ایمیلی ثبت نشده است.");
+        }
+        if (!mailer.configured()) {
+            throw new IllegalArgumentException("ارسال ایمیل روی این سرور تنظیم نشده است.");
+        }
+        List<View> mine = recent(user);
+        ChatRoomParticipant newest = participants.findAllForUser(user.getId()).stream().findFirst().orElse(null);
+        String roomUrl = mine.isEmpty()
+                ? newest == null ? siteUrl + "/dashboard" : siteUrl + "/chat-rooms/" + newest.getChatRoom().getId() + "?mirror=1"
+                : siteUrl + "/chat-rooms/" + mine.get(0).chatRoomId() + "?mirror=1";
+        String stopUrl = siteUrl + "/api/email/mirror-off?u=" + user.getId() + "&t=" + token(user.getId());
+        MirrorLetter.Content content;
+        if (!mine.isEmpty()) {
+            View view = mine.get(0);
+            String[] mood = MOODS.getOrDefault(view.mood(), MOODS.get("same"));
+            content = new MirrorLetter.Content(firstName(user), view.roomTitle(), view.date(), view.mood(), mood[0], mood[1],
+                    view.dailySentence(), view.whereWeAre(), view.whereWeWere(), view.needs(), view.patterns(),
+                    view.nextStep(), roomUrl, stopUrl);
+        } else {
+            String[] mood = MOODS.get("softer");
+            content = new MirrorLetter.Content(firstName(user), "گفتگوی نمونه", jalali(LocalDate.now(TEHRAN)), "softer",
+                    mood[0], mood[1], "وقتی هر دو برای خرج‌های خانه برنامه داریم، بحث کمتر به دعوا می‌رسد.",
+                    "امروز دربارهٔ خرج‌های ماه حرف زدیم و به یک بودجهٔ ساده نزدیک شدیم.", null,
+                    List.of("شفافیت در خرج‌ها", "تصمیم مشترک"), List.of(),
+                    "تا جمعه هر کدام خرج‌های ثابت ماه را بنویسیم و شنبه ده دقیقه با هم مرورش کنیم.", roomUrl, stopUrl);
+        }
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("List-Unsubscribe", "<" + stopUrl + ">");
+        headers.put("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+        try {
+            mailer.send(new SmtpMailer.Mail(to, "no-reply@beinema.ir", "بین‌ما", MirrorLetter.subject(content) + " (نمونه)",
+                    MirrorLetter.text(content), MirrorLetter.html(content), null, headers));
+        } catch (IllegalStateException failure) {
+            throw new IllegalArgumentException("سرور ایمیل نمونه را نپذیرفت. کمی بعد دوباره امتحان کن.");
+        }
+        return to;
+    }
+
     // ------------------------------------------------------------------ for the app
 
     public record View(Long id, Long chatRoomId, String roomTitle, String day, String date, String mood,

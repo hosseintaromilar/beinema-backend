@@ -26,7 +26,11 @@ public final class MailLetter {
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>"
                 + "<body style=\"margin:0;padding:24px 12px;background:#f6ede1;font-family:Tahoma,Vazirmatn,Arial,sans-serif;color:#3a2f27;\">"
                 + "<div style=\"max-width:560px;margin:0 auto;background:#fffaf3;border:1px solid #ecdcc5;border-radius:18px;padding:24px 22px;direction:rtl;text-align:right;\">"
-                + "<div style=\"font-size:22px;font-weight:bold;color:#4f5235;margin-bottom:18px;\">بین‌ما</div>"
+                + "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" style=\"border-collapse:collapse;margin-bottom:18px;\"><tr>"
+                + "<td style=\"vertical-align:middle;padding-left:10px;\"><img src=\"" + com.coupleai.coupleai.beinema.mirror.MailLogo.URL + "\" width=\"40\" height=\"40\" alt=\"بین‌ما\" "
+                + "style=\"display:block;width:40px;height:40px;border-radius:12px;border:0;\"></td>"
+                + "<td style=\"vertical-align:middle;font-size:22px;font-weight:bold;color:#4f5235;\">بین‌ما</td>"
+                + "</tr></table>"
                 + "<div style=\"font-size:15px;\">" + body + "</div>"
                 + "<div style=\"margin-top:18px;padding-top:12px;border-top:1px dashed #e2d2bc;font-size:12px;color:#8a7563;\">"
                 + "<a href=\"https://beinema.ir\" style=\"color:#b86b4b;text-decoration:none;\">beinema.ir</a>" + footer

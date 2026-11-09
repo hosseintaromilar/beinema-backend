@@ -31,6 +31,12 @@ public class MirrorController {
         return mirrors.recent(currentUserService.getCurrentUser());
     }
 
+    /** An admin sends a sample mirror to their own address, to see it and try its links. */
+    @org.springframework.web.bind.annotation.PostMapping("/api/admin/mirrors/sample")
+    public java.util.Map<String, String> sample() {
+        return java.util.Map.of("sentTo", mirrors.sendSample(currentUserService.getCurrentUser()));
+    }
+
     /** Opened from the email (GET) or by the mail program's own button (POST, one click). */
     @RequestMapping(value = "/api/email/mirror-off", method = {RequestMethod.GET, RequestMethod.POST},
             produces = MediaType.TEXT_HTML_VALUE + ";charset=UTF-8")
