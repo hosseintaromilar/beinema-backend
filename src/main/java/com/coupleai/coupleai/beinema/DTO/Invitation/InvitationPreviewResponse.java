@@ -16,4 +16,7 @@ public class InvitationPreviewResponse {
     private String status;
 
     private Long chatRoomId;
+
+    /** The companion's type (RELATIONSHIP, FINANCIAL...): its rules, and whether joining needs 18+. */
+    private String agentType;
 }

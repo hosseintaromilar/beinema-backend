@@ -57,6 +57,8 @@ public class InvitationService {
 
     private final MessageRepository messageRepository;
 
+    private final com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository;
+
     private final ChatRealtimeService chatRealtimeService;
 
     private final ParticipationPauseService participationPauseService;
@@ -237,7 +239,17 @@ public class InvitationService {
                 .chatRoomTitle(invitation.getChatRoom().getTitle())
                 .inviterName(invitation.getInvitedBy().visibleName())
                 .status(effectiveStatus(invitation).name())
+                .agentType(agentTypeOf(invitation.getChatRoom().getId()))
                 .build();
+    }
+
+    /** The type of the room's companion, so the invitation page shows that companion's rules (and the age line). */
+    private String agentTypeOf(Long chatRoomId) {
+        return chatRoomAgentRepository.findAllByChatRoom_Id(chatRoomId).stream()
+                .map(link -> link.getAgent() == null || link.getAgent().getType() == null ? null : link.getAgent().getType().name())
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
     }
 
     @Transactional
