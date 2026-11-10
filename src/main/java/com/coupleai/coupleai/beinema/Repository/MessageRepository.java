@@ -18,6 +18,16 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             Long chatRoomId
     );
 
+    /** Whether this person wrote a message everyone sees after the given one. */
+    boolean existsByChatRoomIdAndSenderTypeAndSenderIdAndVisibleToUserIdIsNullAndIdGreaterThan(
+            Long chatRoomId, MessageSenderType senderType, Long senderId, Long afterId
+    );
+
+    /** The room's messages from one message number on: a session, without the whole history. */
+    List<Message> findByChatRoomIdAndDeletedFalseAndSequenceNumberGreaterThanEqualOrderBySequenceNumberAsc(
+            Long chatRoomId, Integer fromSequence
+    );
+
     @Query("""
        select coalesce(max(m.sequenceNumber),0)
        from Message m

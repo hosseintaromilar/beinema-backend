@@ -1,7 +1,7 @@
 package com.coupleai.coupleai.beinema.mail;
 
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
-import com.coupleai.coupleai.beinema.Service.SupportService;
+import com.coupleai.coupleai.beinema.support.SupportService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

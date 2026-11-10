@@ -2,7 +2,7 @@ package com.coupleai.coupleai.beinema.mail;
 
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
-import com.coupleai.coupleai.beinema.Service.SupportService;
+import com.coupleai.coupleai.beinema.support.SupportService;
 import jakarta.mail.BodyPart;
 import jakarta.mail.Multipart;
 import jakarta.mail.Part;

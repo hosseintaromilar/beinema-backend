@@ -1,7 +1,5 @@
 package com.coupleai.coupleai.beinema.Entity;
 
-import com.coupleai.coupleai.beinema.Enum.AgentStatus;
-import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import jakarta.persistence.*;
 import lombok.*;
 

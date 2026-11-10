@@ -10,7 +10,7 @@ import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.SessionRecordRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
-import com.coupleai.coupleai.beinema.Service.RelationshipInsightService;
+import com.coupleai.coupleai.beinema.insight.RelationshipInsightService;
 import com.coupleai.coupleai.beinema.mail.AdminEmailService;
 import com.coupleai.coupleai.beinema.mail.SmtpMailer;
 import com.coupleai.coupleai.beinema.market.MarketDataService;

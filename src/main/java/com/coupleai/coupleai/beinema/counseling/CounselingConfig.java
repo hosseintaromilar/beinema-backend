@@ -1,51 +1,42 @@
 package com.coupleai.coupleai.beinema.counseling;
 
+import com.coupleai.coupleai.beinema.agents.AgentPacks;
+import com.coupleai.coupleai.beinema.agents.AgentPacks.Ability;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * Settings of the counselor brain. beinema.brain.mode=workflow keeps the v2
- * Metis workflow exactly as before; orchestrated runs the v3 pipeline (director
- * and voice lanes of beinema.brain.workflow-id, with memory, questions and
- * validation in the backend).
+ * Settings of the counselor brain: the director and voice lanes of each companion's
+ * own Metis workflow (beinema.brain.workflow-id for the couple counselor), with
+ * memory, questions and validation in the backend.
  */
 @Component
 @Getter
 @Setter
 public class CounselingConfig {
 
-    @Value("${beinema.brain.mode:workflow}")
-    private String mode = "workflow";
-
     @Value("${beinema.brain.workflow-id:}")
     private String workflowId = "";
 
-    /**
-     * The v3 workflows of the other companions (finance, parenting...), comma-separated
-     * Metis ids. Each is its own copy of the v3 workflow with its own domain; a room whose
-     * companion uses one of them runs on it, every other room on workflow-id.
+    /*
+     * Which companion runs on which workflow and what it can do comes from its pack
+     * (classpath:agents/<slug>.json, AgentPacks). These comma-separated lists only add to
+     * the packs, for a workflow being tried before it gets a pack of its own.
      */
     @Value("${beinema.brain.companion-workflow-ids:}")
     private String companionWorkflowIds = "";
 
-    /**
-     * The workflows among them that work by their own method, not by Reality Therapy: they
-     * get no choice-theory rules or lessons in the packet, only the safety cards.
-     */
     @Value("${beinema.brain.own-method-workflow-ids:}")
     private String ownMethodWorkflowIds = "";
 
-    /** The workflows that also have the kit of kb/elika-kit.json: tests and visual lessons. */
     @Value("${beinema.brain.kit-workflow-ids:}")
     private String kitWorkflowIds = "";
 
-    /** The workflows that get today's market prices in their packet ([MARKET]): the financial companion. */
     @Value("${beinema.brain.market-workflow-ids:}")
     private String marketWorkflowIds = "";
 
-    /** Companions that teach with lesson cards (TeachKit): first Raha. */
     @Value("${beinema.brain.teach-workflow-ids:}")
     private String teachWorkflowIds = "";
 
@@ -69,33 +60,33 @@ public class CounselingConfig {
     @Value("${beinema.debug.state-panel-phones:}")
     private String statePanelPhones = "";
 
-    public boolean orchestrated() {
-        return mode != null && "orchestrated".equalsIgnoreCase(mode.trim());
-    }
-
-    /** True when this Metis id is one of the companions' own v3 workflows. */
+    /** True when this Metis id is a companion's own workflow. */
     public boolean isCompanionWorkflow(String botId) {
-        return listed(companionWorkflowIds, botId);
+        return AgentPacks.byWorkflow(botId).isPresent() || listed(companionWorkflowIds, botId);
     }
 
-    /** True when this companion's workflow has its own method (see ownMethodWorkflowIds). */
+    /** True when this companion works by its own method: no choice-theory rules or lessons, only the safety cards. */
     public boolean isOwnMethodWorkflow(String botId) {
-        return listed(ownMethodWorkflowIds, botId);
+        return has(botId, Ability.OWN_METHOD) || listed(ownMethodWorkflowIds, botId);
     }
 
-    /** True when this companion works with the kit (see kitWorkflowIds). */
+    /** True when this companion works with the kit of kb/elika-kit.json: tests and visual lessons. */
     public boolean isKitWorkflow(String botId) {
-        return listed(kitWorkflowIds, botId);
+        return has(botId, Ability.KIT) || listed(kitWorkflowIds, botId);
     }
 
-    /** True when this companion teaches with lesson cards (see teachWorkflowIds). */
+    /** True when this companion teaches with lesson cards (TeachKit). */
     public boolean isTeachWorkflow(String botId) {
-        return listed(teachWorkflowIds, botId);
+        return has(botId, Ability.TEACH) || listed(teachWorkflowIds, botId);
     }
 
-    /** True when this companion gets the market prices (see marketWorkflowIds). */
+    /** True when this companion gets today's market prices in its packet ([MARKET]). */
     public boolean isMarketWorkflow(String botId) {
-        return listed(marketWorkflowIds, botId);
+        return has(botId, Ability.MARKET) || listed(marketWorkflowIds, botId);
+    }
+
+    private static boolean has(String botId, Ability ability) {
+        return AgentPacks.byWorkflow(botId).map(pack -> pack.can(ability)).orElse(false);
     }
 
     private static boolean listed(String list, String botId) {

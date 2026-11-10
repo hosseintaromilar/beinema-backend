@@ -13,7 +13,7 @@ import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.CoupleTestRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.governance.ParticipationPauseService;
-import com.coupleai.coupleai.beinema.Service.SessionLifecycleService;
+import com.coupleai.coupleai.beinema.session.SessionLifecycleService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

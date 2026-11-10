@@ -13,6 +13,11 @@ import lombok.*;
                         name = "idx_message_chat_room",
                         columnList = "chat_room_id"
                 ),
+                // a room's messages in order: every turn, the session clock and the chat page read them this way
+                @Index(
+                        name = "idx_message_room_sequence",
+                        columnList = "chat_room_id, sequence_number"
+                ),
                 @Index(
                         name = "idx_message_created_at",
                         columnList = "createdAt"

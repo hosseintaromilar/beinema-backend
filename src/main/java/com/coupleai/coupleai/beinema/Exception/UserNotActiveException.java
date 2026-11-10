@@ -1,6 +1,5 @@
 package com.coupleai.coupleai.beinema.Exception;
 
-
 public class UserNotActiveException
 
         extends RuntimeException {

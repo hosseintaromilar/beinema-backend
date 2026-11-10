@@ -11,9 +11,9 @@ import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository;
-import com.coupleai.coupleai.beinema.Service.ChatRealtimeService;
-import com.coupleai.coupleai.beinema.Service.ChatRoomEventHub;
-import com.coupleai.coupleai.beinema.Service.MessageServiceImpl;
+import com.coupleai.coupleai.beinema.chat.ChatRealtimeService;
+import com.coupleai.coupleai.beinema.chat.ChatRoomEventHub;
+import com.coupleai.coupleai.beinema.chat.MessageServiceImpl;
 import com.coupleai.coupleai.beinema.governance.GovernanceAction;
 import com.coupleai.coupleai.beinema.governance.GovernanceDecision;
 import com.coupleai.coupleai.beinema.governance.GovernanceTarget;
@@ -90,7 +90,7 @@ public class TurnOrchestrator {
 
     /** The companion's ticks; optional (absent in the tests that build this by hand). */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.coupleai.coupleai.beinema.Service.MessageReceiptService receipts;
+    private com.coupleai.coupleai.beinema.chat.MessageReceiptService receipts;
 
     /** Typing pauses between the parts of a turn; off in tests. */
     boolean pacing = true;

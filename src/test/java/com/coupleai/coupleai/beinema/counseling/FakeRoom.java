@@ -24,9 +24,9 @@ import com.coupleai.coupleai.beinema.Repository.CounselingStateRepository;
 import com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageAttachmentRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
-import com.coupleai.coupleai.beinema.Service.ChatRealtimeService;
-import com.coupleai.coupleai.beinema.Service.ChatRoomEventHub;
-import com.coupleai.coupleai.beinema.Service.SessionLifecycleService;
+import com.coupleai.coupleai.beinema.chat.ChatRealtimeService;
+import com.coupleai.coupleai.beinema.chat.ChatRoomEventHub;
+import com.coupleai.coupleai.beinema.session.SessionLifecycleService;
 import com.coupleai.coupleai.beinema.governance.ParticipationPauseService;
 import org.springframework.data.domain.Pageable;
 
@@ -100,7 +100,6 @@ class FakeRoom {
         room.setSessionNumber(1);
         room.setSessionDurationMinutes(45);
         room.setSessionStartedAt(Instant.now().minusSeconds(10 * 60));
-        config.setMode("orchestrated");
         config.setWorkflowId("wf");
 
         ChatRoomParticipant owner = link(afsaneh, ParticipantRole.OWNER);

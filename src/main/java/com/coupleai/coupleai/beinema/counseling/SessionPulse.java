@@ -8,8 +8,8 @@ import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
-import com.coupleai.coupleai.beinema.Service.ChatRoomEventHub;
-import com.coupleai.coupleai.beinema.Service.CounselorSessionService;
+import com.coupleai.coupleai.beinema.chat.ChatRoomEventHub;
+import com.coupleai.coupleai.beinema.session.CounselorSessionService;
 import com.coupleai.coupleai.beinema.governance.CounselorSignal;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -43,10 +43,9 @@ public class SessionPulse {
     private final MessageRepository messageRepository;
     private final ChatRoomEventHub eventHub;
     private final CounselorSessionService counselorSessionService;
-    private final CounselingConfig config;
     private final TurnRunner turnRunner;
     private final SessionEndCheckService endChecks;
-    private final com.coupleai.coupleai.beinema.Service.SessionLifecycleService sessionLifecycleService;
+    private final com.coupleai.coupleai.beinema.session.SessionLifecycleService sessionLifecycleService;
 
     @Value("${beinema.brain.quiet-minutes:3}")
     private long quietMinutes = 3;
@@ -62,9 +61,6 @@ public class SessionPulse {
 
     @Scheduled(fixedDelay = 30000)
     public void beat() {
-        if (!config.orchestrated()) {
-            return;
-        }
         for (ChatRoom room : chatRoomRepository.findRunning(ChatRoomStatus.ACTIVE)) {
             try {
                 // the clock runs without anyone on the page: a session past its time closes and is settled
@@ -101,7 +97,12 @@ public class SessionPulse {
         LocalDateTime lastPerson = null;
         LocalDateTime lastSpoken = null;
         int personSequence = 0;
-        for (Message message : messageRepository.findByChatRoomIdAndDeletedFalseOrderBySequenceNumberAsc(room.getId())) {
+        // every 30 seconds for every open room: only this session's messages, not the whole history
+        Integer from = room.getSessionStartSequence();
+        List<Message> session = from == null
+                ? messageRepository.findByChatRoomIdAndDeletedFalseOrderBySequenceNumberAsc(room.getId())
+                : messageRepository.findByChatRoomIdAndDeletedFalseAndSequenceNumberGreaterThanEqualOrderBySequenceNumberAsc(room.getId(), from);
+        for (Message message : session) {
             Integer start = room.getSessionStartSequence();
             int sequence = message.getSequenceNumber() == null ? 0 : message.getSequenceNumber();
             if (!MessageTexts.countsAsConversation(message) || (start != null && sequence < start)) {

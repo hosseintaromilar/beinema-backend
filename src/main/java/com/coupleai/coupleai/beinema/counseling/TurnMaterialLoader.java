@@ -233,11 +233,8 @@ public class TurnMaterialLoader {
         if (room == null || userId == null || messageId == null) {
             return false;
         }
-        return messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(room).stream()
-                .anyMatch(message -> message.getSenderType() == MessageSenderType.USER
-                        && message.getVisibleToUserId() == null
-                        && userId.equals(message.getSenderId())
-                        && message.getId() > messageId);
+        return messageRepository.existsByChatRoomIdAndSenderTypeAndSenderIdAndVisibleToUserIdIsNullAndIdGreaterThan(
+                room.getId(), MessageSenderType.USER, userId, messageId);
     }
 
     /** Whether a partner wrote after this message (while the counselor was deciding about it). */

@@ -1,6 +1,6 @@
 package com.coupleai.coupleai.beinema.counseling;
 
-import com.coupleai.coupleai.beinema.Service.RoomTurnLock;
+import com.coupleai.coupleai.beinema.chat.RoomTurnLock;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +15,6 @@ public class TurnRunner {
 
     private final TurnOrchestrator orchestrator;
     private final RoomTurnLock roomTurnLock;
-    private final CounselingConfig config;
     private final TurnInbox inbox;
 
     /**
@@ -23,7 +22,7 @@ public class TurnRunner {
      * the inbox and the director decides what the counselor says, as in any turn.
      */
     public void momentAsync(Long roomId, String note) {
-        if (!config.orchestrated() || roomId == null || note == null || note.isBlank()) {
+        if (roomId == null || note == null || note.isBlank()) {
             return;
         }
         inbox.add(roomId, null, note);
@@ -31,7 +30,7 @@ public class TurnRunner {
     }
 
     public void runAsync(Long roomId) {
-        if (!config.orchestrated() || roomId == null) {
+        if (roomId == null) {
             return;
         }
         Thread thread = new Thread(() -> {

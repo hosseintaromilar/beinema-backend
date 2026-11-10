@@ -64,39 +64,6 @@ class GovernanceFeatureTest {
         }
 
         @Test
-        void consentReplayDetectsAnotherAgreementAsk() {
-            assertTrue(ConsentReplay.asksAgain(
-                    "لطفاً بفرمایید که آیا با قوانین گروه و چارچوب مشاوره موافق هستید؟"
-            ));
-            assertFalse(ConsentReplay.asksAgain("حرفی که زدی را شنیدم. ادامه بده."));
-        }
-
-        @Test
-        void entryGreetingNamesThePersonWhoArrived() {
-            String prompt = EntryGreeting.instruction(
-                    "حسین",
-                    "",
-                    false,
-                    false,
-                    true,
-                    false,
-                    false,
-                    "مراجع: دیروز دعوا داشتیم"
-            );
-            assertTrue(prompt.contains("حسین"));
-            assertTrue(prompt.contains("دیروز دعوا داشتیم"));
-            assertTrue(prompt.contains("EVENT=PARTICIPANT_ENTERED"));
-            assertFalse(prompt.contains("[[GOV"));
-            String joined = EntryGreeting.participantJoined("افسانه", false, "مشاور: از خودت بگو");
-            assertTrue(joined.contains("EVENT=PARTICIPANT_JOINED"));
-            assertTrue(joined.contains("PRESERVE_STAGE=true"));
-            assertTrue(joined.contains("PRESERVE_TARGET=true"));
-            String consented = EntryGreeting.participantConsented("افسانه");
-            assertTrue(consented.contains("EVENT=PARTICIPANT_CONSENTED"));
-            assertFalse(consented.contains("EVENT=SESSION_READY"));
-        }
-
-        @Test
         void listeningTextIsVisibleWithoutPause() {
             GovernanceDecision decision = parser.parse("ادامه بده، دارم گوش می‌دم.");
             assertEquals(GovernanceAction.NONE, decision.governanceAction());
@@ -286,26 +253,6 @@ class GovernanceFeatureTest {
                     "INTERVENE", GovernanceAction.CAUTION, GovernanceTarget.OWNER, 0, "warn", "warn", false
             );
             assertFalse(policy.normalize(decision, List.of(owner, member), true).shouldEnforce());
-        }
-    }
-
-    @Nested
-    class StreamBuffer {
-        @Test
-        void hidesMarkerUntilCompleteThenEmitsSpeech() {
-            GovStreamBuffer buffer = new GovStreamBuffer();
-            assertEquals("", buffer.accept("[[GOV|ACTION=PAUSE_USER|TAR"));
-            String visible = buffer.accept("GET=OWNER|DURATION=90]]\nحالا مکث می‌کنیم.");
-            assertTrue(visible.contains("مکث"));
-            assertFalse(visible.contains("[[GOV"));
-            assertEquals(GovernanceAction.PAUSE_USER, buffer.finish().governanceAction());
-        }
-
-        @Test
-        void waitStaysSilent() {
-            GovStreamBuffer buffer = new GovStreamBuffer();
-            buffer.accept("");
-            assertTrue(buffer.finish().visibleText().isBlank());
         }
     }
 

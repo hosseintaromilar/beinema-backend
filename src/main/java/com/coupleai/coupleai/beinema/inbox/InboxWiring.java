@@ -1,7 +1,7 @@
 package com.coupleai.coupleai.beinema.inbox;
 
-import com.coupleai.coupleai.beinema.Service.ReferralService;
-import com.coupleai.coupleai.beinema.Service.SessionBillingService;
+import com.coupleai.coupleai.beinema.invitation.ReferralService;
+import com.coupleai.coupleai.beinema.billing.SessionBillingService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

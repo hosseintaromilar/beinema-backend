@@ -1,0 +1,47 @@
+package com.coupleai.coupleai.beinema.metis;
+
+import com.coupleai.coupleai.beinema.DTO.metis.MetisConversationResponse;
+import com.coupleai.coupleai.beinema.Entity.User;
+
+public interface MetisService {
+
+    MetisConversationResponse createConversation(
+            String botId,
+            User user
+    );
+
+    /** A conversation for a platform caller that is not one person (for example a counseling room). */
+    MetisConversationResponse createConversation(
+            String botId,
+            String userKey,
+            String userName
+    );
+
+
+    String sendMessage(
+            String sessionId,
+            String content
+    );
+
+    String sendMessageAllowBlank(
+            String sessionId,
+            String content
+    );
+
+    /**
+     * Removes a conversation from Metis once its answer is in, in the background and with a
+     * few retries; never throws. Metis hides a removed conversation at once and keeps it up to
+     * three months (its privacy policy); it has no way to remove a single message.
+     */
+    void forget(String sessionId);
+
+    /** Uploads bytes to Metis storage and returns a direct-download URL. */
+    String uploadFile(byte[] bytes, String filename, String contentType);
+
+    /** Sends a message with attachments (image or file URLs) and returns the reply text. */
+    String sendMessageWithAttachments(
+            String sessionId,
+            String content,
+            java.util.List<com.coupleai.coupleai.beinema.DTO.metis.MetisAttachment> attachments
+    );
+}

@@ -6,7 +6,7 @@ import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Enum.AgentStatus;
 import com.coupleai.coupleai.beinema.Exception.QuestionAnswerException;
 import com.coupleai.coupleai.beinema.Repository.AgentRepository;
-import com.coupleai.coupleai.beinema.Service.MetisService;
+import com.coupleai.coupleai.beinema.metis.MetisService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;

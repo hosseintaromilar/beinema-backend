@@ -2,7 +2,7 @@ package com.coupleai.coupleai.beinema.counseling;
 
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository;
-import com.coupleai.coupleai.beinema.Service.MetisService;
+import com.coupleai.coupleai.beinema.metis.MetisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

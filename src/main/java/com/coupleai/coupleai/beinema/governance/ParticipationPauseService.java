@@ -9,15 +9,13 @@ import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import com.coupleai.coupleai.beinema.Exception.CommitmentRequiredException;
 import com.coupleai.coupleai.beinema.Exception.ParticipationPausedException;
 import com.coupleai.coupleai.beinema.Exception.SessionEndedException;
-import com.coupleai.coupleai.beinema.Entity.Message;
-import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.GovernanceLogRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
-import com.coupleai.coupleai.beinema.Service.ChatRealtimeService;
-import com.coupleai.coupleai.beinema.Service.ChatRoomEventHub;
-import com.coupleai.coupleai.beinema.Service.CounselorSessionService;
+import com.coupleai.coupleai.beinema.chat.ChatRealtimeService;
+import com.coupleai.coupleai.beinema.chat.ChatRoomEventHub;
+import com.coupleai.coupleai.beinema.session.CounselorSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -58,10 +56,10 @@ public class ParticipationPauseService {
     long thanksTypingMillis = 2200L;
 
     /** Agreeing to the rules is entering the open session; the session clock records it. */
-    private com.coupleai.coupleai.beinema.Service.SessionLifecycleService sessions;
+    private com.coupleai.coupleai.beinema.session.SessionLifecycleService sessions;
 
     @org.springframework.beans.factory.annotation.Autowired
-    void setSessions(@Lazy com.coupleai.coupleai.beinema.Service.SessionLifecycleService sessions) {
+    void setSessions(@Lazy com.coupleai.coupleai.beinema.session.SessionLifecycleService sessions) {
         this.sessions = sessions;
     }
 

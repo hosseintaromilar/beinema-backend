@@ -4,7 +4,7 @@ import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
-import com.coupleai.coupleai.beinema.Service.ChatRealtimeService;
+import com.coupleai.coupleai.beinema.chat.ChatRealtimeService;
 import com.coupleai.coupleai.beinema.counseling.PersianText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

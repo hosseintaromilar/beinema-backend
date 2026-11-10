@@ -1,6 +1,6 @@
 package com.coupleai.coupleai.beinema.counseling;
 
-import com.coupleai.coupleai.beinema.Service.ChatRoomEventHub;
+import com.coupleai.coupleai.beinema.chat.ChatRoomEventHub;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

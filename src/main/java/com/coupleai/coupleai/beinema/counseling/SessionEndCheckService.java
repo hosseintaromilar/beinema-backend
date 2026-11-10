@@ -12,7 +12,7 @@ import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.Repository.SessionEndCheckRepository;
-import com.coupleai.coupleai.beinema.Service.ChatRoomEventHub;
+import com.coupleai.coupleai.beinema.chat.ChatRoomEventHub;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;

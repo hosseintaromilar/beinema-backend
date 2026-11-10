@@ -70,7 +70,7 @@ public class CounselorStateService {
         }
         CounselingState state = stateStore.load(roomId);
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("mode", config.orchestrated() ? "orchestrated" : "workflow");
+        out.put("mode", "orchestrated");
         out.put("lastProcessedMessageId", state.getLastProcessedMessageId());
         out.put("memory", CounselingStateStore.JSON.convertValue(CounselingStateStore.snapshot(state), Object.class));
 

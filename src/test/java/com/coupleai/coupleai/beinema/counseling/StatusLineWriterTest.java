@@ -12,7 +12,7 @@ import static org.mockito.Mockito.mock;
 class StatusLineWriterTest {
 
     private final StatusLineWriter writer = new StatusLineWriter(
-            mock(com.coupleai.coupleai.beinema.Service.ChatRoomEventHub.class), new ObjectMapper(),
+            mock(com.coupleai.coupleai.beinema.chat.ChatRoomEventHub.class), new ObjectMapper(),
             "https://example.invalid", "key", "model");
 
     @Test

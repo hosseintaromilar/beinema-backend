@@ -1,6 +1,5 @@
 package com.coupleai.coupleai.beinema.Exception;
 
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
