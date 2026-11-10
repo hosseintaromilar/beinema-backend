@@ -21,8 +21,10 @@ public final class KitMarkers {
     public static final String PLAN = "PLAN";
     /** A lesson card of the teaching form, made for one person and shown only to them. */
     public static final String TEACH = "TEACH";
+    /** Elika's dossier of the completed tests (ref map-<roomId>). */
+    public static final String MAP = "MAP";
 
-    private static final Pattern CARD = Pattern.compile("\\[\\[KIT\\|(TEST|RESULT|LESSON|ENDCHECK|MODE|RISK|PICTURE|MARKET|PLAN|TEACH)=([A-Za-z0-9-]{3,40})\\]\\]\\s*");
+    private static final Pattern CARD = Pattern.compile("\\[\\[KIT\\|(TEST|RESULT|LESSON|ENDCHECK|MODE|RISK|PICTURE|MARKET|PLAN|TEACH|MAP)=([A-Za-z0-9-]{3,40})\\]\\]\\s*");
 
     private KitMarkers() {
     }

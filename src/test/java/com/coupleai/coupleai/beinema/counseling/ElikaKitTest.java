@@ -22,13 +22,63 @@ class ElikaKitTest {
         return out;
     }
 
+    /** The calmest answer to every statement, whichever way it is worded. */
+    private static Map<String, Integer> healthy(ElikaKit.Test test) {
+        Map<String, Integer> out = new HashMap<>();
+        test.items().forEach(item -> out.put(item.id(), item.reverse() ? 3 : 0));
+        return out;
+    }
+
     @Test
     void redLineAgainstRedLineIsTheOnlyCoreGap() {
         assertEquals(ElikaKit.CORE_GAP, ElikaKit.scaleStatus(0, 0, 3, 0));
-        assertEquals(ElikaKit.WORKABLE, ElikaKit.scaleStatus(0, 0, 3, 1));
+        assertEquals(ElikaKit.TENSION, ElikaKit.scaleStatus(0, 0, 3, 1), "a red line against a far answer: a potential conflict");
         assertEquals(ElikaKit.ALIGNED, ElikaKit.scaleStatus(0, 0, 3, 2));
         assertEquals(ElikaKit.ALIGNED, ElikaKit.scaleStatus(1, 1, 2, 1));
         assertEquals(ElikaKit.ALIGNED, ElikaKit.scaleStatus(2, 0, 2, 0));
+    }
+
+    @Test
+    void aCoreSubjectIsOneStepGraver() {
+        // children: one red line against a far answer is a likely mismatch, not a tension
+        assertEquals(ElikaKit.CORE_GAP, ElikaKit.scaleStatus(0, 0, 3, 1, true));
+        assertEquals(ElikaKit.TENSION, ElikaKit.scaleStatus(0, 1, 3, 1, true));
+        assertEquals(ElikaKit.WORKABLE, ElikaKit.scaleStatus(0, 1, 3, 1, false));
+        assertTrue(ElikaKit.test("GOALS").orElseThrow().item("CHILDREN").orElseThrow().core());
+        assertFalse(ElikaKit.test("GOALS").orElseThrow().item("MONEY").orElseThrow().core());
+    }
+
+    @Test
+    void theDossierNeverAddsUpAndSaysHowReadyTheyAreNotYesOrNo() {
+        ElikaKit.Test goals = ElikaKit.test("GOALS").orElseThrow();
+        ElikaKit.Test daily = ElikaKit.test("DAILY").orElseThrow();
+        ElikaKit.Test conflict = ElikaKit.test("CONFLICT").orElseThrow();
+        Map<String, ElikaKit.Comparison> done = new java.util.LinkedHashMap<>();
+        done.put("GOALS", ElikaKit.compare(goals, same(goals, 1, 1), same(goals, 1, 1)));
+        ElikaKit.Dossier few = ElikaKit.dossier(done);
+        assertEquals(ElikaKit.EXPLORE, few.readiness(), "one test is not enough to decide");
+        assertEquals(3, few.unknown().size());
+
+        done.put("DAILY", ElikaKit.compare(daily, same(daily, 1, 1), same(daily, 1, 1)));
+        done.put("CONFLICT", ElikaKit.compare(conflict, healthy(conflict), healthy(conflict)));
+        assertEquals(ElikaKit.READY, ElikaKit.dossier(done).readiness());
+
+        // agreeing on everything else does not make up for a gap about children
+        Map<String, Integer> mine = same(goals, 1, 1);
+        mine.put("CHILDREN", 0);
+        mine.put("CHILDREN" + ElikaKit.FLEX_SUFFIX, 0);
+        Map<String, Integer> other = same(goals, 1, 1);
+        other.put("CHILDREN", 3);
+        done.put("GOALS", ElikaKit.compare(goals, mine, other));
+        ElikaKit.Dossier split = ElikaKit.dossier(done);
+        assertEquals(ElikaKit.RESOLVE, split.readiness());
+        assertEquals(1, split.groups().get(ElikaKit.CORE_GAP).size());
+
+        // contempt in the way they argue: a specialist too
+        Map<String, Integer> harsh = healthy(conflict);
+        harsh.put("CONTEMPT", 2);
+        done.put("CONFLICT", ElikaKit.compare(conflict, harsh, healthy(conflict)));
+        assertEquals(ElikaKit.SPECIALIST, ElikaKit.dossier(done).readiness());
     }
 
     @Test

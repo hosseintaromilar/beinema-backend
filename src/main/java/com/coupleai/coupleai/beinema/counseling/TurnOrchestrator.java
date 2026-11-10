@@ -708,6 +708,15 @@ public class TurnOrchestrator {
             notes.add("kit: no test at safety level " + d.safetyLevel);
             return;
         }
+        if ("DOSSIER".equals(d.kitTest)) {
+            // the dossier of the completed tests, after her words about it
+            if (coupleTests.hasDossier(m.roomId())) {
+                items.add(new CardItem(KitMarkers.content(KitMarkers.MAP, "map-" + m.roomId(), "پروندهٔ آشنایی")));
+            } else {
+                notes.add("kit: no dossier before a test is complete");
+            }
+            return;
+        }
         ElikaKit.test(d.kitTest).ifPresentOrElse(test -> coupleTests.open(m.roomId(), test.key()).ifPresentOrElse(
                 opened -> items.add(new CardItem(KitMarkers.content(KitMarkers.TEST, opened.getPublicId(), "آزمون: " + test.title()))),
                 () -> notes.add("kit: " + test.key() + " was already given")),

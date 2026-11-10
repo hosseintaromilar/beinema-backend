@@ -32,9 +32,13 @@ public final class ElikaKit {
 
     public static final String ALIGNED = "ALIGNED";
     public static final String WORKABLE = "WORKABLE";
+    /** Far apart, and it may become a real conflict: one of them holds it as a red line, or it is a core subject. */
+    public static final String TENSION = "TENSION";
     public static final String CORE_GAP = "CORE_GAP";
 
-    public record Item(String id, String label, String prompt, List<String> options, boolean reverse, boolean hidden) {
+    /** core: a subject where a wide gap is not traded against agreement elsewhere (children, where to live, faith). */
+    public record Item(String id, String label, String prompt, List<String> options, boolean reverse, boolean hidden,
+                       boolean core) {
     }
 
     public record Test(String key, String kind, String title, String intro, int minutes, String when, List<Item> items) {
@@ -53,6 +57,63 @@ public final class ElikaKit {
     }
 
     public record Comparison(List<Row> rows, String level, String title, String text) {
+    }
+
+    /** One subject in the dossier and the test it came from. */
+    public record Entry(String label, String test) {
+    }
+
+    /**
+     * Where the two stand after their tests: every subject in one of four states, never added up
+     * into one number, what is still unknown, and how ready they are to decide (not a yes or a no).
+     */
+    public record Dossier(Map<String, List<Entry>> groups, List<String> unknown, String readiness, String title, String text,
+                          int completed) {
+    }
+
+    public static final String READY = "READY_FOR_DECISION";
+    public static final String EXPLORE = "NEEDS_FURTHER_EXPLORATION";
+    public static final String RESOLVE = "NEEDS_RESOLUTION";
+    public static final String SPECIALIST = "SPECIALIST_SUPPORT";
+
+    /** done: the completed tests with their comparison, in the kit's order. */
+    public static Dossier dossier(Map<String, Comparison> done) {
+        Map<String, List<Entry>> groups = new LinkedHashMap<>();
+        for (String status : List.of(ALIGNED, WORKABLE, TENSION, CORE_GAP)) {
+            groups.put(status, new ArrayList<>());
+        }
+        boolean contempt = false;
+        boolean unresolved = false;
+        for (Map.Entry<String, Comparison> entry : done.entrySet()) {
+            Test test = test(entry.getKey()).orElseThrow();
+            for (Row row : entry.getValue().rows()) {
+                // in the likert tests a grave answer is a worrying pattern, not a mismatch of wants
+                String status = !test.scale() && CORE_GAP.equals(row.status()) ? TENSION : row.status();
+                groups.get(status).add(new Entry(row.label(), test.title()));
+                contempt |= "CONTEMPT".equals(row.id()) && CORE_GAP.equals(row.status());
+                unresolved |= test.scale() && (CORE_GAP.equals(status) || TENSION.equals(status));
+            }
+            unresolved |= !test.scale() && "SPLIT".equals(entry.getValue().level());
+        }
+        List<String> unknown = tests().stream().filter(test -> !done.containsKey(test.key())).map(Test::title).toList();
+        if (contempt) {
+            return new Dossier(groups, unknown, SPECIALIST, "بهتره یه متخصص هم کنارتون باشه",
+                    "توی روش اختلافتون نشونه‌ای هست، مثل تحقیر، که بهتره با یک مشاور حضوری هم بررسی بشه. این حکمی دربارهٔ رابطه‌تون نیست.",
+                    done.size());
+        }
+        if (unresolved) {
+            return new Dossier(groups, unknown, RESOLVE, "اول این اختلاف‌ها باید روشن بشن",
+                    "چند موضوع مهم هست که قبل از تصمیم نهایی باید درباره‌شون به نتیجه برسید. توافق در جاهای دیگه جای این‌ها رو پر نمی‌کنه.",
+                    done.size());
+        }
+        if (done.size() < 3) {
+            return new Dossier(groups, unknown, EXPLORE, "هنوز چیزهایی ناشناخته‌ست",
+                    "هنوز همهٔ آزمون‌ها رو انجام ندادید و تصویر کامل نیست. قبل از تصمیم، بقیه‌ش رو هم ببینید.",
+                    done.size());
+        }
+        return new Dossier(groups, unknown, READY, "برای یه تصمیم آگاهانه، چیزهای مهم رو دیدید",
+                "این نه تأیید ازدواجه نه رد. یعنی موضوع‌های مهم رو با هم دیدید و حالا تصمیم با خودتونه.",
+                done.size());
     }
 
     private record Loaded(Map<String, Test> tests, Map<String, Lessons.Lesson> lessons, Map<String, Map<String, Object>> cards) {
@@ -108,38 +169,55 @@ public final class ElikaKit {
         return test.scale() ? compareScale(test, first, second) : compareLikert(test, first, second);
     }
 
-    /** How far apart two answers are, and whether either one is a red line. */
     static String scaleStatus(int a, int firmA, int b, int firmB) {
+        return scaleStatus(a, firmA, b, firmB, false);
+    }
+
+    /**
+     * How far apart two answers are, and how firm: four states, as a premarital counselor sorts them.
+     * ALIGNED: the same or near, or one does not mind; WORKABLE: a difference to agree on; TENSION: a
+     * potential conflict; CORE_GAP: a fundamental mismatch is likely. A core subject is one step
+     * graver: a wide gap there is not made up by agreement elsewhere.
+     */
+    static String scaleStatus(int a, int firmA, int b, int firmB, boolean core) {
         int gap = Math.abs(a - b);
         if (gap == 0 || firmA == 2 || firmB == 2) {
             return ALIGNED;
         }
-        boolean bothFirm = firmA == 0 && firmB == 0;
+        int redLines = (firmA == 0 ? 1 : 0) + (firmB == 0 ? 1 : 0);
         if (gap == 1) {
-            return bothFirm ? WORKABLE : ALIGNED;
+            return redLines == 2 ? WORKABLE : ALIGNED;
         }
-        return bothFirm ? CORE_GAP : WORKABLE;
+        if (redLines == 2) {
+            return CORE_GAP;
+        }
+        if (redLines == 1) {
+            return core ? CORE_GAP : TENSION;
+        }
+        return core ? TENSION : WORKABLE;
     }
 
     private static Comparison compareScale(Test test, Map<String, Integer> first, Map<String, Integer> second) {
         List<Row> rows = new ArrayList<>();
         int gaps = 0;
         int workable = 0;
+        int tension = 0;
         for (Item item : test.items()) {
             int a = first.get(item.id());
             int b = second.get(item.id());
             int firmA = first.get(item.id() + FLEX_SUFFIX);
             int firmB = second.get(item.id() + FLEX_SUFFIX);
-            String status = scaleStatus(a, firmA, b, firmB);
+            String status = scaleStatus(a, firmA, b, firmB, item.core());
             gaps += CORE_GAP.equals(status) ? 1 : 0;
             workable += WORKABLE.equals(status) ? 1 : 0;
+            tension += TENSION.equals(status) ? 1 : 0;
             rows.add(new Row(item.id(), item.label(), item.options(), a, b, firmA, firmB, status, false));
         }
         if (gaps > 0) {
             return new Comparison(rows, "SPLIT", "توی " + java.text.NumberFormat.getInstance(java.util.Locale.forLanguageTag("fa-IR")).format(gaps) + " موضوع هنوز هم‌مسیر نیستید",
                     "این‌جاها جواب‌هاتون از هم دوره و برای هر دو قطعیه. تا روشن نشه، بقیهٔ توافق‌ها روش نمی‌ایسته.");
         }
-        if (workable >= 2) {
+        if (tension > 0 || workable >= 2) {
             return new Comparison(rows, "TALK", "مسیرتون نزدیکه، ولی چند گفتگوی جدی لازمه",
                     "خط قرمز روبه‌روی هم ندارید، ولی چند جا فاصله هست که باید قبل از تصمیم درباره‌ش توافق کنید.");
         }
@@ -225,7 +303,8 @@ public final class ElikaKit {
             for (JsonNode item : node.path("items")) {
                 List<String> own = strings(item.path("options"));
                 items.add(new Item(item.path("id").asText(), item.path("label").asText(), item.path("prompt").asText(),
-                        own.isEmpty() ? shared : own, item.path("reverse").asBoolean(false), item.path("private").asBoolean(false)));
+                        own.isEmpty() ? shared : own, item.path("reverse").asBoolean(false), item.path("private").asBoolean(false),
+                        item.path("core").asBoolean(false)));
             }
             Test test = new Test(node.path("key").asText(), node.path("kind").asText(), node.path("title").asText(),
                     node.path("intro").asText(), node.path("minutes").asInt(3), node.path("when").asText(), List.copyOf(items));

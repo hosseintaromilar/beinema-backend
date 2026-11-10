@@ -65,6 +65,12 @@ public class CounselingController {
         return view;
     }
 
+    /** The dossier of the room's completed tests: four states per subject, what is unknown, readiness. */
+    @GetMapping("/dossier")
+    public Map<String, Object> dossier(@PathVariable Long chatRoomId) {
+        return coupleTestService.dossier(chatRoomId, currentUserService.getCurrentUser());
+    }
+
     /** A test of the companion's kit, as this person may see it. */
     @GetMapping("/tests/{testId}")
     public Map<String, Object> test(@PathVariable Long chatRoomId, @PathVariable String testId) {

@@ -155,6 +155,40 @@ public class CoupleTestService {
         return view;
     }
 
+    /** The completed tests of a room with both people's answers, compared, in the kit's order. */
+    private Map<String, ElikaKit.Comparison> completed(Long roomId) {
+        Map<String, CoupleTest> byKey = new LinkedHashMap<>();
+        testRepository.findAllByChatRoomIdOrderByIdAsc(roomId).forEach(test -> byKey.put(test.getTestKey(), test));
+        Map<String, ElikaKit.Comparison> done = new LinkedHashMap<>();
+        for (ElikaKit.Test test : ElikaKit.tests()) {
+            CoupleTest row = byKey.get(test.key());
+            if (row == null || !row.isCompleted()) {
+                continue;
+            }
+            List<Map<String, Integer>> two = new ArrayList<>(answers(row).values());
+            if (two.size() >= 2) {
+                done.put(test.key(), ElikaKit.compare(test, two.get(0), two.get(1)));
+            }
+        }
+        return done;
+    }
+
+    /** The dossier of a room for one of its members: null while no test is complete. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> dossier(Long roomId, User user) {
+        member(roomId, user);
+        Map<String, ElikaKit.Comparison> done = completed(roomId);
+        Map<String, Object> view = new LinkedHashMap<>();
+        view.put("dossier", done.isEmpty() ? null : ElikaKit.dossier(done));
+        return view;
+    }
+
+    /** Whether a dossier can be shown in this room yet. */
+    @Transactional(readOnly = true)
+    public boolean hasDossier(Long roomId) {
+        return !completed(roomId).isEmpty();
+    }
+
     /** The [TESTS] block of the director's packet, only for rooms with the kit. */
     @Transactional(readOnly = true)
     public String forDirector(TurnMaterial m) {
@@ -184,6 +218,16 @@ public class CoupleTestService {
                 out.append("ANSWERED by ").append(done.equals(m.userIdOf("OWNER")) ? "OWNER" : "MEMBER")
                         .append("; the other has not. The answers stay closed.\n");
             }
+        }
+        Map<String, ElikaKit.Comparison> complete = completed(m.roomId());
+        if (complete.isEmpty()) {
+            out.append("DOSSIER | not yet: no test is complete\n");
+        } else {
+            ElikaKit.Dossier dossier = ElikaKit.dossier(complete);
+            out.append("DOSSIER | readiness=").append(dossier.readiness()).append(" from ").append(dossier.completed())
+                    .append(" complete tests | core gaps: ").append(dossier.groups().get(ElikaKit.CORE_GAP).size())
+                    .append(", tensions: ").append(dossier.groups().get(ElikaKit.TENSION).size())
+                    .append(" | send it with kit_test DOSSIER when they ask where they stand, before a decision, or near the end\n");
         }
         return out.toString();
     }
