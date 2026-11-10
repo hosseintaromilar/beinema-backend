@@ -379,11 +379,16 @@ public class TurnOrchestrator {
         earlier = earlier.subList(Math.max(0, earlier.size() - 4), earlier.size());
         boolean repeated = VoiceGuard.repeats(said, earlier);
         java.util.Optional<String> written = VoiceGuard.written(said);
-        if (!repeated && written.isEmpty()) {
+        // before a reading is confirmed the companion gets to know them: advice slipped into the words is held
+        boolean holdAdvice = !"ADVISE".equals(d.phase) && !DecisionValidator.ADVICE_ACTIONS.contains(d.action);
+        java.util.Optional<String> advice = holdAdvice ? VoiceGuard.advises(out.text()) : java.util.Optional.empty();
+        if (!repeated && written.isEmpty() && advice.isEmpty()) {
             return out;
         }
         String warning = (repeated ? "your draft repeated what you said earlier: say only what is new; " : "")
-                + (written.isPresent() ? "your draft used written Persian («" + written.get() + "»): every sentence must be spoken Persian; " : "");
+                + (written.isPresent() ? "your draft used written Persian («" + written.get() + "»): every sentence must be spoken Persian; " : "")
+                + (advice.isPresent() ? "your draft gave advice («" + advice.get() + "») but nothing is diagnosed and confirmed yet: "
+                + "no suggestion, tip, step or «بهتره»; only understand, guess and ask; " : "");
         String again = packet.contains("must_not=")
                 ? packet.replaceFirst("must_not=", java.util.regex.Matcher.quoteReplacement("must_not=" + warning))
                 : packet.replaceFirst("length=", java.util.regex.Matcher.quoteReplacement("must_not=" + warning + "\nlength="));
@@ -396,6 +401,15 @@ public class TurnOrchestrator {
         boolean usable = rewritten != null && !rewritten.failed()
                 && (!rewritten.text().isBlank() || (rewritten.questionText() != null && !rewritten.questionText().isBlank()));
         VoiceOutputParser.Result best = usable ? rewritten : out;
+        if (holdAdvice && VoiceGuard.advises(best.text()).isPresent()) {
+            String kept = VoiceGuard.withoutAdvice(best.text());
+            if (!kept.isBlank() || (best.questionText() != null && !best.questionText().isBlank())) {
+                List<String> notes = new ArrayList<>(best.notes() == null ? List.of() : best.notes());
+                notes.add("advice before a confirmed reading cut from the words");
+                best = new VoiceOutputParser.Result(kept, best.questionText(), best.options(), best.questionBlock(),
+                        best.error(), notes);
+            }
+        }
         if (m.triggerMessageId() != null && best.questionText() == null
                 && VoiceGuard.repeats(best.text(), earlier)) {
             return new VoiceOutputParser.Result("", null, Map.of(), false, null, List.of("not sent: it only repeated earlier words"));
@@ -534,7 +548,7 @@ public class TurnOrchestrator {
         Map<Long, DecisionValidator.IntentView> intents = new LinkedHashMap<>();
         for (ClientIntent intent : m.intents()) {
             intents.put(intent.getId(), new DecisionValidator.IntentView(intent.getId(), intent.getParticipantRole(),
-                    intent.getStatus().name()));
+                    intent.getStatus().name(), intent.getEpistemic() == null ? "INFERRED" : intent.getEpistemic().name()));
         }
         Map<Long, DecisionValidator.QuestionView> open = new LinkedHashMap<>();
         for (ClarifyingQuestion question : m.openQuestions()) {

@@ -270,6 +270,36 @@ class DecisionValidatorTest {
     }
 
     @Test
+    void whatTheyOnlySaidThemselvesIsNoDiagnosis() throws Exception {
+        intents.put(31L, new DecisionValidator.IntentView(31L, "OWNER", "CONFIRMED", "STATED"));
+        DirectorDecision advice = DecisionValidator.validate(json(
+                "{\"action\":\"RESPOND\",\"phase\":\"ADVISE\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("ASK_OPEN", advice.action, "a confirmed sentence of their own opens no advice");
+        assertEquals(DecisionValidator.GATE_BRIEF, advice.briefDo);
+    }
+
+    @Test
+    void heldAdviceBecomesACardOverTheirGuesses() throws Exception {
+        intents.put(31L, new DecisionValidator.IntentView(31L, "OWNER", "UNCONFIRMED", "HYPOTHESIS"));
+        DirectorDecision one = DecisionValidator.validate(json(
+                "{\"action\":\"RESPOND\",\"phase\":\"ADVISE\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("ASK_CLARIFYING", one.action, "a guess waiting for their word is put to them");
+        assertEquals("CONFIRM", one.question.type);
+        assertEquals(List.of("i31"), one.question.intents);
+        assertEquals(DecisionValidator.CARD_BRIEF, one.briefDo);
+
+        DirectorDecision two = DecisionValidator.validate(json(
+                "{\"action\":\"SUPPORT_PLANNING\",\"addressee\":\"OWNER\"}", CHOOSE_INTENTS), ctx());
+        assertEquals("CHOOSE", two.question.type, "several guesses: they choose");
+        assertTrue(two.question.intents.containsAll(List.of("n1", "n2", "n3", "i31")));
+
+        open.put(7L, new DecisionValidator.QuestionView(7L, "OWNER"));
+        DirectorDecision waiting = DecisionValidator.validate(json(
+                "{\"action\":\"RESPOND\",\"phase\":\"ADVISE\",\"addressee\":\"OWNER\"}", ""), ctx());
+        assertEquals("ASK_OPEN", waiting.action, "one card at a time");
+    }
+
+    @Test
     void safetyIsNeverHeldByTheFlow() throws Exception {
         DirectorDecision safety = DecisionValidator.validate(json(
                 "{\"action\":\"SAFETY_RESPONSE\",\"phase\":\"ADVISE\",\"addressee\":\"OWNER\"}", ""), ctx());

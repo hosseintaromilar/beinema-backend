@@ -23,6 +23,50 @@ public final class VoiceGuard {
         return matcher.find() ? Optional.of(matcher.group(2)) : Optional.empty();
     }
 
+    /**
+     * Words of advice in spoken Persian: a step, a suggestion, an instruction. Only in a sentence that is
+     * not a question: «می‌تونی بگی از کی شروع شد؟» asks, «می‌تونی از فردا کوتاه خداحافظی کنی» advises.
+     */
+    private static final Pattern ADVICE = Pattern.compile(
+            "(پیشنهاد می[‌ ]?کنم|پیشنهادم|توصیه می[‌ ]?کنم|توصیه‌م|بهتره|بهتر است|بهتر نیست|سعی کن|سعی کنید|امتحان کن|"
+                    + "امتحان کنید|از فردا|از امشب|یه راهش|راهش اینه|کافیه که|قدم اول|تمرین کن|تمرین کنید|"
+                    + "(?<![\\p{L}\u200c])می[\u200c ]?تونی(د)? |"
+                    + "باید [^؟?]{0,30}(کنی|بگی|بذاری|کنید|بگید|بذارید))");
+
+    private static final Pattern SENTENCE_END = Pattern.compile("(?<=[.!؟?\\n])\\s*");
+
+    /** The first sentence of the reply that gives advice, if any; questions never count. */
+    static Optional<String> advises(String reply) {
+        for (String sentence : SENTENCE_END.split(reply == null ? "" : reply)) {
+            String trimmed = sentence.trim();
+            if (trimmed.isEmpty() || trimmed.endsWith("؟") || trimmed.endsWith("?")) {
+                continue;
+            }
+            var matcher = ADVICE.matcher(trimmed + (trimmed.matches(".*[.!،]$") ? "" : "."));
+            if (matcher.find()) {
+                return Optional.of(trimmed);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** The reply without its sentences of advice (questions and everything else are kept). */
+    static String withoutAdvice(String reply) {
+        StringBuilder out = new StringBuilder();
+        for (String sentence : SENTENCE_END.split(reply == null ? "" : reply)) {
+            String trimmed = sentence.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            boolean question = trimmed.endsWith("؟") || trimmed.endsWith("?");
+            if (!question && ADVICE.matcher(trimmed + (trimmed.matches(".*[.!،]$") ? "" : ".")).find()) {
+                continue;
+            }
+            out.append(out.length() == 0 ? "" : " ").append(trimmed);
+        }
+        return out.toString();
+    }
+
     /** True when the reply says nearly what one of the companion's recent messages already said. */
     static boolean repeats(String reply, List<String> earlier) {
         Set<String> mine = new HashSet<>(EchoGuard.words(reply == null ? "" : reply));

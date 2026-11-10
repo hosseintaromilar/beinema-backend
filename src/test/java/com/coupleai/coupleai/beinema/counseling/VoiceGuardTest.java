@@ -24,4 +24,19 @@ class VoiceGuardTest {
         assertFalse(VoiceGuard.repeats("درآمد ماهانه‌ت الان تقریباً چقدره و قسط چقدر داری؟", List.of(first)));
         assertFalse(VoiceGuard.repeats("باشه", List.of("باشه")));
     }
+
+    @Test
+    void adviceIsFoundOnlyOutsideQuestions() {
+        assertTrue(VoiceGuard.advises("می‌فهمم سخته. پیشنهاد می‌کنم از فردا شب یه ربع با هم قدم بزنید.").isPresent());
+        assertTrue(VoiceGuard.advises("بهتره اول خودت آروم بشی").isPresent());
+        assertTrue(VoiceGuard.advises("می‌تونی امشب بهش بگی چی ناراحتت کرده.").isPresent());
+        assertTrue(VoiceGuard.advises("می‌تونی بگی از کی این‌طوری شده؟").isEmpty(), "a question is not advice");
+        assertTrue(VoiceGuard.advises("حس می‌کنم پشتش یه خستگی قدیمیه. درسته؟").isEmpty());
+    }
+
+    @Test
+    void adviceSentencesAreCutAndTheRestStays() {
+        String kept = VoiceGuard.withoutAdvice("می‌فهمم چقدر خسته‌ای. بهتره امشب باهاش حرف بزنی. از کی این‌طوری شده؟");
+        assertEquals("می‌فهمم چقدر خسته‌ای. از کی این‌طوری شده؟", kept);
+    }
 }

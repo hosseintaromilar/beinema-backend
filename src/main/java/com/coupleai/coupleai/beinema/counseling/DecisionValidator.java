@@ -3,6 +3,7 @@ package com.coupleai.coupleai.beinema.counseling;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -90,7 +91,16 @@ public final class DecisionValidator {
 
     static final List<String> STAGES = List.of("W", "D", "E", "P");
 
-    public record IntentView(Long id, String role, String status) {
+    /** epistemic: STATED, INFERRED, HYPOTHESIS or CONFIRMED_BY_CLIENT, how we came to know it. */
+    public record IntentView(Long id, String role, String status, String epistemic) {
+        public IntentView(Long id, String role, String status) {
+            this(id, role, status, "CONFIRMED".equals(status) ? "CONFIRMED_BY_CLIENT" : "HYPOTHESIS");
+        }
+
+        /** A reading we put to them, not a sentence they said: only such a reading, confirmed, opens advice. */
+        boolean reading() {
+            return !"STATED".equals(epistemic);
+        }
     }
 
     public record QuestionView(Long id, String role) {
@@ -389,12 +399,38 @@ public final class DecisionValidator {
         }
     }
 
+    /**
+     * Whether this person confirmed a reading: a guess of ours (inferred or a hypothesis) that they said
+     * fits. What they said themselves, even marked confirmed, is not a diagnosis and opens no advice.
+     */
     private static boolean hasConfirmedReading(String role, DirectorDecision d, Context ctx) {
         boolean before = ctx.intents().values().stream()
-                .anyMatch(view -> role.equals(view.role()) && "CONFIRMED".equals(view.status()));
+                .anyMatch(view -> role.equals(view.role()) && "CONFIRMED".equals(view.status()) && view.reading());
         boolean now = d.intents.stream().anyMatch(op -> "STATUS".equals(op.op) && "CONFIRMED".equals(op.status)
-                && op.id != null && ctx.intents().containsKey(op.id) && role.equals(ctx.intents().get(op.id).role()));
+                && op.id != null && ctx.intents().containsKey(op.id) && role.equals(ctx.intents().get(op.id).role())
+                && ctx.intents().get(op.id).reading());
         return before || now;
+    }
+
+    /**
+     * The readings of this person still waiting for their word: guesses made earlier, and the ones the
+     * director makes this turn (not what they said themselves). As question refs: "n1" and "i12".
+     */
+    static List<String> openReadings(String role, DirectorDecision d, Context ctx) {
+        List<String> out = new ArrayList<>();
+        d.intents.stream()
+                .filter(op -> "CREATE".equals(op.op) && role.equals(op.participant) && !"STATED".equals(op.epistemic))
+                .sorted(Comparator.comparingDouble((DirectorDecision.IntentOp op) -> -op.confidence))
+                .forEach(op -> out.add(op.ref));
+        Set<Long> closedNow = new HashSet<>();
+        d.intents.stream().filter(op -> op.id != null && ("STATUS".equals(op.op) || "SUPERSEDE".equals(op.op)))
+                .forEach(op -> closedNow.add(op.id));
+        ctx.intents().values().stream()
+                .filter(view -> role.equals(view.role()) && "UNCONFIRMED".equals(view.status()) && view.reading()
+                        && !closedNow.contains(view.id()))
+                .sorted(Comparator.comparing(IntentView::id).reversed())
+                .forEach(view -> out.add("i" + view.id()));
+        return out.size() > 4 ? new ArrayList<>(out.subList(0, 4)) : out;
     }
 
     private static void readPlans(JsonNode array, DirectorDecision d, Context ctx) {
@@ -693,17 +729,55 @@ public final class DecisionValidator {
         }
         d.notes.add("flow: " + d.action + (d.phase.isEmpty() ? "" : " (" + d.phase + ")")
                 + " before a confirmed reading became a question");
-        d.action = "ASK_OPEN";
         d.phase = "CONFIRM";
-        d.briefDo = GATE_BRIEF;
         d.briefMustNot.add("no advice, tip, step, plan, exercise, reading or label yet");
         d.briefLength = "SHORT";
+        if (!askReadings(d, ctx)) {
+            d.action = "ASK_OPEN";
+            d.briefDo = GATE_BRIEF;
+        }
         d.plans.clear();
         d.lessonId = null;
         if ("PLAN".equals(d.financeCard)) {
             // the plan of scenarios is advice; the risk quiz, the picture and the market are getting to know them
             d.financeCard = null;
         }
+    }
+
+    static final String CARD_BRIEF = "Do not advise. Say in one or two warm sentences what you think may be going on, "
+            + "drawn from their own words and clearly as a guess (not a verdict), then ask whether it fits; the card "
+            + "under your message offers the guesses, so do not list them as options in your text.";
+
+    /**
+     * When advice is held and guesses of this person wait for their word, they are put to them on a card:
+     * one guess to confirm, or two to four to choose from. False when no card fits (no guess, an open
+     * question already waiting, or the session's cards used up); then an open question is asked.
+     */
+    static boolean askReadings(DirectorDecision d, Context ctx) {
+        String role = ctx.partnersPresent().contains(d.addressee) ? d.addressee
+                : ctx.partnersPresent().contains(ctx.defaultAddressee()) ? ctx.defaultAddressee() : null;
+        if (role == null || ctx.questionsThisSession() >= ctx.maxQuestionsPerSession()
+                || ctx.openQuestions().values().stream().anyMatch(open -> open.role().equals(role)
+                && d.questionUpdates.stream().noneMatch(update -> open.id().equals(update.id)))) {
+            return false;
+        }
+        List<String> readings = openReadings(role, d, ctx);
+        if (readings.isEmpty()) {
+            return false;
+        }
+        DirectorDecision.QuestionSpec spec = new DirectorDecision.QuestionSpec();
+        spec.type = readings.size() == 1 ? "CONFIRM" : "CHOOSE";
+        spec.addressee = role;
+        spec.intents = readings;
+        spec.reason = "advice waits for a reading they confirm";
+        spec.impact = "HIGH";
+        d.question = spec;
+        d.action = "ASK_CLARIFYING";
+        d.route = "SPEAK";
+        d.addressee = role;
+        d.briefDo = CARD_BRIEF;
+        d.notes.add("flow: the guesses " + readings + " put to " + role + " on a " + spec.type + " card");
+        return true;
     }
 
     private static void enforceConsistency(DirectorDecision d, Context ctx) {
