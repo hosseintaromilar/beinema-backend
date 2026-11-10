@@ -48,6 +48,8 @@ public class ChatFileService {
     private static final Logger log = LoggerFactory.getLogger(ChatFileService.class);
 
     public static final long MAX_FILE_BYTES = 10L * 1024 * 1024;
+    /** About five minutes of a browser recording. */
+    static final long MAX_VOICE_BYTES = 6L * 1024 * 1024;
     public static final int MAX_FILES_PER_MESSAGE = 4;
     static final String DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private static final long ROOM_QUOTA_BYTES = 100L * 1024 * 1024;
@@ -69,6 +71,7 @@ public class ChatFileService {
     private final CurrentUserService currentUserService;
     private final UserRepository userRepository;
     private final MetisService metisService;
+    private final SpeechToText speechToText;
 
     private final Path uploadRoot;
     private final String readerBotId;
@@ -81,6 +84,7 @@ public class ChatFileService {
             CurrentUserService currentUserService,
             UserRepository userRepository,
             MetisService metisService,
+            SpeechToText speechToText,
             @Value("${beinema.upload.dir:uploads}") String uploadDir,
             @Value("${metis.insight-bot-id}") String readerBotId
     ) {
@@ -90,6 +94,7 @@ public class ChatFileService {
         this.currentUserService = currentUserService;
         this.userRepository = userRepository;
         this.metisService = metisService;
+        this.speechToText = speechToText;
         this.uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
         this.readerBotId = readerBotId;
     }
@@ -102,6 +107,86 @@ public class ChatFileService {
     }
 
     // ------------------------------------------------------------------ upload
+
+    /**
+     * A recorded voice message: stored like a file, then written down at once so the person sees the
+     * words before sending. The transcript is the file's reading for the brain.
+     */
+    public AttachmentResponse uploadVoice(Long chatRoomId, MultipartFile file) {
+        User user = currentUserService.getCurrentUser();
+        ChatRoom room = requireMemberRoom(chatRoomId, user);
+        if (room.getStatus() != ChatRoomStatus.ACTIVE) {
+            throw new IllegalArgumentException("این جلسه دیگر فعال نیست.");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("صدایی ضبط نشد.");
+        }
+        if (file.getSize() > MAX_VOICE_BYTES) {
+            throw new IllegalArgumentException("پیام صوتی خیلی بلند است؛ کوتاه‌ترش کن و دوباره بفرست.");
+        }
+        if (attachmentRepository.totalBytesInRoom(chatRoomId) + file.getSize() > ROOM_QUOTA_BYTES) {
+            throw new IllegalArgumentException("حجم فایل‌های این گفتگو به سقف مجاز رسیده است.");
+        }
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("خواندن صدا ممکن نشد.");
+        }
+        Detected detected = detectAudio(bytes)
+                .orElseThrow(() -> new IllegalArgumentException("این صدا خوانده نمی‌شود؛ دوباره ضبط کن."));
+        String storedName = UUID.randomUUID() + detected.extension();
+        Path directory = uploadRoot.resolve("rooms").resolve(String.valueOf(chatRoomId));
+        try {
+            Files.createDirectories(directory);
+            Files.write(directory.resolve(storedName), bytes);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("ذخیرهٔ صدا ناموفق بود.");
+        }
+        Optional<String> words = speechToText.transcribe(bytes, detected.contentType());
+        MessageAttachment saved = attachmentRepository.save(
+                MessageAttachment.builder()
+                        .chatRoomId(chatRoomId)
+                        .uploaderId(user.getId())
+                        .originalName("پیام صوتی" + detected.extension())
+                        .contentType(detected.contentType())
+                        .sizeBytes((long) bytes.length)
+                        .kind("AUDIO")
+                        .storagePath("rooms/" + chatRoomId + "/" + storedName)
+                        .sha256(sha256(bytes))
+                        .summary(words.orElse(""))
+                        .summaryStatus(words.isPresent() ? MessageAttachment.READY : MessageAttachment.FAILED)
+                        .build()
+        );
+        AttachmentResponse response = AttachmentResponse.from(saved);
+        response.setTranscript(words.orElse(null));
+        return response;
+    }
+
+    /** A voice recording, from its bytes: what browsers record (WebM, Ogg, MP4/AAC) and MP3 or WAV. */
+    static Optional<Detected> detectAudio(byte[] bytes) {
+        if (bytes == null || bytes.length < 12) {
+            return Optional.empty();
+        }
+        if ((bytes[0] & 0xFF) == 0x1A && (bytes[1] & 0xFF) == 0x45 && (bytes[2] & 0xFF) == 0xDF && (bytes[3] & 0xFF) == 0xA3) {
+            return Optional.of(new Detected("audio/webm", ".webm", "AUDIO"));
+        }
+        if (bytes[0] == 'O' && bytes[1] == 'g' && bytes[2] == 'g' && bytes[3] == 'S') {
+            return Optional.of(new Detected("audio/ogg", ".ogg", "AUDIO"));
+        }
+        if (bytes[4] == 'f' && bytes[5] == 't' && bytes[6] == 'y' && bytes[7] == 'p') {
+            return Optional.of(new Detected("audio/mp4", ".m4a", "AUDIO"));
+        }
+        if (bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
+                && bytes[8] == 'W' && bytes[9] == 'A' && bytes[10] == 'V' && bytes[11] == 'E') {
+            return Optional.of(new Detected("audio/wav", ".wav", "AUDIO"));
+        }
+        if ((bytes[0] == 'I' && bytes[1] == 'D' && bytes[2] == '3')
+                || ((bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xE0) == 0xE0)) {
+            return Optional.of(new Detected("audio/mpeg", ".mp3", "AUDIO"));
+        }
+        return Optional.empty();
+    }
 
     public AttachmentResponse upload(Long chatRoomId, MultipartFile file) {
         User user = currentUserService.getCurrentUser();
@@ -234,6 +319,14 @@ public class ChatFileService {
         StringBuilder block = new StringBuilder();
         for (MessageAttachment attachment : attachments) {
             MessageAttachment fresh = attachmentRepository.findById(attachment.getId()).orElse(attachment);
+            if ("AUDIO".equals(fresh.getKind())) {
+                // the message text is the transcript the person checked; without text, the words heard
+                String heard = fresh.getSummary() == null || fresh.getSummary().isBlank()
+                        ? "(could not be heard)" : fresh.getSummary().replace("\n", " ");
+                block.append("\n[VOICE MESSAGE | they spoke this message; ")
+                        .append(withMessage ? "the text above is its transcript]" : "TRANSCRIPT: " + heard + "]");
+                continue;
+            }
             String summary = fresh.getSummary();
             if (summary == null || summary.isBlank()) {
                 summary = "(could not be read)";

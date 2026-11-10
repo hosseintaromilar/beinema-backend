@@ -14,8 +14,10 @@ public class AttachmentResponse {
     private String name;
     private String contentType;
     private Long sizeBytes;
-    /** IMAGE or FILE. */
+    /** IMAGE, FILE or AUDIO (a recorded voice message). */
     private String kind;
+    /** Only right after a voice message is recorded: its words, for the person to check before sending. */
+    private String transcript;
 
     public static AttachmentResponse from(MessageAttachment attachment) {
         return AttachmentResponse.builder()

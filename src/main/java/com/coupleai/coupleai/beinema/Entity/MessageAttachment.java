@@ -53,7 +53,7 @@ public class MessageAttachment extends BaseEntity {
     @Column(name = "size_bytes", nullable = false)
     private Long sizeBytes;
 
-    /** IMAGE or FILE. */
+    /** IMAGE, FILE or AUDIO. */
     @Column(nullable = false, length = 16)
     private String kind;
 

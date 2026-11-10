@@ -126,8 +126,10 @@ public class TurnMaterialLoader {
         for (MessageAttachment attachment : attachmentRepository.findAllByChatRoomIdAndMessageIdIsNotNull(roomId)) {
             if (visibleIds.contains(attachment.getMessageId())) {
                 String summary = attachment.getSummary() == null ? "" : " - " + PersianText.clip(attachment.getSummary(), 200);
-                files.computeIfAbsent(attachment.getMessageId(), key -> new ArrayList<>())
-                        .add(attachment.getOriginalName() + summary);
+                // a voice message: the text of the message is already its transcript
+                String line = "AUDIO".equals(attachment.getKind()) ? "a voice message; the text is what they said aloud"
+                        : attachment.getOriginalName() + summary;
+                files.computeIfAbsent(attachment.getMessageId(), key -> new ArrayList<>()).add(line);
             }
         }
 

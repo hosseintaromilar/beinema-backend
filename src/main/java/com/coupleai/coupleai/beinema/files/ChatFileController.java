@@ -35,7 +35,16 @@ public class ChatFileController {
         return chatFileService.upload(chatRoomId, file);
     }
 
-    /** Only members of the room can read a file. Images show inline, everything else downloads. */
+    /** A recorded voice message: stored and written down; the words come back for the person to check. */
+    @PostMapping(value = "/voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public AttachmentResponse uploadVoice(
+            @PathVariable Long chatRoomId,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return chatFileService.uploadVoice(chatRoomId, file);
+    }
+
+    /** Only members of the room can read a file. Images and voice play inline, everything else downloads. */
     @GetMapping("/{attachmentId}")
     public ResponseEntity<Resource> download(
             @PathVariable Long chatRoomId,
@@ -43,7 +52,7 @@ public class ChatFileController {
     ) {
         ChatFileService.LoadedFile loaded = chatFileService.load(chatRoomId, attachmentId);
         MessageAttachment attachment = loaded.attachment();
-        boolean inline = "IMAGE".equals(attachment.getKind());
+        boolean inline = "IMAGE".equals(attachment.getKind()) || "AUDIO".equals(attachment.getKind());
         ContentDisposition disposition = (inline ? ContentDisposition.inline() : ContentDisposition.attachment())
                 .filename(attachment.getOriginalName(), StandardCharsets.UTF_8)
                 .build();
