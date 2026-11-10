@@ -330,6 +330,29 @@ public class FinanceService {
                     .append(" instalments share=").append(percent(p.instalmentShare()))
                     .append(" reserve months=").append(p.reserveMonths() == null ? "unknown" : String.format(Locale.ROOT, "%.1f", p.reserveMonths()))
                     .append(" net worth=").append(p.netWorth() == null ? "unknown" : FinanceKit.amount(p.netWorth())).append('\n');
+            out.append("  capacity from the figures=").append(p.capacityLevel() == null ? "unknown (income, essential costs or cash missing)"
+                    : p.capacityLevel() + " (" + p.capacityWhy() + ")").append('\n');
+            FinanceKit.Goal goal = p.goal();
+            if (goal == null) {
+                out.append("  goal: amount or deadline not given\n");
+            } else {
+                out.append("  goal=").append(FinanceKit.amount(goal.amount())).append(" in ").append(goal.months())
+                        .append(" months; deadline allows at most ").append(FinanceKit.horizonCap(goal.months()))
+                        .append("; by saving alone, in today's money: ").append(FinanceKit.amount(goal.projected()))
+                        .append(goal.reachable() ? " REACHABLE" : " GAP " + FinanceKit.amount(goal.gap())
+                                + " (ways: about " + FinanceKit.amount(goal.extraMonthly()) + " more a month"
+                                + (goal.monthsNeeded() == null ? "" : ", or about " + goal.monthsNeeded() + " months")
+                                + ", or a smaller goal)").append('\n');
+            }
+        }
+        if (!risks.isEmpty()) {
+            String quiz = risks.values().stream().map(FinanceKit.Risk::profile)
+                    .min(java.util.Comparator.comparingInt(FinanceKit.LEVELS::indexOf)).orElse(FinanceKit.CAUTIOUS);
+            FinanceKit.Picture p = values.isEmpty() ? null : FinanceKit.picture(values);
+            String effective = FinanceKit.lower(FinanceKit.lower(quiz, p == null ? null : p.capacityLevel()),
+                    FinanceKit.horizonCap(p == null || p.goal() == null ? null : p.goal().months()));
+            out.append("effective risk level (the most careful of quiz, figures and deadline)=").append(effective)
+                    .append(effective.equals(quiz) ? "" : " LOWER_THAN_THE_QUIZ: explain why, from their own figures").append('\n');
         }
         Map<String, Object> hints = cards.findFirstByChatRoomIdAndKindOrderByIdDesc(m.roomId(), FinanceCard.PICTURE)
                 .map(card -> map(data(card).get("hints"))).orElse(Map.of());
@@ -348,8 +371,21 @@ public class FinanceService {
                 out.append(i).append('=').append(map(scenarios.get(i)).get("level")).append(' ');
             }
             out.append('\n');
-            map(data.get("choices")).forEach((userId, index) -> out.append("  ").append(role(m, Long.valueOf(userId)))
+            Map<String, Object> choices = map(data.get("choices"));
+            choices.forEach((userId, index) -> out.append("  ").append(role(m, Long.valueOf(userId)))
                     .append(" chose ").append(Integer.parseInt(index.toString()) < 0 ? "none for now" : "scenario " + index).append('\n'));
+            if (m.userIdOf("MEMBER") != null) {
+                // shared money is decided by both: say plainly whether they are there yet
+                java.util.Set<String> picked = new java.util.HashSet<>();
+                choices.values().forEach(index -> picked.add(index.toString()));
+                if (choices.size() < 2) {
+                    out.append("  shared decision: WAITING_FOR_BOTH (nothing is agreed until both choose)\n");
+                } else if (picked.size() == 1 && Integer.parseInt(picked.iterator().next()) >= 0) {
+                    out.append("  shared decision: BOTH_AGREE on scenario ").append(picked.iterator().next()).append('\n');
+                } else {
+                    out.append("  shared decision: NOT_AGREED (different choices: talk it through fairly, look for a middle both accept)\n");
+                }
+            }
         }
         return out.toString();
     }

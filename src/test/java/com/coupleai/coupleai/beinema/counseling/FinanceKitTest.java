@@ -72,21 +72,65 @@ class FinanceKitTest {
 
     @Test
     void thePlanPutsTheReserveFirstAndOffersABolderStepOnlyWhenTheyCanBearIt() {
-        Map<String, Double> v = Map.of("INCOME", 50d, "ESSENTIAL", 30d, "CASH", 40d, "GOLD", 60d);
-        FinanceKit.Plan plan = FinanceKit.plan(List.of(FinanceKit.risk(answers(2, 3))), v);
+        // a full reserve, real saving, no instalments: the figures allow growth, the quiz decides
+        Map<String, Double> healthy = Map.of("INCOME", 50d, "ESSENTIAL", 20d, "OTHER", 5d, "CASH", 130d, "GOLD", 60d);
+        FinanceKit.Plan plan = FinanceKit.plan(List.of(FinanceKit.risk(answers(2, 3))), healthy);
         assertEquals(FinanceKit.BALANCED, plan.profile());
-        assertEquals("RESERVE", plan.steps().get(0).id());
+        assertTrue(plan.steps().isEmpty());
         assertEquals(List.of(FinanceKit.CAUTIOUS, FinanceKit.BALANCED, FinanceKit.GROWTH),
                 plan.scenarios().stream().map(FinanceKit.Scenario::level).toList());
-        // reserve of 3 months (90) is more than the cash: only the gold is there to invest
-        assertEquals(60d, plan.investable(), 1e-9);
+        // a reserve of 3 months (60) stays aside: the rest of the cash and the gold
+        assertEquals(130d, plan.investable(), 1e-9);
+        assertTrue(plan.scenarios().get(2).badYear().contains("٪۲۵ تا ٪۳۵"), "a bold path shows its bad year");
 
         // capacity no higher than the profile: no bolder scenario
-        FinanceKit.Plan careful = FinanceKit.plan(List.of(FinanceKit.risk(answers(3, 2))), v);
+        FinanceKit.Plan careful = FinanceKit.plan(List.of(FinanceKit.risk(answers(3, 2))), healthy);
         assertEquals(List.of(FinanceKit.CAUTIOUS, FinanceKit.BALANCED),
                 careful.scenarios().stream().map(FinanceKit.Scenario::level).toList());
 
-        assertNull(FinanceKit.plan(List.of(), v));
+        // little cash: the reserve comes first, and the figures hold the path back whatever the quiz says
+        Map<String, Double> thin = Map.of("INCOME", 50d, "ESSENTIAL", 30d, "CASH", 40d, "GOLD", 60d);
+        FinanceKit.Plan held = FinanceKit.plan(List.of(FinanceKit.risk(answers(2, 3))), thin);
+        assertEquals("RESERVE", held.steps().get(0).id());
+        assertEquals(FinanceKit.CAUTIOUS, held.profile());
+        assertTrue(held.note().contains("کمتر از سه ماه"), held.note());
+        assertEquals(List.of(FinanceKit.SAFE, FinanceKit.CAUTIOUS),
+                held.scenarios().stream().map(FinanceKit.Scenario::level).toList());
+
+        assertNull(FinanceKit.plan(List.of(), healthy));
+    }
+
+    @Test
+    void theFiguresGiveTheCapacityAndADeadlineCapsTheRisk() {
+        assertEquals(FinanceKit.SAFE, FinanceKit.picture(Map.of("INCOME", 30d, "ESSENTIAL", 35d, "CASH", 500d)).capacityLevel(),
+                "spending more than income");
+        assertEquals(FinanceKit.CAUTIOUS, FinanceKit.picture(Map.of("INCOME", 50d, "ESSENTIAL", 20d, "INSTALMENTS", 25d,
+                "CASH", 100d)).capacityLevel(), "heavy instalments");
+        assertNull(FinanceKit.picture(Map.of("CASH", 100d)).capacityLevel(), "unknown without income and costs");
+
+        // bold quiz, healthy figures, but the money is needed in 10 months: the deadline decides
+        Map<String, Double> v = new HashMap<>(Map.of("INCOME", 50d, "ESSENTIAL", 20d, "CASH", 200d,
+                "GOAL_AMOUNT", 300d, "GOAL_MONTHS", 10d));
+        FinanceKit.Plan plan = FinanceKit.plan(List.of(FinanceKit.risk(answers(3, 3))), v);
+        assertEquals(FinanceKit.SAFE, plan.profile());
+        assertTrue(plan.note().contains("۱۰ ماه"), plan.note());
+    }
+
+    @Test
+    void aGoalOutOfReachGetsThreeHonestWaysNotMoreRisk() {
+        // 100 now, 10 a month for 12 months = 220, goal 1000
+        Map<String, Double> v = Map.of("INCOME", 40d, "ESSENTIAL", 25d, "OTHER", 5d, "CASH", 100d,
+                "GOAL_AMOUNT", 1000d, "GOAL_MONTHS", 12d);
+        FinanceKit.Goal goal = FinanceKit.picture(v).goal();
+        assertEquals(220d, goal.projected(), 1e-9);
+        assertFalse(goal.reachable());
+        assertEquals(65d, goal.extraMonthly(), 1e-9);
+        assertEquals(90, goal.monthsNeeded());
+        FinanceKit.Plan plan = FinanceKit.plan(List.of(FinanceKit.risk(answers(3, 3))), v);
+        assertTrue(plan.steps().stream().anyMatch(step -> "GOAL".equals(step.id())));
+
+        assertTrue(FinanceKit.picture(Map.of("INCOME", 40d, "ESSENTIAL", 25d, "CASH", 100d,
+                "GOAL_AMOUNT", 200d, "GOAL_MONTHS", 12d)).goal().reachable());
     }
 
     @Test

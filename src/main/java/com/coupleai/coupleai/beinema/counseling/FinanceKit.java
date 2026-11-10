@@ -153,13 +153,89 @@ public final class FinanceKit {
             new Field("STOCKS", "بورس و صندوق‌ها", "ASSET"),
             new Field("PROPERTY", "ملک (ارزش تقریبی)", "ASSET"),
             new Field("CAR", "خودرو", "ASSET"),
-            new Field("OTHER_ASSETS", "دارایی‌های دیگر", "ASSET"));
+            new Field("OTHER_ASSETS", "دارایی‌های دیگر", "ASSET"),
+            new Field("GOAL_AMOUNT", "پولی که برای هدفتون لازم دارید (به قیمت امروز)", "GOAL"),
+            new Field("GOAL_MONTHS", "چند ماه دیگه لازمش دارید (عدد ماه)", "GOAL"));
 
     public static final Map<String, String> HOUSING = Map.of("RENT", "مستأجر", "OWN", "مالک", "FAMILY", "با خانواده");
 
     /** What the picture says, from the figures they gave (million tomans; null where it cannot be known). */
     public record Picture(Double surplus, Double savingRate, Double instalmentShare, Double reserveMonths, Double netWorth,
-                          Double financialAssets, Map<String, Double> mix) {
+                          Double financialAssets, Map<String, Double> mix, String capacityLevel, String capacityWhy,
+                          Goal goal) {
+    }
+
+    /**
+     * Whether the goal can be reached by saving alone, in today's money: what they have now plus the
+     * monthly surplus until the deadline. gap > 0: it cannot; then three honest ways out, never more risk.
+     */
+    public record Goal(double amount, int months, double projected, double gap, Double extraMonthly, Integer monthsNeeded) {
+        public boolean reachable() {
+            return gap <= 0;
+        }
+    }
+
+    /**
+     * How much loss their life can bear, from their own figures rather than from how they feel:
+     * no surplus or almost no reserve is SAFE; a thin reserve or heavy instalments CAUTIOUS; a full
+     * reserve with real saving and light instalments GROWTH; otherwise BALANCED. Null when the
+     * figures that decide it are missing.
+     */
+    static String[] capacity(Double surplus, Double savingRate, Double instalmentShare, Double reserveMonths) {
+        if (surplus == null || reserveMonths == null) {
+            return new String[]{null, ""};
+        }
+        if (surplus < 0) {
+            return new String[]{SAFE, "monthly spending is more than income"};
+        }
+        if (reserveMonths < 1) {
+            return new String[]{SAFE, "less than one month of essential costs in cash"};
+        }
+        if (reserveMonths < 3) {
+            return new String[]{CAUTIOUS, "less than three months of essential costs in cash"};
+        }
+        if (instalmentShare != null && instalmentShare > 0.4) {
+            return new String[]{CAUTIOUS, "instalments take more than 40% of income"};
+        }
+        if (reserveMonths >= 6 && savingRate != null && savingRate >= 0.2 && (instalmentShare == null || instalmentShare <= 0.2)) {
+            return new String[]{GROWTH, "a full reserve, real monthly saving and light instalments"};
+        }
+        return new String[]{BALANCED, "a reserve in place and a positive surplus"};
+    }
+
+    /** A deadline sets the boldest path that still fits it, whatever the quiz says. Null: no deadline given. */
+    static String horizonCap(Integer months) {
+        if (months == null || months <= 0) {
+            return null;
+        }
+        return months < 12 ? SAFE : months < 36 ? CAUTIOUS : months < 60 ? BALANCED : GROWTH;
+    }
+
+    static Goal goal(Map<String, Double> v, Double surplus) {
+        Double amount = v.get("GOAL_AMOUNT");
+        Double rawMonths = v.get("GOAL_MONTHS");
+        if (amount == null || amount <= 0 || rawMonths == null || rawMonths < 1) {
+            return null;
+        }
+        int months = (int) Math.round(rawMonths);
+        double have = v.getOrDefault("CASH", 0d) + v.getOrDefault("GOLD", 0d) + v.getOrDefault("CURRENCY", 0d)
+                + v.getOrDefault("STOCKS", 0d);
+        double monthly = surplus == null ? 0 : Math.max(0, surplus);
+        double projected = have + monthly * months;
+        double gap = amount - projected;
+        Double extraMonthly = gap > 0 ? gap / months : null;
+        Integer monthsNeeded = gap > 0 && monthly > 0 ? (int) Math.ceil((amount - have) / monthly) : null;
+        return new Goal(amount, months, projected, gap, extraMonthly, monthsNeeded);
+    }
+
+    static String lower(String a, String b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        return LEVELS.indexOf(a) <= LEVELS.indexOf(b) ? a : b;
     }
 
     public static Picture picture(Map<String, Double> v) {
@@ -191,7 +267,9 @@ public final class FinanceKit {
                 mix.put(id, v.getOrDefault(id, 0d) / financial * 100);
             }
         }
-        return new Picture(surplus, savingRate, instalmentShare, reserveMonths, netWorth, financial > 0 ? financial : null, mix);
+        String[] capacity = capacity(surplus, savingRate, instalmentShare, reserveMonths);
+        return new Picture(surplus, savingRate, instalmentShare, reserveMonths, netWorth, financial > 0 ? financial : null, mix,
+                capacity[0], capacity[1], goal(v, surplus));
     }
 
     // ------------------------------------------------------------------ the plan
@@ -203,7 +281,28 @@ public final class FinanceKit {
         }
     }
 
-    public record Scenario(String level, String title, String text, List<Share> shares, Map<String, Double> amounts) {
+    /** badYear: what a bad year can do to it, plainly, so nobody chooses it for the good years only. */
+    public record Scenario(String level, String title, String text, List<Share> shares, Map<String, Double> amounts,
+                           String badYear) {
+    }
+
+    /** A rough fall in a bad year, in percent: an order of size to see, not a forecast. */
+    static int[] badYearRange(String level) {
+        return switch (level) {
+            case SAFE -> new int[]{0, 5};
+            case CAUTIOUS -> new int[]{5, 10};
+            case BALANCED -> new int[]{15, 20};
+            default -> new int[]{25, 35};
+        };
+    }
+
+    static String badYear(String level, double investable) {
+        int[] range = badYearRange(level);
+        String text = "توی یه سال بد ممکنه ارزشش موقتاً حدود ٪" + range[0] + " تا ٪" + range[1] + " کم بشه";
+        if (investable > 0 && range[1] > 0) {
+            text += "، یعنی حدود " + amount(investable * range[0] / 100.0) + " تا " + amount(investable * range[1] / 100.0) + " میلیون";
+        }
+        return text + ". این پیش‌بینی نیست؛ اندازهٔ نوسانیه که باید تحملش رو داشته باشید.";
     }
 
     public record Step(String id, String title, String text) {
@@ -253,11 +352,25 @@ public final class FinanceKit {
         if (risks.isEmpty()) {
             return null;
         }
-        String profile = risks.stream().map(Risk::profile).min(java.util.Comparator.comparingInt(LEVELS::indexOf)).orElse(CAUTIOUS);
-        String capacity = risks.stream().map(Risk::capacityLevel).min(java.util.Comparator.comparingInt(LEVELS::indexOf)).orElse(CAUTIOUS);
-        String note = risks.size() > 1 && risks.stream().map(Risk::profile).distinct().count() > 1
-                ? "پروفایل‌هاتون فرق داره؛ برای پول مشترک، پروفایل محتاط‌تر ملاکه. برای سهم شخصی هرکدوم می‌تونید جدا تصمیم بگیرید."
-                : "";
+        String quizProfile = risks.stream().map(Risk::profile).min(java.util.Comparator.comparingInt(LEVELS::indexOf)).orElse(CAUTIOUS);
+        String quizCapacity = risks.stream().map(Risk::capacityLevel).min(java.util.Comparator.comparingInt(LEVELS::indexOf)).orElse(CAUTIOUS);
+        // three sides of risk, as advisers weigh it: how they feel (the quiz), what their figures can bear
+        // (the picture) and what the deadline allows; the path is the most careful of them
+        Picture picture = picture(v);
+        Goal goal = picture.goal();
+        String horizon = horizonCap(goal == null ? null : goal.months());
+        String profile = lower(lower(quizProfile, picture.capacityLevel()), horizon);
+        String capacity = lower(lower(quizCapacity, picture.capacityLevel()), horizon);
+        List<String> notes = new ArrayList<>();
+        if (risks.size() > 1 && risks.stream().map(Risk::profile).distinct().count() > 1) {
+            notes.add("پروفایل‌هاتون فرق داره؛ برای پول مشترک، پروفایل محتاط‌تر ملاکه. برای سهم شخصی هرکدوم می‌تونید جدا تصمیم بگیرید.");
+        }
+        if (!profile.equals(quizProfile)) {
+            notes.add(horizon != null && profile.equals(horizon) && !horizon.equals(picture.capacityLevel())
+                    ? "چون این پول رو " + goal.months() + " ماه دیگه لازم دارید، مسیر محتاط‌تری از نتیجهٔ آزمونک‌تون مناسبه: پول کوتاه‌مدت نباید درگیر نوسان بشه."
+                    : "عددهای تصویر مالی‌تون (" + capacityReason(picture.capacityWhy()) + ") می‌گه فعلاً توان تحمل ضرر کمتر از حسیه که توی آزمونک گفتید؛ برای همین مسیر محتاط‌تری اومده.");
+        }
+        String note = String.join(" ", notes);
 
         List<Step> steps = new ArrayList<>();
         Double essential = v.get("ESSENTIAL");
@@ -277,6 +390,14 @@ public final class FinanceKit {
         if ((income != null && income > 0 && instalments / income > 0.3) || v.getOrDefault("DEBTS", 0d) > 0 && income != null && v.get("DEBTS") > income * 6) {
             steps.add(new Step("DEBT", "بدهی‌های گرون و جریمه‌دار",
                     "قسط‌ها سهم سنگینی از درآمده. سودِ صاف کردن بدهی جریمه‌دار از تقریباً هر سرمایه‌گذاری‌ای مطمئن‌تره."));
+        }
+        if (goal != null && !goal.reachable()) {
+            StringBuilder ways = new StringBuilder("با پس‌انداز فعلی تا " + goal.months() + " ماه دیگه به حدود "
+                    + amount(goal.projected()) + " میلیون می‌رسید و هدف " + amount(goal.amount()) + " میلیونه. به‌جای ریسک بیشتر، سه راه هست: ");
+            ways.append(goal.monthsNeeded() == null ? "زمان بیشتر" : "زمان بیشتر (حدود " + goal.monthsNeeded() + " ماه)")
+                    .append("، پس‌انداز بیشتر (حدود ").append(amount(goal.extraMonthly())).append(" میلیون اضافه در ماه)")
+                    .append("، یا هدف کوچیک‌تر. عددها به قیمت امروزه.");
+            steps.add(new Step("GOAL", "هدف با زمان و پولتون جور نیست", ways.toString()));
         }
         double investable = Math.max(0, cash - reserve) + v.getOrDefault("GOLD", 0d) + v.getOrDefault("CURRENCY", 0d)
                 + v.getOrDefault("STOCKS", 0d);
@@ -298,9 +419,35 @@ public final class FinanceKit {
                 shares.forEach(share -> amounts.put(share.id(), investable * share.middle() / 100.0));
             }
             String title = profileTitle(level) + (level.equals(profile) ? " (هم‌اندازهٔ پروفایل)" : "");
-            scenarios.add(new Scenario(level, title, scenarioText(level), shares, amounts));
+            scenarios.add(new Scenario(level, title, scenarioText(level), shares, amounts, fa(badYear(level, investable))));
         }
-        return new Plan(profile, note, steps, investable, scenarios);
+        // what people read gets Persian digits
+        List<Step> shown = steps.stream().map(step -> new Step(step.id(), step.title(), fa(step.text()))).toList();
+        return new Plan(profile, fa(note), shown, investable, scenarios);
+    }
+
+    static String fa(String text) {
+        if (text == null) {
+            return null;
+        }
+        StringBuilder out = new StringBuilder(text.length());
+        for (char c : text.toCharArray()) {
+            out.append(c >= '0' && c <= '9' ? (char) ('۰' + (c - '0')) : c == ',' ? '٬' : c);
+        }
+        return out.toString();
+    }
+
+    static String capacityReason(String why) {
+        if (why == null) {
+            return "";
+        }
+        return switch (why) {
+            case "monthly spending is more than income" -> "خرج ماهانه از درآمد بیشتره";
+            case "less than one month of essential costs in cash" -> "کمتر از یک ماه هزینهٔ ضروری پول نقد دارید";
+            case "less than three months of essential costs in cash" -> "کمتر از سه ماه هزینهٔ ضروری پول نقد دارید";
+            case "instalments take more than 40% of income" -> "قسط‌ها بیشتر از ٪۴۰ درآمده";
+            default -> why;
+        };
     }
 
     static String amount(double millions) {
