@@ -1,0 +1,22 @@
+[
+  {
+    "title": "رها: پرسیدن لحظهٔ قبل از رفتار",
+    "agent": "raha",
+    "packet": "##BEINEMA_MODE=VOICE##\n[ROOM]\ntitle: گریهٔ صبح مدرسه\ncounselor: رها\n[PARTICIPANTS]\nOWNER=سارا\n[BRIEF]\naction=ASK_OPEN\nphase=UNDERSTAND\naddressee=OWNER (سارا)\npurpose=find the moment right before the crying (A of the episode)\ndo=Ask one concrete question: at which exact moment of the morning does the crying start: waking up, breakfast, leaving the house, or at the school gate? No reassurance, no advice.\nmust_not=do not restate or paraphrase what they wrote, and do not state guesses about them; no advice, tip, step, plan, reading or label: this turn only gets to know them or puts a guess to them\nlength=SHORT\nlead=NONE\ngovernance=NONE\nsafety=NONE\n[RECENT_MESSAGES]\n#11 OWNER سارا: بچه ام خیلی گریه میکنه به خصوص صبح موقع مدرسه رفتن\n#12 COUNSELOR: برای اینکه بفهمم دقیقاً چی این گریه رو راه می‌ندازه، چند سالشه؟\n#13 OWNER سارا: 7 سالشه کلاس اول\n[LATEST]\n#13 OWNER سارا: 7 سالشه کلاس اول\n"
+  },
+  {
+    "title": "رها: توصیه بعد از برداشت تأییدشده",
+    "agent": "raha",
+    "packet": "##BEINEMA_MODE=VOICE##\n[ROOM]\ntitle: گریهٔ صبح مدرسه\ncounselor: رها\n[PARTICIPANTS]\nOWNER=سارا\n[BRIEF]\naction=RESPOND\nphase=ADVISE\naddressee=OWNER (سارا)\npurpose=give one concrete way to make the goodbye short and the same every day\ndo=The confirmed reading: staying at the gate until he calms keeps the goodbye going, so it happens twice. Advise from tomorrow: one short goodbye, the same every day: a hug, the sentence «دوستت دارم، بعد از مدرسه میام دنبالت», his hand in the teacher's hand, and leave even if he still cries. Say the first two or three days may be harder and it usually settles within one or two weeks. Then ask what she says to him at that moment now.\nmust_not=do not restate or paraphrase what they wrote, and do not state guesses about them\nlength=MEDIUM\nlead=NONE\ngovernance=NONE\nsafety=NONE\n[RECENT_MESSAGES]\n#15 OWNER سارا: دم در مدرسه وقتی میخوام برم بغلم میکنه و ولم نمیکنه\n#17 OWNER سارا: میمونم تا آروم شه، گاهی ده دقیقه. بعد معلم میاد میبرتش و باز گریه میکنه\n#19 OWNER سارا: آره همینه. حالا چیکار کنم؟\n[LATEST]\n#19 OWNER سارا: آره همینه. حالا چیکار کنم؟\n"
+  },
+  {
+    "title": "نینا: لحظهٔ سخت عاطفی",
+    "agent": "nina",
+    "packet": "##BEINEMA_MODE=VOICE##\n[ROOM]\ntitle: دعوای همیشگی\ncounselor: نینا\n[PARTICIPANTS]\nOWNER=مریم\nMEMBER=علی\n[BRIEF]\naction=RESPOND\nphase=UNDERSTAND\naddressee=OWNER (مریم)\npurpose=let her feel heard after a painful line, then one gentle question\ndo=She just wrote she feels alone in this marriage. One short human sentence that takes this seriously, no advice, no reassurance that it will be fine, then ask gently since when she has felt this way.\nmust_not=do not restate or paraphrase what they wrote, and do not state guesses about them; no advice, tip, step, plan, reading or label: this turn only gets to know them or puts a guess to them; do not take a side\nlength=SHORT\nlead=NONE\ngovernance=NONE\nsafety=NONE\n[RECENT_MESSAGES]\n#40 MEMBER علی: من همه کار براش می‌کنم ولی هیچ‌وقت راضی نیست\n#41 OWNER مریم: من توی این زندگی خیلی تنهام. حتی وقتی کنارمه\n[LATEST]\n#41 OWNER مریم: من توی این زندگی خیلی تنهام. حتی وقتی کنارمه\n"
+  },
+  {
+    "title": "پوریا: هدف دور از دسترس",
+    "agent": "pouria",
+    "packet": "##BEINEMA_MODE=VOICE##\n[ROOM]\ntitle: خرید خونه\ncounselor: پوریا\n[PARTICIPANTS]\nOWNER=رضا\n[BRIEF]\naction=RESPOND\nphase=ADVISE\naddressee=OWNER (رضا)\npurpose=show honestly that the goal does not fit the time and money, and the three ways out\ndo=With 100 million now and about 10 million saved a month, in 12 months they reach about 220 million; the goal is 1000 million. Say plainly that more risk is not the answer. Give the three ways with numbers: more time (about 90 months at this saving), about 65 million more a month, or a smaller goal. Ask which of the three is closer to their life.\nmust_not=do not restate or paraphrase what they wrote, and do not state guesses about them; never name a fund, share or coin seller; never promise a return\nlength=MEDIUM\nlead=NONE\ngovernance=NONE\nsafety=NONE\n[RECENT_MESSAGES]\n#70 OWNER رضا: می‌خوام تا یه سال دیگه یه میلیارد داشته باشم برای پیش‌خرید خونه\n#72 OWNER رضا: الان صد میلیون دارم، ماهی ده تومن هم پس‌انداز می‌کنم\n[LATEST]\n#72 OWNER رضا: الان صد میلیون دارم، ماهی ده تومن هم پس‌انداز می‌کنم\n"
+  }
+]
