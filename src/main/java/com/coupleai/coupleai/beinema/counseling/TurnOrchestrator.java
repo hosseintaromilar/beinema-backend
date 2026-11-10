@@ -334,7 +334,8 @@ public class TurnOrchestrator {
             // the thank-you after consent is one paragraph, never a run of short messages
             items = oneParagraph(items);
         }
-        if (kit) {
+        // a lesson card goes to its one reader in any companion that teaches; the rest of the kit is Elika's
+        if (kit || d.teachCardId != null) {
             addKitCards(m, d, items, notes);
         }
         if (finance) {
