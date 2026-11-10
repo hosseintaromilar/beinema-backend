@@ -13,6 +13,7 @@ import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.insight.RelationshipInsightService;
 import com.coupleai.coupleai.beinema.mail.AdminEmailService;
 import com.coupleai.coupleai.beinema.mail.SmtpMailer;
+import com.coupleai.coupleai.beinema.teach.LessonDigest;
 import com.coupleai.coupleai.beinema.market.MarketDataService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,6 +81,13 @@ public class MirrorReportService {
     private final String siteUrl;
     private final TransactionTemplate readOnly;
 
+    /** Each person's own lesson cards ride in their own mirror email, or go on their own. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private LessonDigest lessons;
+
+    /** On a night without a mirror for them, the lessons go alone once the mirrors had time to be written. */
+    static final java.time.Duration LESSONS_ALONE_AFTER = java.time.Duration.ofMinutes(45);
+
     public MirrorReportService(MirrorReportRepository reports, SessionRecordRepository sessions, ChatRoomRepository rooms,
                                ChatRoomParticipantRepository participants, UserRepository users,
                                RelationshipInsightService insights, SmtpMailer mailer, ObjectMapper objectMapper,
@@ -122,14 +130,53 @@ public class MirrorReportService {
         }
         perRoom.forEach((roomId, count) -> {
             try {
-                write(roomId, day, count, from);
+                write(roomId, day, count, from, to);
             } catch (RuntimeException failure) {
                 log.warn("Mirror of room {} for {} failed: {}", roomId, day, failure.getMessage());
             }
         });
+        if (!Instant.now().isBefore(to.plus(LESSONS_ALONE_AFTER))) {
+            try {
+                lessonsAlone(to);
+            } catch (RuntimeException failure) {
+                log.warn("Lesson emails for {} failed: {}", day, failure.getMessage());
+            }
+        }
     }
 
-    private void write(Long roomId, LocalDate day, int sessionsCount, Instant since) {
+    /** The lessons of people who got no mirror tonight, in a short email of their own. */
+    void lessonsAlone(Instant cutoff) {
+        if (lessons == null || !mailer.configured()) {
+            return;
+        }
+        lessons.due(cutoff).forEach((userId, due) -> {
+            User user = users.findById(userId).orElse(null);
+            String to = user == null ? null : AdminEmailService.address(user);
+            if (to == null || Boolean.TRUE.equals(user.getMirrorEmailOff())) {
+                return;
+            }
+            String stopUrl = siteUrl + "/api/email/mirror-off?u=" + user.getId() + "&t=" + token(user.getId());
+            String name = firstName(user);
+            String body = "<div style=\"font-size:15px;line-height:2;margin:0 0 14px;\">"
+                    + (name == null ? "سلام،" : "سلام " + MirrorLetter.esc(name) + "،") + "</div>"
+                    + LessonDigest.html(due, siteUrl + "/dashboard/lessons");
+            String subject = LessonDigest.subject(due);
+            Map<String, String> headers = new LinkedHashMap<>();
+            headers.put("List-Unsubscribe", "<" + stopUrl + ">");
+            headers.put("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+            try {
+                mailer.send(new SmtpMailer.Mail(to, "no-reply@beinema.ir", "بین‌ما", subject,
+                        (name == null ? "سلام،" : "سلام " + name + "،") + LessonDigest.text(due, siteUrl + "/dashboard/lessons")
+                                + "\n—\nدیگر ایمیل شبانه نفرست: " + stopUrl,
+                        MirrorLetter.frame(subject, "درس امروزت", body, stopUrl, "دیگر ایمیل شبانه نفرست"), null, headers));
+                lessons.sent(due, Instant.now());
+            } catch (RuntimeException failure) {
+                log.warn("Lesson email to user {} failed: {}", userId, failure.getMessage());
+            }
+        });
+    }
+
+    private void write(Long roomId, LocalDate day, int sessionsCount, Instant since, Instant cutoff) {
         MirrorReport report = reports.findByChatRoomIdAndDay(roomId, day).orElseGet(() -> {
             MirrorReport fresh = new MirrorReport();
             fresh.setChatRoomId(roomId);
@@ -174,14 +221,14 @@ public class MirrorReportService {
         report = reports.save(report);
         MirrorReport written = report;
         // the members and their users load lazily: read them inside a transaction
-        Integer emailed = readOnly.execute(status -> email(rooms.findById(roomId).orElse(room), written));
+        Integer emailed = readOnly.execute(status -> email(rooms.findById(roomId).orElse(room), written, cutoff));
         report.setEmailed(emailed == null ? 0 : emailed);
         reports.save(report);
         log.info("Mirror of room {} for {} written; emailed to {}", roomId, day, report.getEmailed());
     }
 
     /** To each active member with an email address who has not turned this off. */
-    private int email(ChatRoom room, MirrorReport report) {
+    private int email(ChatRoom room, MirrorReport report, Instant cutoff) {
         if (!mailer.configured()) {
             return 0;
         }
@@ -198,13 +245,20 @@ public class MirrorReportService {
                 continue;
             }
             MirrorLetter.Content content = content(room, report, user);
+            // this person's own lesson cards, in their email only
+            List<LessonDigest.Due> due = lessons == null ? List.of() : lessons.dueFor(user.getId(), cutoff);
+            String lessonsUrl = siteUrl + "/dashboard/lessons";
             try {
                 Map<String, String> headers = new LinkedHashMap<>();
                 headers.put("List-Unsubscribe", "<" + content.stopUrl() + ">");
                 headers.put("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
                 mailer.send(new SmtpMailer.Mail(to, "no-reply@beinema.ir", "بین‌ما", MirrorLetter.subject(content),
-                        MirrorLetter.text(content), MirrorLetter.html(content), null, headers));
+                        MirrorLetter.text(content, due.isEmpty() ? "" : LessonDigest.text(due, lessonsUrl)),
+                        MirrorLetter.html(content, due.isEmpty() ? "" : LessonDigest.html(due, lessonsUrl)), null, headers));
                 sent++;
+                if (!due.isEmpty()) {
+                    lessons.sent(due, Instant.now());
+                }
             } catch (RuntimeException failure) {
                 log.warn("Mirror email of room {} to user {} failed: {}", room.getId(), user.getId(), failure.getMessage());
             }
@@ -259,9 +313,13 @@ public class MirrorReportService {
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put("List-Unsubscribe", "<" + stopUrl + ">");
         headers.put("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+        // their newest lesson card, so the sample shows that block too (nothing is marked as sent)
+        List<LessonDigest.Due> myLessons = lessons == null ? List.of() : lessons.newestFor(user.getId());
+        String lessonsUrl = siteUrl + "/dashboard/lessons";
         try {
             mailer.send(new SmtpMailer.Mail(to, "no-reply@beinema.ir", "بین‌ما", MirrorLetter.subject(content) + " (نمونه)",
-                    MirrorLetter.text(content), MirrorLetter.html(content), null, headers));
+                    MirrorLetter.text(content, myLessons.isEmpty() ? "" : LessonDigest.text(myLessons, lessonsUrl)),
+                    MirrorLetter.html(content, myLessons.isEmpty() ? "" : LessonDigest.html(myLessons, lessonsUrl)), null, headers));
         } catch (IllegalStateException failure) {
             throw new IllegalArgumentException("سرور ایمیل نمونه را نپذیرفت. کمی بعد دوباره امتحان کن.");
         }

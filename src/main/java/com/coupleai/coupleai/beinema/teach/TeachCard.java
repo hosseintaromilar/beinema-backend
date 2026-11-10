@@ -60,4 +60,12 @@ public class TeachCard extends BaseEntity {
     /** True when the teacher fitted it; false when the lesson's own words were used. */
     @Column(name = "fitted", nullable = false)
     private boolean fitted;
+
+    /** When it went out in the nightly email (with the mirror or on its own); null: not yet. */
+    @Column(name = "emailed_at")
+    private java.time.Instant emailedAt;
+
+    /** When its unanswered question was recalled once more, the night after; null: not yet. */
+    @Column(name = "reminded_at")
+    private java.time.Instant remindedAt;
 }

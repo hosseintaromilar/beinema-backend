@@ -27,6 +27,11 @@ public final class MirrorLetter {
     }
 
     public static String html(Content c) {
+        return html(c, "");
+    }
+
+    /** extra: a block that is this reader's alone (their lesson cards), before the privacy note. */
+    public static String html(Content c, String extra) {
         StringBuilder body = new StringBuilder();
         body.append("<div style=\"font-size:15px;line-height:2;margin:0 0 6px;\">")
                 .append(c.greetingName() == null ? "سلام،" : "سلام " + esc(c.greetingName()) + "،")
@@ -65,12 +70,19 @@ public final class MirrorLetter {
                 .append("color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 28px;border-radius:999px;\">")
                 .append("دیدن آینه در بین‌ما</a></div>");
 
+        body.append(extra == null ? "" : extra);
+
         body.append("<div style=\"background:#f2e3cd;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#543c27;line-height:1.9;\">")
                 .append("🔒 ").append(PRIVACY)
                 .append(" این آینهٔ رابطه است، نه کارنامهٔ کسی، و جای متخصص را نمی‌گیرد.</div>");
 
+        return frame(subject(c), "آینهٔ امروز · " + esc(c.date()), body.toString(), c.stopUrl(), "دیگر آینه را ایمیل نکن");
+    }
+
+    /** The letter around a body: the header with the logo, the card, and the footer with the stop link. */
+    public static String frame(String title, String headerLine, String body, String stopUrl, String stopLabel) {
         return "<!doctype html><html lang=\"fa\" dir=\"rtl\"><head><meta charset=\"utf-8\">"
-                + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + esc(subject(c)) + "</title></head>"
+                + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + esc(title) + "</title></head>"
                 + "<body style=\"margin:0;padding:24px 12px;background:#f6ede1;font-family:Vazirmatn,Tahoma,Arial,sans-serif;color:#3a2f27;\">"
                 + "<div style=\"max-width:580px;margin:0 auto;direction:rtl;text-align:right;\">"
                 + "<div style=\"background:#4f5235;border-radius:20px 20px 0 0;padding:18px 22px;color:#fcf2e6;\">"
@@ -78,19 +90,23 @@ public final class MirrorLetter {
                 + "<td style=\"vertical-align:middle;padding-left:12px;\"><img src=\"" + MailLogo.URL + "\" width=\"48\" height=\"48\" alt=\"بین‌ما\" "
                 + "style=\"display:block;width:48px;height:48px;border-radius:14px;border:0;\"></td>"
                 + "<td style=\"vertical-align:middle;\"><div style=\"font-size:22px;font-weight:bold;line-height:1.3;\">بین‌ما</div>"
-                + "<div style=\"font-size:14px;opacity:.85;margin-top:2px;\">آینهٔ امروز · " + esc(c.date()) + "</div></td>"
+                + "<div style=\"font-size:14px;opacity:.85;margin-top:2px;\">" + headerLine + "</div></td>"
                 + "</tr></table></div>"
                 + "<div style=\"background:#fffaf3;border:1px solid #ecdcc5;border-top:0;border-radius:0 0 20px 20px;padding:22px;\">"
                 + body
                 + "</div>"
                 + "<div style=\"text-align:center;font-size:12px;color:#8a7563;margin-top:14px;line-height:2;\">"
                 + "<a href=\"https://beinema.ir\" style=\"color:#b86b4b;text-decoration:none;\">beinema.ir</a>"
-                + " · <a href=\"" + esc(c.stopUrl()) + "\" style=\"color:#8a7563;\">دیگر آینه را ایمیل نکن</a>"
+                + " · <a href=\"" + esc(stopUrl) + "\" style=\"color:#8a7563;\">" + stopLabel + "</a>"
                 + "<br>این ایمیل خودکار است؛ لطفاً به آن جواب ندهید."
                 + "</div></div></body></html>";
     }
 
     public static String text(Content c) {
+        return text(c, "");
+    }
+
+    public static String text(Content c, String extra) {
         StringBuilder out = new StringBuilder();
         out.append(c.greetingName() == null ? "سلام،" : "سلام " + c.greetingName() + "،").append("\n\n")
                 .append("آینهٔ امروزِ گفتگوی «").append(c.roomTitle()).append("» (").append(c.date()).append(") آماده است.\n\n");
@@ -117,7 +133,7 @@ public final class MirrorLetter {
         if (notBlank(c.nextStep())) {
             out.append("قدم کوچک بعدی: ").append(c.nextStep()).append("\n\n");
         }
-        out.append("دیدن آینه در بین‌ما: ").append(c.roomUrl()).append("\n\n")
+        out.append("دیدن آینه در بین‌ما: ").append(c.roomUrl()).append(extra == null ? "" : extra).append("\n\n")
                 .append(PRIVACY).append("\n\n")
                 .append("—\nدیگر آینه را ایمیل نکن: ").append(c.stopUrl());
         return out.toString();
