@@ -133,4 +133,11 @@ class WelcomeGuideTest {
         assertFalse(text.contains("بین‌ما بین‌ما"));
         assertFalse(text.contains("{"));
     }
+
+    @org.junit.jupiter.api.Test
+    void theAiClauseIsInTheRulesTheyAcceptButNeverSaidByTheCompanion() {
+        String accepted = WelcomeGuide.rules(45, 15, 15, 3, true);
+        org.junit.jupiter.api.Assertions.assertTrue(accepted.endsWith("بین‌ما بر پایهٔ هوش مصنوعی کار می‌کند و ممکن است اشتباه کند."));
+        org.junit.jupiter.api.Assertions.assertFalse(owner("").contains("هوش مصنوعی کار می‌کند"), "the welcome in the chat does not carry it");
+    }
 }

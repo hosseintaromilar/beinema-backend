@@ -100,7 +100,8 @@ public final class WelcomeGuide {
                 .replace("{break_minutes}", persianDigits(breakMinutes))
                 .replace("{overtime_minutes}", persianDigits(overtimeMinutes))
                 .replace("{max_sessions}", persianDigits(maxSessions));
-        return (process + "\n\n" + s.get("rules")).trim();
+        // the AI clause is part of what they accept here only; the companion never says it in the chat
+        return (process + "\n\n" + s.get("rules").trim() + "\n" + s.get("ai_notice").trim()).trim();
     }
 
     /**
@@ -183,7 +184,7 @@ public final class WelcomeGuide {
         }
         for (String required : new String[]{"welcome_owner", "welcome_partner", "welcome_partner_here", "welcome_started",
                 "owner", "owner_invite", "owner_partner_here", "partner", "partner_started",
-                "process", "rules", "framework_relationship", "framework_general", "consented_first", "consented_joined"}) {
+                "process", "rules", "framework_relationship", "framework_general", "consented_first", "consented_joined", "ai_notice"}) {
             if (!parsed.containsKey(required)) {
                 throw new IllegalStateException(FILE + " has no [[" + required + "]] section");
             }
