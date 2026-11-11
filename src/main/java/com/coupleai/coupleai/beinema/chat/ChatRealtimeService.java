@@ -175,15 +175,43 @@ public class ChatRealtimeService {
      */
     @Transactional
     public void reactAndPublish(Long chatRoomId, Long messageId, String token) {
-        if (chatRoomId == null || messageId == null || token == null || token.isBlank()) {
+        react(chatRoomId, messageId, token, false);
+    }
+
+    /**
+     * The same, only when the message has no sticker yet: the early sticker (picked while the
+     * counselor still thinks) and the director's own never replace each other.
+     */
+    @Transactional
+    public boolean reactIfNoneAndPublish(Long chatRoomId, Long messageId, String token) {
+        return react(chatRoomId, messageId, token, true);
+    }
+
+    /** Takes the counselor's sticker off a message (an early one that does not fit the turn after all). */
+    @Transactional
+    public void clearReactionAndPublish(Long chatRoomId, Long messageId) {
+        Message target = chatRoomId == null || messageId == null ? null : messageRepository.findById(messageId).orElse(null);
+        if (target == null || target.getChatRoom() == null || !chatRoomId.equals(target.getChatRoom().getId())
+                || target.getAgentReaction() == null) {
             return;
+        }
+        target.setAgentReaction(null);
+        messageRepository.saveAndFlush(target);
+        chatRoomEventHub.publishNamed(chatRoomId, "message_reaction",
+                java.util.Map.of("messageId", messageId, "token", "", "emoji", ""));
+    }
+
+    private boolean react(Long chatRoomId, Long messageId, String token, boolean onlyIfNone) {
+        if (chatRoomId == null || messageId == null || token == null || token.isBlank()) {
+            return false;
         }
         Message target = messageRepository.findById(messageId).orElse(null);
         if (target == null
                 || target.getChatRoom() == null
                 || !chatRoomId.equals(target.getChatRoom().getId())
-                || target.getSenderType() != MessageSenderType.USER) {
-            return;
+                || target.getSenderType() != MessageSenderType.USER
+                || (onlyIfNone && target.getAgentReaction() != null && !target.getAgentReaction().isBlank())) {
+            return false;
         }
         target.setAgentReaction(token);
         messageRepository.saveAndFlush(target);
@@ -196,6 +224,7 @@ public class ChatRealtimeService {
                         "emoji", String.valueOf(CounselorSignal.emojiFor(token))
                 )
         );
+        return true;
     }
 
     /** A sticker of the session's own moment (waiting for the partner, the end), in the companion's name. */

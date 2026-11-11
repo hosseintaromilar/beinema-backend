@@ -162,9 +162,14 @@ public class TurnOrchestrator {
                 .filter(text -> text != null && !text.isBlank())
                 .collect(Collectors.joining("\n"));
         chatRealtimeService.publishAgentTyping(roomId, 9000, written.isEmpty() ? "opening" : "thinking");
+        // a small sticker under the message at once, picked with the line; never while safety is in question
+        StatusLineWriter.Early early = trigger != null && !m.screen().high()
+                && (m.snapshot().safety.level == null || "NONE".equals(m.snapshot().safety.level))
+                ? new StatusLineWriter.Early(trigger, recentReactions(m.recent()))
+                : null;
         if (statusLines != null && !written.isEmpty()) {
             // next to the real turn: a short line about what was just written
-            statusLines.startFor(roomId, written);
+            statusLines.startFor(roomId, written, early);
         }
 
         // the gate: has going on here become pointless? Then they are asked, and nothing else happens
@@ -201,6 +206,15 @@ public class TurnOrchestrator {
             return runTurn(roomId, false);
         }
         DirectorDecision d = decided.decision();
+        if (early != null && early.decide()) {
+            // the early sticker is already under the message: it stays as the turn's only one, unless the
+            // turn turned out to be about safety or a pause, where a cheerful sign does not belong
+            if (d.action.startsWith("SAFETY_") || !"NONE".equals(d.gov)
+                    || (d.safetyLevel != null && !"NONE".equals(d.safetyLevel))) {
+                chatRealtimeService.clearReactionAndPublish(roomId, early.messageId());
+            }
+            d.react = null;
+        }
         if (trigger == null && d.silent()) {
             // a moment of the session is never met with silence
             d.notes.add("moment: a silent decision became RESPOND");
@@ -353,6 +367,15 @@ public class TurnOrchestrator {
         }
         deliver(roomId, agentId, trigger, items.get(0));
         return new Outcome(roomId, agentId, trigger, new ArrayList<>(items.subList(1, items.size())), true, false, null);
+    }
+
+    /** The last few stickers put under their messages, so the next one can be a different one. */
+    static List<String> recentReactions(List<Message> recent) {
+        List<String> tokens = recent.stream()
+                .map(Message::getAgentReaction)
+                .filter(token -> token != null && !token.isBlank())
+                .toList();
+        return tokens.subList(Math.max(0, tokens.size() - 4), tokens.size());
     }
 
     /** People are not left guessing: once in a while, a line in the room that the companion cannot answer now. */
