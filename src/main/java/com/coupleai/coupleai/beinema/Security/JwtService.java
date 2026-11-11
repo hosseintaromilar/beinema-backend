@@ -108,6 +108,11 @@ public class JwtService {
     }
 
 
+    /** When this sign-in happened (the token was made). */
+    public Date extractIssuedAt(String token) {
+        return extractAllClaims(token).getIssuedAt();
+    }
+
     public Date extractExpiration(
 
             String token

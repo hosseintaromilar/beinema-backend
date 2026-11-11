@@ -20,6 +20,7 @@ public class MirrorController {
 
     private final MirrorReportService mirrors;
     private final CurrentUserService currentUserService;
+    private final com.coupleai.coupleai.beinema.lock.RoomLockService roomLocks;
 
     @GetMapping("/api/chat-rooms/{chatRoomId}/mirrors")
     public List<MirrorReportService.View> history(@PathVariable Long chatRoomId) {
@@ -28,7 +29,11 @@ public class MirrorController {
 
     @GetMapping("/api/mirrors/recent")
     public List<MirrorReportService.View> recent() {
-        return mirrors.recent(currentUserService.getCurrentUser());
+        // a locked conversation shows nothing of itself outside its door
+        var me = currentUserService.getCurrentUser();
+        List<MirrorReportService.View> recent = mirrors.recent(me);
+        var locked = roomLocks.lockedRooms(me.getId(), recent.stream().map(MirrorReportService.View::chatRoomId).toList());
+        return recent.stream().filter(view -> !locked.contains(view.chatRoomId())).toList();
     }
 
     /** An admin sends a sample mirror to their own address, to see it and try its links. */

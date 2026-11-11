@@ -59,6 +59,7 @@ public class ChatRoomService {
     private final GovernanceLogRepository governanceLogRepository;
     private final EntityManager entityManager;
     private final ChatFileService chatFileService;
+    private final com.coupleai.coupleai.beinema.lock.RoomLockService roomLockService;
     private final SessionLifecycleService sessionLifecycleService;
     private final com.coupleai.coupleai.beinema.Repository.SessionSummaryRepository sessionSummaryRepository;
     private final com.coupleai.coupleai.beinema.Repository.SessionParticipantSummaryRepository sessionParticipantSummaryRepository;
@@ -689,6 +690,7 @@ public class ChatRoomService {
         agentAccessRepository.deleteByChatRoomId(chatRoomId);
         governanceLogRepository.deleteByChatRoomId(chatRoomId);
         chatFileService.deleteRoomFiles(chatRoomId);
+        roomLockService.deleteRoom(chatRoomId);
         participantRepository.deleteAllByChatRoom(chatRoom);
         chatRoomAgentRepository.deleteAllByChatRoom(chatRoom);
         messageRepository.deleteAllByChatRoom(chatRoom);
@@ -827,7 +829,17 @@ public class ChatRoomService {
                 .session(sessionLifecycleService.describe(sessionLifecycleService.refresh(chatRoom)))
                 .counselorStateAvailable(canSeeCounselorState())
                 .insightUnread(insightUnread(chatRoom))
+                .locked(lockedForMe(chatRoom))
                 .build();
+    }
+
+
+    private boolean lockedForMe(ChatRoom chatRoom) {
+        try {
+            return roomLockService.isLocked(currentUserService.getCurrentUser().getId(), chatRoom.getId());
+        } catch (RuntimeException noUser) {
+            return false;
+        }
     }
 
 

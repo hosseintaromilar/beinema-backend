@@ -46,4 +46,7 @@ public class ChatRoomResponse {
     /** A new relationship path this person has not opened yet (the «1» badge). */
     private Boolean insightUnread;
 
+    /** This person locked the conversation with a PIN of their own. */
+    private Boolean locked;
+
 }

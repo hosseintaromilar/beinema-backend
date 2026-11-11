@@ -82,4 +82,6 @@ public interface ChatRoomParticipantRepository
 
     @Query("select p from ChatRoomParticipant p join fetch p.chatRoom where p.user.id = :userId order by p.id desc")
     List<ChatRoomParticipant> findAllForUser(@Param("userId") Long userId);
+
+    boolean existsByChatRoom_IdAndUser_Id(Long chatRoomId, Long userId);
 }

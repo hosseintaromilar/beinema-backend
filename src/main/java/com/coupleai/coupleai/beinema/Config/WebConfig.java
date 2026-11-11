@@ -3,6 +3,7 @@ package com.coupleai.coupleai.beinema.Config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.CacheControl;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -14,6 +15,18 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Value("${beinema.upload.dir:uploads}")
     private String uploadDir;
+
+    private final com.coupleai.coupleai.beinema.lock.RoomLockInterceptor roomLockInterceptor;
+
+    public WebConfig(com.coupleai.coupleai.beinema.lock.RoomLockInterceptor roomLockInterceptor) {
+        this.roomLockInterceptor = roomLockInterceptor;
+    }
+
+    /** A locked conversation opens only with its key (RoomLockInterceptor). */
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(roomLockInterceptor).addPathPatterns("/api/chat-rooms/**");
+    }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
