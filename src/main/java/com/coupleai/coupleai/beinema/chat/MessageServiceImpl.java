@@ -312,6 +312,10 @@ public class MessageServiceImpl implements MessageService {
             SendMessageRequest request
     ) {
 
+        if (request != null && com.coupleai.coupleai.beinema.Util.MessageLimits.tooLong(request.getContent())) {
+            throw new IllegalArgumentException(com.coupleai.coupleai.beinema.Util.MessageLimits.TOO_LONG);
+        }
+
         /*
          * 1. Validate chat room access.
          */

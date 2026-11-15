@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 public class SendMessageRequest {
 
-    @Size(max = 10000, message = "متن پیام بیش از حد طولانی است.")
+    @Size(max = com.coupleai.coupleai.beinema.Util.MessageLimits.MAX_CHARS, message = com.coupleai.coupleai.beinema.Util.MessageLimits.TOO_LONG)
     private String content;
 
     /** Optional: the message this one replies to (must belong to the same room). */

@@ -37,7 +37,7 @@ public class ConfidentialMessageService {
     private static final Logger log = LoggerFactory.getLogger(ConfidentialMessageService.class);
 
     public static final String MODE = "##BEINEMA_MODE=PRIVATE##";
-    static final int MAX_TEXT = 2000;
+    static final int MAX_TEXT = com.coupleai.coupleai.beinema.Util.MessageLimits.MAX_CHARS;
     static final int MAX_PER_DAY = 5;
     private static final int SHARED_WINDOW = 6;
     private static final int OWN_WINDOW = 4;

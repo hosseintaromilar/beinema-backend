@@ -22,7 +22,7 @@ class SignupGuardTest {
 
     private static final String DEVICE = "3f2a9c1e-7b44-4d0a-9e1f-0c6d2b8a5e77";
     private final UserRepository users = mock(UserRepository.class);
-    private final SignupGuard guard = new SignupGuard(users, 2, 20);
+    private final SignupGuard guard = new SignupGuard(users, 2);
     private MockHttpServletRequest request;
 
     @BeforeEach
@@ -47,11 +47,9 @@ class SignupGuardTest {
     }
 
     @Test
-    void manyPeopleShareAnAddressSoItsLimitIsWide() {
-        when(users.countByCreatedAtAfterAndSignupIp(any(), eq("5.1.2.3"))).thenReturn(19L);
+    void theAddressIsNoLimitBecauseManyPeopleShareOne() {
+        when(users.countByCreatedAtAfterAndSignupIp(any(), eq("5.1.2.3"))).thenReturn(500L);
         assertDoesNotThrow(guard::requireRoom);
-        when(users.countByCreatedAtAfterAndSignupIp(any(), eq("5.1.2.3"))).thenReturn(20L);
-        assertThrows(IllegalArgumentException.class, guard::requireRoom);
     }
 
     @Test
