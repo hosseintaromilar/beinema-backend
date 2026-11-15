@@ -197,7 +197,9 @@ public class StatusLineWriter {
     }
 
     private static String clean(String line) {
-        String text = line.replaceAll("[\"«»“”]", "").replaceAll("[.…]+$", "").strip();
+        // the line speaks to the person: «حرفت», never «حرفم» or «حرفی»
+        String text = line.replaceAll("[\"«»“”]", "").replaceAll("[.…]+$", "").strip()
+                .replaceFirst("^دارم به حرف(م|ی|تون|تان)(?=[\\s‌])", "دارم به حرفت");
         return text.length() > MAX_LINE ? "" : text;
     }
 }
