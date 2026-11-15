@@ -44,6 +44,23 @@ import java.util.Locale;
 @Service
 public class EmailAuthService {
 
+    /** New accounts a day per device and address; optional (absent in the tests that build this by hand). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.Security.SignupGuard signupGuard;
+
+    private void requireSignupRoom() {
+        if (signupGuard != null) {
+            signupGuard.requireRoom();
+        }
+    }
+
+    /** A new account keeps where it was made, for the limit above. */
+    private void countSignup(User user) {
+        if (signupGuard != null && signupGuard.stamp(user)) {
+            userRepository.save(user);
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(EmailAuthService.class);
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -158,6 +175,7 @@ public class EmailAuthService {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("این ایمیل به حساب دیگری وصل است؛ به پشتیبانی پیام بده.");
         }
+        requireSignupRoom();
         User user = userRepository.save(User.builder()
                 .name(first + " " + last)
                 .firstName(first)
@@ -173,6 +191,7 @@ public class EmailAuthService {
                 .signupIp(ip)
                 .build());
         walletService.getOrCreate(user);
+        countSignup(user);
         referralService.rewardNewUser(user, referralCode);
         confirm(user, normalized);
         return authService.signIn(user);
@@ -241,6 +260,7 @@ public class EmailAuthService {
             if (ip != null && userRepository.countByCreatedAtAfterAndSignupIp(LocalDateTime.now().minusDays(1), ip) >= SIGNUPS_PER_IP_PER_DAY) {
                 throw new IllegalArgumentException("از این اینترنت امروز چند حساب ساخته شده؛ فردا دوباره امتحان کن.");
             }
+            requireSignupRoom();
             existing = userRepository.save(User.builder()
                     .name(name)
                     .email(email)
@@ -254,6 +274,7 @@ public class EmailAuthService {
                     .signupIp(ip)
                     .build());
             walletService.getOrCreate(existing);
+            countSignup(existing);
             referralService.rewardNewUser(existing, referralCode);
         } else {
             existing.setName(name);

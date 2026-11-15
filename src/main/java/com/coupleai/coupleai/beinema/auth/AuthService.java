@@ -61,6 +61,23 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 @Transactional
 public class AuthService {
 
+    /** New accounts a day per device and address; optional (absent in the tests that build this by hand). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.Security.SignupGuard signupGuard;
+
+    private void requireSignupRoom() {
+        if (signupGuard != null) {
+            signupGuard.requireRoom();
+        }
+    }
+
+    /** A new account keeps where it was made, for the limit above. */
+    private void countSignup(User user) {
+        if (signupGuard != null && signupGuard.stamp(user)) {
+            userRepository.save(user);
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     public static final String PHONE_EMAIL_SUFFIX = "@users.beinema";
@@ -149,6 +166,7 @@ public class AuthService {
         if (userRepository.existsByUsername(username) || userRepository.existsByEmail(username + PHONE_EMAIL_SUFFIX)) {
             throw new IllegalArgumentException("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
         }
+        requireSignupRoom();
 
         User saved = userRepository.save(User.builder()
                 .name("")
@@ -161,6 +179,7 @@ public class AuthService {
                 .emailVerified(false)
                 .build());
         walletService.getOrCreate(saved);
+        countSignup(saved);
         referralService.rewardNewUser(saved, request.getReferralCode());
         return openSession(saved, null);
     }
@@ -415,8 +434,10 @@ public class AuthService {
                 .emailVerified(false)
                 .build();
 
+        requireSignupRoom();
         User saved = userRepository.save(user);
         walletService.getOrCreate(saved);
+        countSignup(saved);
         return saved;
     }
 
@@ -581,6 +602,7 @@ public class AuthService {
         String firstName = namePart(identity.givenName());
         String lastName = namePart(identity.familyName());
         boolean named = firstName != null && lastName != null;
+        requireSignupRoom();
 
         User saved = userRepository.save(User.builder()
                 .name(named ? firstName + " " + lastName : "")
@@ -594,6 +616,7 @@ public class AuthService {
                 .emailVerified(true)
                 .build());
         walletService.getOrCreate(saved);
+        countSignup(saved);
         referralService.rewardNewUser(saved, referralCode);
         return saved;
     }

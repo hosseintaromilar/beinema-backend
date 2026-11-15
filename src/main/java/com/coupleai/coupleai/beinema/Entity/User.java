@@ -173,6 +173,10 @@ public class User extends BaseEntity {
     @Column(name = "signup_ip", length = 64)
     private String signupIp;
 
+    /** The browser's own id at sign-up, for the sign-ups-per-device limit (SignupGuard). */
+    @Column(name = "signup_device", length = 64)
+    private String signupDevice;
+
 
 
     private LocalDateTime lastLoginAt;

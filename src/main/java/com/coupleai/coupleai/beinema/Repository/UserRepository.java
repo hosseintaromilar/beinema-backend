@@ -15,6 +15,8 @@ public interface UserRepository
 
     long countByCreatedAtAfterAndSignupIp(java.time.LocalDateTime after, String signupIp);
 
+    long countByCreatedAtAfterAndSignupDevice(java.time.LocalDateTime after, String signupDevice);
+
     java.util.List<User> findAllByEmailVerifiedFalseAndEmailNormalizedIsNotNullAndCreatedAtBefore(java.time.LocalDateTime before);
     Optional<User> findByPhoneNumber(String phoneNumber);
     Optional<User> findByUsername(String username);
