@@ -49,7 +49,9 @@ public record TurnMaterial(
         /** Today's market prices for the financial companion ([MARKET]), or empty for every other room. */
         String market,
         /** The lesson cards of this room and whether each was understood (the teaching form); "" when none. */
-        String teaching
+        String teaching,
+        /** How evenly this session's attention went to the two partners (SessionBalance); "" when not worth saying. */
+        String balance
 ) {
 
     /** The stages of their own path each partner has reached (OWNER -> W, D...). */

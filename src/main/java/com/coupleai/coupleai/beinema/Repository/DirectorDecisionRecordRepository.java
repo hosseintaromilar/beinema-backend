@@ -16,5 +16,7 @@ public interface DirectorDecisionRecordRepository extends JpaRepository<Director
 
     List<DirectorDecisionRecord> findByChatRoomIdAndKindOrderByIdDesc(Long chatRoomId, DecisionKind kind, Pageable pageable);
 
+    List<DirectorDecisionRecord> findByChatRoomIdAndKindAndSessionNumberOrderByIdAsc(Long chatRoomId, DecisionKind kind, Integer sessionNumber);
+
     void deleteAllByChatRoomId(Long chatRoomId);
 }

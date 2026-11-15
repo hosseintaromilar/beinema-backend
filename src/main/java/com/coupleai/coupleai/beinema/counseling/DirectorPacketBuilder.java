@@ -42,6 +42,9 @@ public final class DirectorPacketBuilder {
         for (TurnMaterial.Partner partner : m.partners()) {
             out.append(partner.role()).append('=').append(partner.name()).append(" (").append(partner.status()).append(")\n");
         }
+        if (m.balance() != null && !m.balance().isBlank()) {
+            out.append(m.balance());
+        }
 
         out.append("[SAFETY_SCREEN]\n");
         if (!m.screen().any()) {

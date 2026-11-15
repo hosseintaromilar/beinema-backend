@@ -216,6 +216,17 @@ public class TurnMaterialLoader {
             tags.add(ElikaKit.TAG);
         }
 
+        // how evenly this session's attention went to the two of them
+        List<DirectorDecisionRecord> sessionTurns = decisionRepository.findByChatRoomIdAndKindAndSessionNumberOrderByIdAsc(
+                roomId, DecisionKind.TURN, session);
+        java.time.LocalDateTime sessionStart = sessionTurns.isEmpty() ? null : sessionTurns.get(0).getCreatedAt();
+        List<Message> sessionMessages = sessionStart == null ? List.of() : all.stream()
+                .filter(message -> message.getCreatedAt() != null && !message.getCreatedAt().isBefore(sessionStart))
+                .toList();
+        String balance = SessionBalance.line(
+                partners.stream().map(TurnMaterial.Partner::role).collect(java.util.stream.Collectors.toSet()),
+                namesByRole, sessionMessages, roleByMessageId, sessionTurns, intents);
+
         return new TurnMaterial(room, sessionNumber, minutes, planned, partners, recent, fresh, notes, state, snapshot,
                 intents, open, answered, asked, lastTurns, screen, tags, cards, roleByUserId, roleByMessageId, looseTexts,
                 byId, files, milestoneRepository.findAllByChatRoomIdOrderByIdAsc(roomId),
@@ -226,7 +237,8 @@ public class TurnMaterialLoader {
                 namesByRole,
                 chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isMarketWorkflow)
                         ? marketData.block() : "",
-                teaching);
+                teaching,
+                balance);
     }
 
     /** Whether this person wrote again after the given message (their newer words make a reply to the old ones stale). */
