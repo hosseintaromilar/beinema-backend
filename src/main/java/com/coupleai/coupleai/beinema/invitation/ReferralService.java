@@ -125,8 +125,9 @@ public class ReferralService {
             return;
         }
 
-        // nothing is given at sign-up: the gift comes when the new person buys or finishes a session
-        referralRepository.saveAndFlush(Referral.builder()
+        // the one who invited gets one free session as soon as the new person signs up; the new person
+        // has the ordinary free first session and nothing more. At most monthlyCap gifts in 30 days.
+        Referral referral = referralRepository.saveAndFlush(Referral.builder()
                 .referrerUserId(referrer.getId())
                 .referredUserId(newUser.getId())
                 .code(code)
@@ -134,14 +135,34 @@ public class ReferralService {
                 .refereeAmount(0L)
                 .status(PENDING)
                 .build());
+        rewardReferrer(referral, referrer);
+    }
+
+    /** One free session to the one who invited, within the monthly cap, and a note to them. */
+    private void rewardReferrer(Referral referral, User referrer) {
+        referral.setStatus(REWARDED);
+        referral.setRewardedAt(java.time.Instant.now());
+        referralRepository.save(referral);
+        if (referrer == null) {
+            return;
+        }
+        long lately = referralRepository.countByReferrerUserIdAndStatusAndRewardedAtAfter(
+                referrer.getId(), REWARDED, java.time.Instant.now().minus(java.time.Duration.ofDays(30)));
+        if (lately > monthlyCap) {
+            return;
+        }
+        gift(referrer);
+        if (giftNotice != null) {
+            giftNotice.accept(referrer);
+        }
     }
 
     public static final String PENDING = "PENDING";
     public static final String REWARDED = "REWARDED";
 
     /**
-     * The invited person bought a plan or finished a session: both get one free session, once.
-     * A referrer gets at most monthlyCap gifts in 30 days (a guard against made-up accounts).
+     * The invited person bought a plan or finished a session. Gifts now come at sign-up; this only settles an
+     * invitation from before that change, still waiting: the one who invited gets their session.
      */
     @Transactional
     public void qualify(User invitee) {
@@ -152,22 +173,7 @@ public class ReferralService {
         if (referral == null) {
             return;
         }
-        User referrer = userRepository.findById(referral.getReferrerUserId()).orElse(null);
-        referral.setStatus(REWARDED);
-        referral.setRewardedAt(java.time.Instant.now());
-        referralRepository.save(referral);
-        long lately = referrer == null ? 0 : referralRepository.countByReferrerUserIdAndStatusAndRewardedAtAfter(
-                referrer.getId(), REWARDED, java.time.Instant.now().minus(java.time.Duration.ofDays(30)));
-        gift(invitee);
-        if (referrer != null && lately <= monthlyCap) {
-            gift(referrer);
-        }
-        if (giftNotice != null) {
-            giftNotice.accept(invitee);
-            if (referrer != null && lately <= monthlyCap) {
-                giftNotice.accept(referrer);
-            }
-        }
+        rewardReferrer(referral, userRepository.findById(referral.getReferrerUserId()).orElse(null));
     }
 
     private void gift(User user) {
