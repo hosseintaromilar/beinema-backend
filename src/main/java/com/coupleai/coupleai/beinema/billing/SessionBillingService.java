@@ -105,7 +105,7 @@ public class SessionBillingService {
     public record PlanView(String planId, String title, int sessions, long regularPrice, int validDays,
                            int dailyCap, boolean refundable, boolean recurring, Integer activeTier,
                            long activePrice, long perSession, long regularPerSession, List<StepView> tiers,
-                           boolean available) {
+                           boolean available, int bonus) {
     }
 
     /** A bundle someone bought that still has sessions and time left. */
@@ -144,7 +144,7 @@ public class SessionBillingService {
      */
     @Transactional(readOnly = true)
     public List<PlanView> pricing(User buyer) {
-        return Arrays.stream(SessionPackageTier.values()).map(plan -> {
+        return Arrays.stream(SessionPackageTier.values()).filter(SessionPackageTier::onSale).map(plan -> {
             List<StepView> steps = plan.steps().stream().map(step -> {
                 int sold = counterRepository.findByPlanAndTierNo(plan.name(), step.number())
                         .map(counter -> counter.getSold()).orElse(0);
@@ -160,7 +160,7 @@ public class SessionBillingService {
                     || !packageRepository.existsByUserIdAndTier(buyer.getId(), plan.name());
             return new PlanView(plan.name(), plan.title(), plan.sessions(), plan.regularPrice(), plan.validDays(),
                     plan.dailySessions(), plan.refundable(), plan.recurring(), active == null ? null : active.tierNo(),
-                    price, price / plan.sessions(), plan.regularPerSession(), steps, available);
+                    price, price / plan.sessions(), plan.regularPerSession(), steps, available, plan.bonus());
         }).toList();
     }
 
@@ -241,6 +241,9 @@ public class SessionBillingService {
         SessionPackageTier plan = SessionPackageTier.of(tierName);
         if (plan == null) {
             throw new IllegalArgumentException("این بسته پیدا نشد.");
+        }
+        if (!plan.onSale()) {
+            throw new IllegalArgumentException("این بسته دیگر فروخته نمی‌شود؛ یکی از بسته‌های تازه را انتخاب کن.");
         }
         if (!confirmed(user)) {
             throw new IllegalArgumentException(VERIFY_FIRST);
@@ -331,7 +334,9 @@ public class SessionBillingService {
         if (plan == null || !plan.refundable()) {
             return 0;
         }
-        long perSession = (bundle.getRegularPrice() == null ? plan.regularPrice() : bundle.getRegularPrice()) / plan.sessions();
+        // a plan on sale counts a used session at the single price; an older one at its own per-session price
+        long perSession = plan.onSale() ? SessionPackageTier.SINGLE_PRICE
+                : (bundle.getRegularPrice() == null ? plan.regularPrice() : bundle.getRegularPrice()) / plan.sessions();
         int used = bundle.getSessionsUsed() == null ? 0 : bundle.getSessionsUsed();
         return Math.max(0, bundle.getPrice() - used * perSession);
     }

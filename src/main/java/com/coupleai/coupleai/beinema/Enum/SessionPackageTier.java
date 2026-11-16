@@ -3,12 +3,19 @@ package com.coupleai.coupleai.beinema.Enum;
 import java.util.List;
 
 /**
- * The plans on sale (docs: 01-pricing/pricing-business-spec-FA.md, the source of truth for every
- * amount). Each has a regular price and up to two discount steps of 100 buyers each, counted per
- * plan and on the server (PromoTierCounter). The name stays SessionPackageTier for the rows
- * already in the database; old bundles (BRONZE ...) keep working by their own name.
+ * The plans. On sale (from Azar 1405): a single session and bundles of 4, 10 and 20 sessions, a few of
+ * them free in each bundle, so the bigger the bundle the less one session costs; valid for a year; the
+ * bigger the bundle the more sessions a day, at most four, so there is time between sessions to think
+ * about them. The older plans (TRIAL ... MONTHLY) are no longer sold but keep working, with their own
+ * terms, for the bundles already bought; old bundles (BRONZE ...) keep working by their own name.
+ * A plan may have discount steps of 100 buyers each, counted on the server (PromoTierCounter).
  */
 public enum SessionPackageTier {
+    SINGLE("تک جلسه", 1, 0, 349_000, 365, 1, false, false, true, List.of()),
+    PACK4("بستهٔ ۴ جلسه‌ای", 4, 1, 999_000, 365, 2, true, false, true, List.of()),
+    PACK10("بستهٔ ۱۰ جلسه‌ای", 10, 2, 2_290_000, 365, 3, true, false, true, List.of()),
+    PACK20("بستهٔ ۲۰ جلسه‌ای", 20, 5, 3_990_000, 365, 4, true, false, true, List.of()),
+
     TRIAL("بستهٔ آزمایشی", 2, 590_000, 30, 1, false, false,
             List.of(new Step(1, 50, 295_000, 100))),
     MAIN("بستهٔ همراه", 8, 1_990_000, 60, 2, true, false,
@@ -18,12 +25,18 @@ public enum SessionPackageTier {
     MONTHLY("اشتراک ماهانه", 4, 990_000, 30, 1, false, true,
             List.of(new Step(1, 50, 495_000, 100), new Step(2, 30, 693_000, 100)));
 
+    /** The price of one session on its own: used sessions of a cancelled bundle are counted at it. */
+    public static final long SINGLE_PRICE = 349_000;
+
     /** One discount step: its number, percent off, the price and how many buyers it is for. */
     public record Step(int number, int percent, long price, int capacity) {
     }
 
     private final String title;
     private final int sessions;
+    /** Of the sessions, how many are free (shown as «۳ + ۱ رایگان»). */
+    private final int bonus;
+    private final boolean onSale;
     private final long regularPrice;
     private final int validDays;
     private final int dailySessions;
@@ -31,10 +44,18 @@ public enum SessionPackageTier {
     private final boolean recurring;
     private final List<Step> steps;
 
+    /** An older plan: not sold any more, no free sessions. */
     SessionPackageTier(String title, int sessions, long regularPrice, int validDays, int dailySessions,
                        boolean refundable, boolean recurring, List<Step> steps) {
+        this(title, sessions, 0, regularPrice, validDays, dailySessions, refundable, recurring, false, steps);
+    }
+
+    SessionPackageTier(String title, int sessions, int bonus, long regularPrice, int validDays, int dailySessions,
+                       boolean refundable, boolean recurring, boolean onSale, List<Step> steps) {
         this.title = title;
         this.sessions = sessions;
+        this.bonus = bonus;
+        this.onSale = onSale;
         this.regularPrice = regularPrice;
         this.validDays = validDays;
         this.dailySessions = dailySessions;
@@ -49,6 +70,16 @@ public enum SessionPackageTier {
 
     public int sessions() {
         return sessions;
+    }
+
+    /** Of the sessions, the free ones. */
+    public int bonus() {
+        return bonus;
+    }
+
+    /** Sold now; the older plans only keep working for the bundles already bought. */
+    public boolean onSale() {
+        return onSale;
     }
 
     /** The price without a discount. */
@@ -80,9 +111,12 @@ public enum SessionPackageTier {
         return steps;
     }
 
-    /** The regular price of one session, used for refunds. */
+    /**
+     * What one used session of a cancelled bundle costs: the price of a single session for the plans on
+     * sale (a bundle's low price is for the whole bundle), the bundle's own per-session price for the older ones.
+     */
     public long regularPerSession() {
-        return regularPrice / sessions;
+        return onSale ? SINGLE_PRICE : regularPrice / sessions;
     }
 
     /** The plan of a stored name, or null for an old or unknown one. */

@@ -142,46 +142,38 @@ class SessionBillingServiceTest {
     }
 
     @Test
-    void theFirstBuyersGetTheFirstStepAndTheServerDecidesThePrice() {
-        wallet.setBalance(2_000_000L);
+    void aBundleCostsWhatTheServerSaysAndLastsAYear() {
+        wallet.setBalance(3_000_000L);
         when(packages.save(any(SessionPackage.class))).thenAnswer(call -> call.getArgument(0));
-        when(counters().take("MAIN", 1)).thenReturn(1);
-        SessionBillingService.OwnedPackage main = billing.buyPackage(owner, "main", 995_000L);
+        SessionBillingService.OwnedPackage pack = billing.buyPackage(owner, "pack10", 2_290_000L);
 
-        assertEquals(8, main.sessionsLeft());
-        assertEquals("بستهٔ همراه", main.title());
-        long days = Duration.between(Instant.now(), Instant.ofEpochMilli(main.expiresAt())).toDays();
-        assertTrue(days >= 59 && days <= 60, "valid 60 days, was " + days);
-        verify(wallets).debit(eq(owner), eq(wallet), eq(995_000L), eq(WalletTransactionType.PACKAGE_PURCHASE),
+        assertEquals(10, pack.sessionsLeft());
+        assertEquals("بستهٔ ۱۰ جلسه‌ای", pack.title());
+        long days = Duration.between(Instant.now(), Instant.ofEpochMilli(pack.expiresAt())).toDays();
+        assertTrue(days >= 364 && days <= 365, "valid a year, was " + days);
+        verify(wallets).debit(eq(owner), eq(wallet), eq(2_290_000L), eq(WalletTransactionType.PACKAGE_PURCHASE),
                 anyString(), anyString(), eq(null), eq(null));
     }
 
     @Test
-    void aFullStepGivesTheNextOne_andAChangedPriceBuysNothing() {
-        wallet.setBalance(2_000_000L);
-        when(counters().take("MAIN", 1)).thenReturn(0);
-        when(counters().take("MAIN", 2)).thenReturn(1);
+    void aChangedPriceBuysNothing_andTheOlderPlansAreNotSoldAnyMore() {
+        wallet.setBalance(5_000_000L);
         SessionBillingService.PriceChangedException changed = assertThrows(SessionBillingService.PriceChangedException.class,
-                () -> billing.buyPackage(owner, "MAIN", 995_000L));
-        assertEquals(1_393_000L, changed.price());
+                () -> billing.buyPackage(owner, "PACK4", 995_000L));
+        assertEquals(999_000L, changed.price());
+        IllegalArgumentException old = assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "MAIN", 995_000L));
+        assertTrue(old.getMessage().contains("دیگر فروخته نمی‌شود"), old.getMessage());
         verify(wallets, never()).debit(any(), any(), anyLong(), any(), anyString(), anyString(), any(), any());
     }
 
     @Test
-    void theTrialIsOncePerAccount_andTheCardShowsWhatThisPersonWouldPay() {
-        wallet.setBalance(5_000_000L);
-        when(packages.existsByUserIdAndTier(1L, "TRIAL")).thenReturn(true);
-        assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "TRIAL", 295_000L));
-
-        // the first step of the companion bundle is still open, but this person already used it
-        when(counters().findByPlanAndTierNo(any(), any())).thenReturn(java.util.Optional.empty());
-        when(packages.existsByUserIdAndTierAndPromoTier(1L, "MAIN", 1)).thenReturn(true);
-        List<SessionBillingService.PlanView> mine = billing.pricing(owner);
-        SessionBillingService.PlanView main = mine.stream().filter(plan -> plan.planId().equals("MAIN")).findFirst().orElseThrow();
-        assertEquals(1_393_000L, main.activePrice());
-        SessionBillingService.PlanView trial = mine.stream().filter(plan -> plan.planId().equals("TRIAL")).findFirst().orElseThrow();
-        assertFalse(trial.available());
-        assertTrue(billing.pricing().stream().allMatch(SessionBillingService.PlanView::available), "nobody in particular");
+    void theCardsShowTheFourPlansOnSale_aBiggerOneCheaperPerSession() {
+        List<SessionBillingService.PlanView> plans = billing.pricing(owner);
+        assertEquals(List.of("SINGLE", "PACK4", "PACK10", "PACK20"), plans.stream().map(SessionBillingService.PlanView::planId).toList());
+        assertEquals(List.of(349_000L, 249_750L, 229_000L, 199_500L), plans.stream().map(SessionBillingService.PlanView::perSession).toList());
+        assertEquals(List.of(0, 1, 2, 5), plans.stream().map(SessionBillingService.PlanView::bonus).toList());
+        assertEquals(List.of(1, 2, 3, 4), plans.stream().map(SessionBillingService.PlanView::dailyCap).toList());
+        assertTrue(plans.stream().allMatch(SessionBillingService.PlanView::available));
     }
 
     @Test
@@ -203,19 +195,30 @@ class SessionBillingServiceTest {
     @Test
     void notEnoughCreditForABundleSaysHowMuchIsNeeded() {
         wallet.setBalance(100_000L);
-        IllegalArgumentException trial = assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "TRIAL"));
-        assertTrue(trial.getMessage().contains("۵۹۰٬۰۰۰ تومان"), trial.getMessage());
+        IllegalArgumentException pack = assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "PACK4"));
+        assertTrue(pack.getMessage().contains("۹۹۹٬۰۰۰ تومان"), pack.getMessage());
         assertThrows(IllegalArgumentException.class, () -> billing.buyPackage(owner, "PLATINUM"));
     }
 
     @Test
     void theCardsShowTheActiveStepAndTheRegularPrice() {
         List<SessionBillingService.PackageOffer> offers = billing.packageOffers();
-        assertEquals(List.of(295_000L, 995_000L, 2_245_000L, 495_000L),
+        assertEquals(List.of(349_000L, 999_000L, 2_290_000L, 3_990_000L),
                 offers.stream().map(SessionBillingService.PackageOffer::price).toList());
-        assertEquals(List.of(590_000L, 1_990_000L, 4_490_000L, 990_000L),
+        assertEquals(List.of(349_000L, 999_000L, 2_290_000L, 3_990_000L),
                 offers.stream().map(SessionBillingService.PackageOffer::listPrice).toList());
-        assertEquals(List.of(1, 2, 3, 1), offers.stream().map(SessionBillingService.PackageOffer::dailySessions).toList());
+        assertEquals(List.of(1, 2, 3, 4), offers.stream().map(SessionBillingService.PackageOffer::dailySessions).toList());
+    }
+
+    @Test
+    void aNewBundleCountsAUsedSessionAtTheSinglePrice() {
+        SessionPackage pack = bundle(10, 2);
+        pack.setTier("PACK10");
+        pack.setPrice(2_290_000L);
+        pack.setRegularPrice(2_290_000L);
+        assertEquals(2_290_000L - 2 * 349_000L, SessionBillingService.refundFor(pack));
+        pack.setSessionsUsed(7);
+        assertEquals(0L, SessionBillingService.refundFor(pack));
     }
 
     @Test
