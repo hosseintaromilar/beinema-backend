@@ -240,6 +240,10 @@ public class User extends BaseEntity {
     @Column(name = "mirror_email_off")
     private Boolean mirrorEmailOff;
 
+    /** When this person finished or skipped the dashboard tour (shown once, on any device). */
+    @Column(name = "tour_seen_at")
+    private java.time.Instant tourSeenAt;
+
     public boolean hasPhoneNumber() {
         return phoneNumber != null && !phoneNumber.isBlank();
     }

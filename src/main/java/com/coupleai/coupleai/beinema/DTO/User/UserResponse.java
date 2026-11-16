@@ -49,6 +49,9 @@ public class UserResponse {
     /** Signs in with Google too. */
     private boolean googleLinked;
 
+    /** The dashboard tour was already seen (finished or skipped). */
+    private boolean tourSeen;
+
 
     public static UserResponse from(User user) {
 
@@ -88,6 +91,8 @@ public class UserResponse {
                 .passwordSet(Boolean.TRUE.equals(user.getPasswordSet()))
 
                 .googleLinked(user.getGoogleSubject() != null)
+
+                .tourSeen(user.getTourSeenAt() != null)
 
                 .build();
 

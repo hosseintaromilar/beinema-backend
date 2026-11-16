@@ -66,6 +66,12 @@ public class UserController {
         return userService.setMirrorEmail(authentication, Boolean.TRUE.equals(body.get("enabled")));
     }
 
+    /** The dashboard tour was finished or skipped. */
+    @PutMapping("/me/tour-seen")
+    public UserResponse markTourSeen(Authentication authentication) {
+        return userService.markTourSeen(authentication);
+    }
+
     @PutMapping("/me/admin-chat-access")
     public UserResponse setAdminChatAccess(
             Authentication authentication,

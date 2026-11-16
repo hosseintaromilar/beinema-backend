@@ -97,6 +97,16 @@ public class UserService {
         return UserResponse.from(userRepository.save(user));
     }
 
+    /** The dashboard tour was finished or skipped: it is not shown again on its own. */
+    @Transactional
+    public UserResponse markTourSeen(Authentication authentication) {
+        User user = loadByAuthentication(authentication);
+        if (user.getTourSeenAt() == null) {
+            user.setTourSeenAt(java.time.Instant.now());
+        }
+        return UserResponse.from(userRepository.save(user));
+    }
+
     /** The person's own switch: may the management read their chats for support? */
     @Transactional
     public UserResponse setAdminChatAccess(Authentication authentication, boolean enabled) {
