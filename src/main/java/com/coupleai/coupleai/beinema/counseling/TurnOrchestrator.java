@@ -134,8 +134,10 @@ public class TurnOrchestrator {
 
     /** mayStartOver: once per run, a decision overtaken by new messages is dropped and made again with all of them. */
     private Outcome runTurn(Long roomId, boolean mayStartOver) {
+        long startedAt = System.currentTimeMillis();
         expireStaleQuestions(roomId);
         TurnMaterial m = loader.load(roomId);
+        long loadMs = System.currentTimeMillis() - startedAt;
         if (!m.hasNewMessages() && !m.hasMoment()) {
             return Outcome.nothing(roomId);
         }
@@ -193,7 +195,9 @@ public class TurnOrchestrator {
         if (finance) {
             packet += financeService.forDirector(m);
         }
+        long directorStarted = System.currentTimeMillis();
         Decided decided = decide(m, packet);
+        long directorMs = System.currentTimeMillis() - directorStarted;
         markSeen(roomId, lastSeen, true);
         ClosureGate.Verdict closing = gateVerdict(gate);
         if (closing != null) {
@@ -257,7 +261,10 @@ public class TurnOrchestrator {
 
         // 5. a lesson: the teacher fits it to the couple, then the voice says it; in the teaching form
         // it becomes a card for that one person and the voice only introduces it
+        long lessonStarted = System.currentTimeMillis();
         LessonTeacher.Result taught = teachCard(m, d) ? null : LessonTeacher.prepare(m, d, brain);
+        long lessonMs = System.currentTimeMillis() - lessonStarted;
+        long voiceStarted = System.currentTimeMillis();
 
         // 6. the voice (still writing: keep the typing sign up for both partners)
         chatRealtimeService.publishAgentTyping(roomId, 9000, writingPhase(d));
@@ -309,7 +316,13 @@ public class TurnOrchestrator {
                 }
             }
         }
+        long checkStarted = System.currentTimeMillis();
+        long voiceWallMs = checkStarted - voiceStarted;
         out = checkedVoice(m, d, voicePacket, out);
+        long checkMs = System.currentTimeMillis() - checkStarted;
+        // where the time of a turn went, to see what makes people wait
+        log.info("Turn timing room {} ({}): load {} ms, director {} ms, lesson {} ms, voice {} ms, checks {} ms, total {} ms",
+                roomId, d.action, loadMs, directorMs, lessonMs, voiceWallMs, checkMs, System.currentTimeMillis() - startedAt);
         if (out == null || out.failed()) {
             if (stored.questionId() != null) {
                 questionService.cancel(stored.questionId(), "the voice could not write it");
@@ -445,7 +458,8 @@ public class TurnOrchestrator {
             return null;
         }
         try {
-            return gate.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            // it ran beside the director; if it is still not done, people do not wait for it: it runs again next turn
+            return gate.get(2, java.util.concurrent.TimeUnit.SECONDS);
         } catch (Exception exception) {
             return null;
         }
