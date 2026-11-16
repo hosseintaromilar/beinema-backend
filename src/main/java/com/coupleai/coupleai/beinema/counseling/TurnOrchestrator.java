@@ -321,7 +321,7 @@ public class TurnOrchestrator {
         out = checkedVoice(m, d, voicePacket, out);
         if (out != null && !out.failed() && out.questionText() != null && !out.questionText().isBlank()) {
             // one question at a time: the card asks it, the words before it only lead in
-            String leadIn = VoiceGuard.withoutClosingQuestions(out.text());
+            String leadIn = VoiceGuard.leadInFor(out.text(), out.questionText());
             if (!leadIn.equals(out.text().trim())) {
                 List<String> trimmed = new ArrayList<>(out.notes() == null ? List.of() : out.notes());
                 trimmed.add("a question before the card dropped: the card asks it");

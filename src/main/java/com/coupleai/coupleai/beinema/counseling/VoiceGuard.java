@@ -71,6 +71,34 @@ public final class VoiceGuard {
         return String.join(" ", sentences);
     }
 
+    /**
+     * The lead-in without its closing questions, and without a last sentence that only says what the card
+     * asks («می‌خوام ببینم زنگ‌ها برای چیه» above «این زنگ‌ها برای چیه؟»).
+     */
+    static String leadInFor(String reply, String cardQuestion) {
+        String text = withoutClosingQuestions(reply);
+        if (cardQuestion == null || cardQuestion.isBlank() || text.isBlank()) {
+            return text;
+        }
+        Set<String> asked = new HashSet<>(EchoGuard.words(cardQuestion));
+        List<String> sentences = new java.util.ArrayList<>();
+        for (String sentence : SENTENCE_END.split(text)) {
+            if (!sentence.trim().isEmpty()) {
+                sentences.add(sentence.trim());
+            }
+        }
+        String last = sentences.get(sentences.size() - 1);
+        Set<String> said = new HashSet<>(EchoGuard.words(last));
+        if (said.size() >= 3) {
+            Set<String> shared = new HashSet<>(said);
+            shared.retainAll(asked);
+            if ((double) shared.size() / said.size() >= 0.4) {
+                sentences.remove(sentences.size() - 1);
+            }
+        }
+        return String.join(" ", sentences);
+    }
+
     /** The reply without its sentences of advice (questions and everything else are kept). */
     static String withoutAdvice(String reply) {
         StringBuilder out = new StringBuilder();

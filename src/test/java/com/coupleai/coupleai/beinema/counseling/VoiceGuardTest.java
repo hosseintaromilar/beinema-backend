@@ -46,4 +46,12 @@ class VoiceGuardTest {
         assertEquals("", VoiceGuard.withoutClosingQuestions("چی برات مهمه؟ کی شروع شد؟"));
         assertEquals("فهمیدم. بیا ببینیم.", VoiceGuard.withoutClosingQuestions("فهمیدم. بیا ببینیم."));
     }
+
+    @Test
+    void aLeadInThatOnlySaysWhatTheCardAsksGoes() {
+        String card = "وقتی دیر می‌کنه و چند بار زنگ می‌زنی، این زنگ‌ها بیشتر برای چیه؟";
+        assertEquals("ممنون که اینو گفتی، گفتنش راحت نیست.", VoiceGuard.leadInFor("ممنون که اینو گفتی، گفتنش راحت نیست. می‌خوام ببینم زنگ‌هایی که می‌زنی بیشتر برای چیه.", card));
+        assertEquals("گفتنش راحت نبود.", VoiceGuard.leadInFor("گفتنش راحت نبود.", card), "a lead-in about something else stays");
+        assertEquals("", VoiceGuard.leadInFor("افسانه، می‌خوام دقیق‌تر بفهمم این شب‌های دیروقت تو خودت چی می‌خوای.", "تو توی این شب‌هایی که دیر میاد خونه، خودت دقیقاً چی می‌خوای؟"));
+    }
 }
