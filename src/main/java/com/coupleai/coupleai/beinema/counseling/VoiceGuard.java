@@ -50,6 +50,27 @@ public final class VoiceGuard {
         return Optional.empty();
     }
 
+    /**
+     * When the turn carries a card, the card asks the question: questions at the end of the words before it
+     * go, so they do not ask twice or ask a second thing. The lead-in before them stays.
+     */
+    static String withoutClosingQuestions(String reply) {
+        List<String> sentences = new java.util.ArrayList<>();
+        for (String sentence : SENTENCE_END.split(reply == null ? "" : reply)) {
+            if (!sentence.trim().isEmpty()) {
+                sentences.add(sentence.trim());
+            }
+        }
+        while (!sentences.isEmpty()) {
+            String last = sentences.get(sentences.size() - 1);
+            if (!(last.endsWith("؟") || last.endsWith("?"))) {
+                break;
+            }
+            sentences.remove(sentences.size() - 1);
+        }
+        return String.join(" ", sentences);
+    }
+
     /** The reply without its sentences of advice (questions and everything else are kept). */
     static String withoutAdvice(String reply) {
         StringBuilder out = new StringBuilder();

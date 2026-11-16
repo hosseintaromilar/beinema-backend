@@ -319,6 +319,16 @@ public class TurnOrchestrator {
         long checkStarted = System.currentTimeMillis();
         long voiceWallMs = checkStarted - voiceStarted;
         out = checkedVoice(m, d, voicePacket, out);
+        if (out != null && !out.failed() && out.questionText() != null && !out.questionText().isBlank()) {
+            // one question at a time: the card asks it, the words before it only lead in
+            String leadIn = VoiceGuard.withoutClosingQuestions(out.text());
+            if (!leadIn.equals(out.text().trim())) {
+                List<String> trimmed = new ArrayList<>(out.notes() == null ? List.of() : out.notes());
+                trimmed.add("a question before the card dropped: the card asks it");
+                out = new VoiceOutputParser.Result(leadIn, out.questionText(), out.options(), out.questionBlock(),
+                        out.error(), trimmed);
+            }
+        }
         long checkMs = System.currentTimeMillis() - checkStarted;
         // where the time of a turn went, to see what makes people wait
         log.info("Turn timing room {} ({}): load {} ms, director {} ms, lesson {} ms, voice {} ms, checks {} ms, total {} ms",

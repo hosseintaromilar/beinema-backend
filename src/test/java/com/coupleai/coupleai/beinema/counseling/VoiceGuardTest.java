@@ -39,4 +39,11 @@ class VoiceGuardTest {
         String kept = VoiceGuard.withoutAdvice("می‌فهمم چقدر خسته‌ای. بهتره امشب باهاش حرف بزنی. از کی این‌طوری شده؟");
         assertEquals("می‌فهمم چقدر خسته‌ای. از کی این‌طوری شده؟", kept);
     }
+
+    @Test
+    void beforeACardOnlyTheLeadInStays() {
+        assertEquals("گفتنش راحت نیست.", VoiceGuard.withoutClosingQuestions("گفتنش راحت نیست. وقتی زنگ می‌زنی، کدوم به تو نزدیک‌تره؟"));
+        assertEquals("", VoiceGuard.withoutClosingQuestions("چی برات مهمه؟ کی شروع شد؟"));
+        assertEquals("فهمیدم. بیا ببینیم.", VoiceGuard.withoutClosingQuestions("فهمیدم. بیا ببینیم."));
+    }
 }
