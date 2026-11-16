@@ -48,8 +48,9 @@ public class StatusLineWriter {
             REFLECT (I am thinking about what you said), NOTING (I am noting it: facts, details, a story),
             THANKS (thanks: they answered or explained), THANKSALOT (thank you so much: they opened up about something hard),
             SORRYUPSET (sorry you are upset), INTERESTING (interesting), GOODTHOUGHT (a good thought: a real insight of theirs),
-            GOODIDEA (a good idea: their own idea or plan), NICE (how good: good news), BRAVO (well done: they did something hard),
-            NOTUNDERSTOOD (I did not understand: the message is unclear).
+            GOODIDEA (a good idea: their own idea or plan), NICE (how good: good news), BRAVO (well done: they did something hard).
+            The sticker is the companion's own reaction to them, never an echo of their words: when they say they did not
+            understand the companion, ask it to explain again or say they are confused, choose LISTEN or NONE.
             NONE for: any hint of danger, violence, self-harm, abuse or a crisis; anger at the companion; a message that only
             asks a question; a joke you are not sure about. Vary them: do not repeat the stickers listed as RECENT when another fits.
             Answer with JSON only: {"thinking": "...", "react": "LISTEN"}
@@ -58,7 +59,7 @@ public class StatusLineWriter {
     /** The stickers that may go under a message before the counselor has decided anything. */
     static final java.util.Set<String> EARLY = java.util.Set.of(
             "LISTEN", "HERE", "BESIDE", "ACK", "IMPORTANT", "REFLECT", "NOTING", "THANKS", "THANKSALOT",
-            "SORRYUPSET", "INTERESTING", "GOODTHOUGHT", "GOODIDEA", "NICE", "BRAVO", "NOTUNDERSTOOD");
+            "SORRYUPSET", "INTERESTING", "GOODTHOUGHT", "GOODIDEA", "NICE", "BRAVO");
 
     /**
      * The early sticker of one turn and who came first: the writer puts it on only while the turn is
