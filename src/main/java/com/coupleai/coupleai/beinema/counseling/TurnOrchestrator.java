@@ -543,10 +543,35 @@ public class TurnOrchestrator {
         StringBuilder raw = new StringBuilder();
         long millis = 0;
         try {
-            BrainGateway.Reply reply = brain.forRoom(m.room()).director(packet);
-            raw.append(reply.text());
-            millis += reply.millis();
-            DirectorOutputParser.Result parsed = DirectorOutputParser.parse(reply.text());
+            // a turn that is getting complicated goes to the director that thinks first; if that lane is
+            // missing or fails, the quick director decides as always
+            BrainGateway.Reply reply = null;
+            DirectorOutputParser.Result parsed = null;
+            String deepReason = DeepTurn.reason(m);
+            if (deepReason != null) {
+                try {
+                    reply = brain.forRoom(m.room()).director(DeepTurn.deep(packet));
+                    parsed = DirectorOutputParser.parse(reply.text());
+                    log.info("Deep turn in room {} ({}): {} ms, {}", m.roomId(), deepReason, reply.millis(),
+                            parsed.ok() ? "ok" : parsed.error());
+                } catch (RuntimeException exception) {
+                    log.warn("Deep director failed in room {}: {}", m.roomId(), exception.getMessage());
+                }
+                if (reply != null) {
+                    raw.append("----- deep (").append(deepReason).append(") -----\n").append(reply.text()).append('\n');
+                    millis += reply.millis();
+                }
+                if (parsed == null || !parsed.ok()) {
+                    reply = null;
+                    parsed = null;
+                }
+            }
+            if (reply == null) {
+                reply = brain.forRoom(m.room()).director(packet);
+                raw.append(reply.text());
+                millis += reply.millis();
+                parsed = DirectorOutputParser.parse(reply.text());
+            }
             if (!parsed.ok() && !"DIRECTOR_FAILED".equals(parsed.error())) {
                 BrainGateway.Reply repair = brain.forRoom(m.room()).director(DirectorPacketBuilder.build(m,
                         "REPAIR: " + parsed.error() + ". Return the same decision as one valid JSON object. Your previous output was:\n"
