@@ -1019,9 +1019,19 @@ public class SessionLifecycleService {
         return plain > 0 ? plain : maxSessions;
     }
 
-    /** The sessions this room may hold in 24 hours: its owner's plan, otherwise the setting. */
+    /**
+     * The sessions this room may hold in 24 hours: its owner's plan, otherwise the setting. A bundle that paid
+     * for one of today's sessions still sets the limit after its last session was used.
+     */
     public int dailyLimit(ChatRoom room) {
-        int byPlan = room == null ? 0 : sessionBillingService.dailyLimitFor(room.getCreatedBy());
+        if (room == null) {
+            return maxSessions;
+        }
+        boolean bundlePaidToday = room.getId() != null && sessionRecordRepository
+                .findAllByChatRoomIdAndOpenedAtAfterOrderByOpenedAtAsc(room.getId(),
+                        clock.instant().minus(Duration.ofHours(windowHours)))
+                .stream().anyMatch(record -> SessionBillingService.PACKAGE.equals(record.getBilling()));
+        int byPlan = sessionBillingService.dailyLimitFor(room.getCreatedBy(), bundlePaidToday);
         return byPlan > 0 ? byPlan : maxSessions;
     }
 

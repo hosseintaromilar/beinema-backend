@@ -251,6 +251,18 @@ class SessionBillingServiceTest {
     }
 
     @Test
+    void aBundleThatPaidTodayKeepsItsLimitAfterItsLastSession() {
+        ReflectionTestUtils.setField(billing, "dailySessionsWithoutBundle", 1);
+        SessionPackage main = bundle(8, 8);
+        main.setTier("MAIN");
+        when(packages.findUsable(eq(1L), any())).thenReturn(List.of());
+        when(packages.findAllByUserIdAndExpiresAtAfter(eq(1L), any())).thenReturn(List.of(main));
+
+        assertEquals(1, billing.dailyLimitFor(1L, false), "used up, and it paid for nothing today");
+        assertEquals(2, billing.dailyLimitFor(1L, true), "it paid for today's session");
+    }
+
+    @Test
     void aFreeSessionLeftOrEnoughCreditLetsTheSessionStart() {
         owner.setFreeSessionsUsed(1);
         assertDoesNotThrow(() -> billing.requireCanStart(room, partner));

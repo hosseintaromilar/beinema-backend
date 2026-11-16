@@ -40,6 +40,7 @@ public class CounselingController {
     private final CoupleTestService coupleTestService;
     private final com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository;
     private final com.coupleai.coupleai.beinema.counseling.PersonalPathService personalPathService;
+    private final BreakReadingService breakReadingService;
 
     /**
      * The addressee answers a structured question. The answer is stored once
@@ -161,6 +162,12 @@ public class CounselingController {
     @GetMapping("/my-path")
     public Map<String, Object> myPath(@PathVariable Long chatRoomId) {
         return personalPathService.forUser(chatRoomId, currentUserService.getCurrentUser());
+    }
+
+    /** Something to read during a break: this room's lessons and a few fitting blog posts. */
+    @GetMapping("/break-reading")
+    public Map<String, Object> breakReading(@PathVariable Long chatRoomId) {
+        return breakReadingService.forUser(chatRoomId, currentUserService.getCurrentUser());
     }
 
     @GetMapping("/counselor-state")

@@ -193,10 +193,23 @@ public class SessionBillingService {
      */
     @Transactional(readOnly = true)
     public int dailyLimitFor(Long ownerId) {
+        return dailyLimitFor(ownerId, false);
+    }
+
+    /**
+     * The same; when a bundle paid for a session of this conversation in the last 24 hours, a valid bundle
+     * counts even if that session was its last one, so the day keeps the limit it was paid under.
+     */
+    @Transactional(readOnly = true)
+    public int dailyLimitFor(Long ownerId, boolean bundlePaidToday) {
         if (ownerId == null) {
             return dailySessionsWithoutBundle;
         }
-        return packageRepository.findUsable(ownerId, Instant.now()).stream()
+        Instant now = Instant.now();
+        List<SessionPackage> bundles = bundlePaidToday
+                ? packageRepository.findAllByUserIdAndExpiresAtAfter(ownerId, now)
+                : packageRepository.findUsable(ownerId, now);
+        return bundles.stream()
                 .map(item -> {
                     SessionPackageTier plan = SessionPackageTier.of(item.getTier());
                     return plan == null ? dailySessionsWithoutBundle : plan.dailySessions();

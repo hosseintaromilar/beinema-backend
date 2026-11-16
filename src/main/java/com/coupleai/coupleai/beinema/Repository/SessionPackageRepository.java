@@ -20,6 +20,9 @@ public interface SessionPackageRepository extends JpaRepository<SessionPackage, 
             """)
     List<SessionPackage> findUsable(@Param("userId") Long userId, @Param("now") Instant now);
 
+    /** Bundles still valid, whether or not sessions are left. */
+    List<SessionPackage> findAllByUserIdAndExpiresAtAfter(Long userId, Instant now);
+
     /** The same, locked: two sessions closing at once do not take the same session. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
