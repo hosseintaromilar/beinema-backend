@@ -174,6 +174,11 @@ public class SessionLifecycleService {
     private final ChatRoomEventHub eventHub;
     private final ApplicationEventPublisher events;
     private final RelationshipInsightService relationshipInsightService;
+
+    /** Written right after a session closes (optional, so tests need not wire it). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private com.coupleai.coupleai.beinema.mirror.MirrorReportService mirrorReportService;
     private final SessionBillingService sessionBillingService;
     private final com.coupleai.coupleai.beinema.ai.AiHealth aiHealth;
 
@@ -877,6 +882,10 @@ public class SessionLifecycleService {
 
         // the relationship path is written again for every session that had a conversation
         relationshipInsightService.refreshAfterSession(roomId, closing.user());
+        // the mirror of this session, from that path: ready on the dashboard, emailed a day later if unopened
+        if (mirrorReportService != null) {
+            mirrorReportService.afterSession(roomId, closing.endedAt());
+        }
 
         if (!forGood) {
             sticker(room, CounselorSignal.WRAP_UP);

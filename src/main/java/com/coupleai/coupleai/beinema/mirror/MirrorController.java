@@ -36,6 +36,31 @@ public class MirrorController {
         return recent.stream().filter(view -> !locked.contains(view.chatRoomId())).toList();
     }
 
+    /** The mirrors this person has not opened yet, newest of each conversation (the dashboard cards). */
+    @GetMapping("/api/mirrors/unopened")
+    public List<MirrorReportService.View> unopened() {
+        var me = currentUserService.getCurrentUser();
+        List<MirrorReportService.View> waiting = mirrors.unopened(me);
+        var locked = roomLocks.lockedRooms(me.getId(), waiting.stream().map(MirrorReportService.View::chatRoomId).toList());
+        return waiting.stream().filter(view -> !locked.contains(view.chatRoomId())).toList();
+    }
+
+    /** One mirror (the link in the email); a locked conversation shows nothing of itself outside its door. */
+    @GetMapping("/api/mirrors/{id}")
+    public MirrorReportService.View one(@org.springframework.web.bind.annotation.PathVariable Long id) {
+        var me = currentUserService.getCurrentUser();
+        MirrorReportService.View view = mirrors.one(id, me);
+        if (roomLocks.lockedRooms(me.getId(), List.of(view.chatRoomId())).contains(view.chatRoomId())) {
+            throw new IllegalArgumentException("این گفتگو قفل است؛ آینه‌اش را داخل خود گفتگو ببین.");
+        }
+        return view;
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/api/mirrors/{id}/opened")
+    public void opened(@org.springframework.web.bind.annotation.PathVariable Long id) {
+        mirrors.opened(id, currentUserService.getCurrentUser());
+    }
+
     /** An admin sends a sample mirror to their own address, to see it and try its links. */
     @org.springframework.web.bind.annotation.PostMapping("/api/admin/mirrors/sample")
     public java.util.Map<String, String> sample() {

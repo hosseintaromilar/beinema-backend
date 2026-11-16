@@ -16,5 +16,13 @@ public interface MirrorReportRepository extends JpaRepository<MirrorReport, Long
     List<MirrorReport> findAllByChatRoomIdInAndStatusAndDayGreaterThanEqualOrderByDayDesc(
             Collection<Long> chatRoomIds, String status, LocalDate since);
 
+    /** Written versions in a time span (the email for those not opened within a day). */
+    List<MirrorReport> findAllByStatusAndBuiltAtBetween(String status, java.time.Instant from, java.time.Instant to);
+
+    List<MirrorReport> findAllByChatRoomIdInAndStatusAndBuiltAtAfterOrderByBuiltAtDesc(
+            Collection<Long> chatRoomIds, String status, java.time.Instant since);
+
+    List<MirrorReport> findAllByChatRoomId(Long chatRoomId);
+
     void deleteAllByChatRoomId(Long chatRoomId);
 }

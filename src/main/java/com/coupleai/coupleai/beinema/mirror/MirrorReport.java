@@ -16,9 +16,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 /**
- * The mirror of one conversation for one day, written at 22:00 Tehran time for the sessions that
- * ended since the night before. Shared: both people of the conversation read it, in the app and
- * by email. Made only from what both of them saw in the room.
+ * The mirror of one conversation for one day (Tehran time), written after each session of that day.
+ * Shared: both people of the conversation read it, in the app and by email. Made only from what both of them saw in the room.
  */
 @Entity
 @Table(name = "mirror_reports",

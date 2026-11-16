@@ -52,6 +52,9 @@ public class ChatRoomService {
     private final SessionBillingService sessionBillingService;
     private final RelationshipInsightRepository relationshipInsightRepository;
     private final com.coupleai.coupleai.beinema.mirror.MirrorReportRepository mirrorReportRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.mirror.MirrorReadRepository mirrorReadRepository;
     private final com.coupleai.coupleai.beinema.teach.TeachCardRepository teachCardRepository;
     private final RelationshipInsightService relationshipInsightService;
     private final ParticipationPauseService participationPauseService;
@@ -685,6 +688,10 @@ public class ChatRoomService {
         aiSessionPauseRepository.deleteAllByChatRoomId(chatRoomId);
         invitationRepository.deleteAllByChatRoom(chatRoom);
         relationshipInsightRepository.deleteAllByChatRoom(chatRoom);
+        if (mirrorReadRepository != null) {
+            mirrorReadRepository.deleteAllByReportIdIn(mirrorReportRepository.findAllByChatRoomId(chatRoomId).stream()
+                    .map(com.coupleai.coupleai.beinema.mirror.MirrorReport::getId).toList());
+        }
         mirrorReportRepository.deleteAllByChatRoomId(chatRoomId);
         teachCardRepository.deleteAllByChatRoomId(chatRoomId);
         agentAccessRepository.deleteByChatRoomId(chatRoomId);

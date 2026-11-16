@@ -43,10 +43,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The nightly mirror. At 22:00 Tehran time, every conversation that had a session (with something
- * said in it) since 22:00 the night before gets its mirror for the day: the one written when its
- * last session closed, or written now if that failed. It is kept for the app (the room's panel and
- * the dashboard card) and sent to both people by email, unless they turned that off.
+ * The mirror of a conversation, one per day: written right after a session closes (and written again
+ * after a later session that day). Nobody is interrupted with it: the dashboard card of the conversation
+ * says it is ready and opens it, and whoever has not opened it within a day gets it by email, unless
+ * they turned that off.
  * <p>
  * The mirror is shared, so it is made only from what both people saw in the room (never a private
  * message to the companion or a safety note shown to one of them; see RelationshipInsightService).
@@ -116,30 +116,60 @@ public class MirrorReportService {
         return nowInTehran.isBefore(today) ? today.minusDays(1) : today;
     }
 
-    /** Every quarter hour: once 22:00 has passed, the day's mirrors that are not written yet. */
+    /** A mirror not opened in the app within this time is emailed. */
+    static final java.time.Duration EMAIL_AFTER = java.time.Duration.ofHours(24);
+    /** Older than this, an unopened mirror is not emailed any more (the server was down, say). */
+    static final java.time.Duration EMAIL_UNTIL = java.time.Duration.ofHours(72);
+    /** How far back the dashboard looks for a mirror not opened yet. */
+    static final java.time.Duration UNSEEN_FOR = java.time.Duration.ofDays(14);
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private MirrorReadRepository reads;
+
+    /**
+     * Right after a session closed (its relationship path was just written): the mirror of that day is
+     * written, or written again with this session in it. Nobody is told: the dashboard shows that it is
+     * ready, and it is emailed only to whoever has not opened it within a day. Never throws.
+     */
+    public void afterSession(Long roomId, Instant endedAt) {
+        try {
+            writeFor(roomId, endedAt == null ? Instant.now() : endedAt);
+        } catch (RuntimeException failure) {
+            log.warn("Mirror of room {} after a session failed: {}", roomId, failure.getMessage());
+        }
+    }
+
+    /**
+     * Every quarter hour: a mirror whose writing after its session failed is tried again; unopened
+     * mirrors are emailed a day after they were written; and at night the lessons of people who got no
+     * mirror email go on their own.
+     */
     @Scheduled(cron = "0 */15 * * * *", zone = "Asia/Tehran")
     public void nightly() {
-        LocalDateTime cutoff = lastCutoff(LocalDateTime.now(TEHRAN));
-        Instant to = cutoff.atZone(TEHRAN).toInstant();
-        Instant from = cutoff.minusDays(1).atZone(TEHRAN).toInstant();
-        LocalDate day = cutoff.toLocalDate();
-
-        Map<Long, Integer> perRoom = new LinkedHashMap<>();
-        for (SessionRecord session : sessions.findAllByEndedAtGreaterThanAndEndedAtLessThanEqualAndCompletedTrue(from, to)) {
-            perRoom.merge(session.getChatRoomId(), 1, Integer::sum);
+        Instant now = Instant.now();
+        Map<Long, Instant> lastEnd = new LinkedHashMap<>();
+        for (SessionRecord session : sessions.findAllByEndedAtGreaterThanAndEndedAtLessThanEqualAndCompletedTrue(
+                now.minus(java.time.Duration.ofHours(48)), now)) {
+            lastEnd.merge(session.getChatRoomId(), session.getEndedAt(), (a, b) -> a.isAfter(b) ? a : b);
         }
-        perRoom.forEach((roomId, count) -> {
+        lastEnd.forEach((roomId, endedAt) -> {
             try {
-                write(roomId, day, count, from, to);
+                writeFor(roomId, endedAt);
             } catch (RuntimeException failure) {
-                log.warn("Mirror of room {} for {} failed: {}", roomId, day, failure.getMessage());
+                log.warn("Mirror of room {} failed: {}", roomId, failure.getMessage());
             }
         });
-        if (!Instant.now().isBefore(to.plus(LESSONS_ALONE_AFTER))) {
+        try {
+            emailUnopened(now);
+        } catch (RuntimeException failure) {
+            log.warn("Mirror emails failed: {}", failure.getMessage());
+        }
+        Instant to = lastCutoff(LocalDateTime.now(TEHRAN)).atZone(TEHRAN).toInstant();
+        if (!now.isBefore(to.plus(LESSONS_ALONE_AFTER))) {
             try {
                 lessonsAlone(to);
             } catch (RuntimeException failure) {
-                log.warn("Lesson emails for {} failed: {}", day, failure.getMessage());
+                log.warn("Lesson emails before {} failed: {}", to, failure.getMessage());
             }
         }
     }
@@ -176,25 +206,41 @@ public class MirrorReportService {
         });
     }
 
-    private void write(Long roomId, LocalDate day, int sessionsCount, Instant since, Instant cutoff) {
+    /** The mirror of the day this session ended on, written once more if it was written before the session ended. */
+    void writeFor(Long roomId, Instant endedAt) {
+        LocalDate day = endedAt.atZone(TEHRAN).toLocalDate();
         MirrorReport report = reports.findByChatRoomIdAndDay(roomId, day).orElseGet(() -> {
             MirrorReport fresh = new MirrorReport();
             fresh.setChatRoomId(roomId);
             fresh.setDay(day);
             return fresh;
         });
-        if (!MirrorReport.PENDING.equals(report.getStatus()) || report.getAttempts() >= MAX_ATTEMPTS) {
+        boolean coversThisSession = report.getBuiltAt() != null && !report.getBuiltAt().isBefore(endedAt);
+        if (!MirrorReport.PENDING.equals(report.getStatus())) {
+            if (coversThisSession || (report.getId() != null && report.getBuiltAt() == null
+                    && report.getAttempts() >= MAX_ATTEMPTS)) {
+                return;
+            }
+            // a later session that day: the mirror is written again with it
+            report.setStatus(MirrorReport.PENDING);
+            report.setAttempts(0);
+        }
+        if (report.getAttempts() >= MAX_ATTEMPTS) {
             return;
         }
         ChatRoom room = rooms.findById(roomId).orElse(null);
         if (room == null) {
             return;
         }
-        report.setSessionsCount(sessionsCount);
+        Instant dayStart = day.atStartOfDay(TEHRAN).toInstant();
+        int sessionsCount = (int) sessions.findAllByEndedAtGreaterThanAndEndedAtLessThanEqualAndCompletedTrue(
+                        dayStart.minusNanos(1), dayStart.plus(java.time.Duration.ofDays(1)))
+                .stream().filter(session -> roomId.equals(session.getChatRoomId())).count();
+        report.setSessionsCount(Math.max(1, sessionsCount));
         report.setAttempts(report.getAttempts() + 1);
         RelationshipInsight insight;
         try {
-            insight = insights.freshFor(roomId, since);
+            insight = insights.freshFor(roomId, endedAt);
         } catch (RuntimeException failure) {
             report.setLastError(trim(failure.getMessage(), 300));
             if (report.getAttempts() >= MAX_ATTEMPTS) {
@@ -218,21 +264,55 @@ public class MirrorReportService {
         report.setBuiltAt(Instant.now());
         report.setStatus(MirrorReport.DONE);
         report.setLastError(null);
-        report = reports.save(report);
-        MirrorReport written = report;
-        // the members and their users load lazily: read them inside a transaction
-        Integer emailed = readOnly.execute(status -> email(rooms.findById(roomId).orElse(room), written, cutoff));
-        report.setEmailed(emailed == null ? 0 : emailed);
         reports.save(report);
-        log.info("Mirror of room {} for {} written; emailed to {}", roomId, day, report.getEmailed());
+        log.info("Mirror of room {} for {} written", roomId, day);
     }
 
-    /** To each active member with an email address who has not turned this off. */
-    private int email(ChatRoom room, MirrorReport report, Instant cutoff) {
+    /** Someone to email one mirror to, read inside a transaction (the members load lazily). */
+    private record Outgoing(Long userId, String to, MirrorLetter.Content content) {
+    }
+
+    /** Each mirror written a day ago or more, to every member who has neither opened it nor had it emailed. */
+    void emailUnopened(Instant now) {
         if (!mailer.configured()) {
-            return 0;
+            return;
         }
-        int sent = 0;
+        for (MirrorReport report : reports.findAllByStatusAndBuiltAtBetween(MirrorReport.DONE,
+                now.minus(EMAIL_UNTIL), now.minus(EMAIL_AFTER))) {
+            List<Outgoing> outgoing = readOnly.execute(status -> recipients(report));
+            int sent = 0;
+            for (Outgoing person : outgoing == null ? List.<Outgoing>of() : outgoing) {
+                MirrorRead read = reads.findByReportIdAndUserId(report.getId(), person.userId()).orElseGet(() -> {
+                    MirrorRead fresh = new MirrorRead();
+                    fresh.setReportId(report.getId());
+                    fresh.setUserId(person.userId());
+                    return fresh;
+                });
+                if (read.handled(report.getBuiltAt())) {
+                    continue;
+                }
+                if (send(report, person, now)) {
+                    read.setEmailedAt(Instant.now());
+                    reads.save(read);
+                    sent++;
+                }
+            }
+            if (sent > 0) {
+                report.setEmailed(report.getEmailed() + sent);
+                reports.save(report);
+                log.info("Mirror {} of room {} emailed to {} who had not opened it", report.getId(),
+                        report.getChatRoomId(), sent);
+            }
+        }
+    }
+
+    /** The active members with an email address who did not turn the mirror email off. */
+    private List<Outgoing> recipients(MirrorReport report) {
+        ChatRoom room = rooms.findById(report.getChatRoomId()).orElse(null);
+        if (room == null) {
+            return List.of();
+        }
+        List<Outgoing> out = new ArrayList<>();
         for (ChatRoomParticipant person : participants.findAllByChatRoom(room)) {
             User user = person.getUser();
             if (user == null || person.getMemberStatus() == ChatRoomMemberStatus.LEFT
@@ -241,29 +321,34 @@ public class MirrorReportService {
                 continue;
             }
             String to = AdminEmailService.address(user);
-            if (to == null) {
-                continue;
-            }
-            MirrorLetter.Content content = content(room, report, user);
-            // this person's own lesson cards, in their email only
-            List<LessonDigest.Due> due = lessons == null ? List.of() : lessons.dueFor(user.getId(), cutoff);
-            String lessonsUrl = siteUrl + "/dashboard/lessons";
-            try {
-                Map<String, String> headers = new LinkedHashMap<>();
-                headers.put("List-Unsubscribe", "<" + content.stopUrl() + ">");
-                headers.put("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
-                mailer.send(new SmtpMailer.Mail(to, "no-reply@beinema.ir", "بین‌ما", MirrorLetter.subject(content),
-                        MirrorLetter.text(content, due.isEmpty() ? "" : LessonDigest.text(due, lessonsUrl)),
-                        MirrorLetter.html(content, due.isEmpty() ? "" : LessonDigest.html(due, lessonsUrl)), null, headers));
-                sent++;
-                if (!due.isEmpty()) {
-                    lessons.sent(due, Instant.now());
-                }
-            } catch (RuntimeException failure) {
-                log.warn("Mirror email of room {} to user {} failed: {}", room.getId(), user.getId(), failure.getMessage());
+            if (to != null) {
+                out.add(new Outgoing(user.getId(), to, content(room, report, user)));
             }
         }
-        return sent;
+        return out;
+    }
+
+    private boolean send(MirrorReport report, Outgoing person, Instant now) {
+        MirrorLetter.Content content = person.content();
+        // this person's own lesson cards, in their email only
+        List<LessonDigest.Due> due = lessons == null ? List.of() : lessons.dueFor(person.userId(), now);
+        String lessonsUrl = siteUrl + "/dashboard/lessons";
+        try {
+            Map<String, String> headers = new LinkedHashMap<>();
+            headers.put("List-Unsubscribe", "<" + content.stopUrl() + ">");
+            headers.put("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+            mailer.send(new SmtpMailer.Mail(person.to(), "no-reply@beinema.ir", "بین‌ما", MirrorLetter.subject(content),
+                    MirrorLetter.text(content, due.isEmpty() ? "" : LessonDigest.text(due, lessonsUrl)),
+                    MirrorLetter.html(content, due.isEmpty() ? "" : LessonDigest.html(due, lessonsUrl)), null, headers));
+            if (!due.isEmpty()) {
+                lessons.sent(due, Instant.now());
+            }
+            return true;
+        } catch (RuntimeException failure) {
+            log.warn("Mirror email of room {} to user {} failed: {}", report.getChatRoomId(), person.userId(),
+                    failure.getMessage());
+            return false;
+        }
     }
 
     MirrorLetter.Content content(ChatRoom room, MirrorReport report, User user) {
@@ -271,7 +356,7 @@ public class MirrorReportService {
         return new MirrorLetter.Content(firstName(user), title(room), jalali(report.getDay()), report.getMood(),
                 mood[0], mood[1], report.getDailySentence(), report.getWhereWeAre(), report.getWhereWeWere(),
                 list(report.getNeedsJson()), list(report.getPatternsJson()), report.getNextStep(),
-                siteUrl + "/chat-rooms/" + room.getId() + "?mirror=1",
+                siteUrl + "/dashboard?mirror=" + report.getId(),
                 siteUrl + "/api/email/mirror-off?u=" + user.getId() + "&t=" + token(user.getId()));
     }
 
@@ -331,6 +416,71 @@ public class MirrorReportService {
     public record View(Long id, Long chatRoomId, String roomTitle, String day, String date, String mood,
                        String moodLabel, String dailySentence, String whereWeAre, String whereWeWere,
                        List<String> needs, List<String> patterns, String nextStep, int sessionsCount) {
+    }
+
+    /**
+     * For the dashboard: the newest mirror of each of this person's conversations that they have not
+     * opened since it was (last) written. The card of that conversation says it is ready.
+     */
+    public List<View> unopened(User user) {
+        Map<Long, ChatRoom> mine = new LinkedHashMap<>();
+        for (ChatRoomParticipant person : participants.findAllForUser(user.getId())) {
+            if (person.getMemberStatus() != ChatRoomMemberStatus.REMOVED
+                    && person.getMemberStatus() != ChatRoomMemberStatus.LEFT) {
+                mine.put(person.getChatRoom().getId(), person.getChatRoom());
+            }
+        }
+        if (mine.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, MirrorReport> newest = new LinkedHashMap<>();
+        for (MirrorReport report : reports.findAllByChatRoomIdInAndStatusAndBuiltAtAfterOrderByBuiltAtDesc(
+                mine.keySet(), MirrorReport.DONE, Instant.now().minus(UNSEEN_FOR))) {
+            newest.putIfAbsent(report.getChatRoomId(), report);
+        }
+        if (newest.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, MirrorRead> myReads = new LinkedHashMap<>();
+        for (MirrorRead read : reads.findAllByReportIdIn(newest.values().stream().map(MirrorReport::getId).toList())) {
+            if (user.getId().equals(read.getUserId())) {
+                myReads.put(read.getReportId(), read);
+            }
+        }
+        List<View> out = new ArrayList<>();
+        for (MirrorReport report : newest.values()) {
+            MirrorRead read = myReads.get(report.getId());
+            if (read == null || !read.seen(report.getBuiltAt())) {
+                out.add(view(mine.get(report.getChatRoomId()), report));
+            }
+        }
+        return out;
+    }
+
+    /** One mirror, for a member of its conversation (the link in the email opens it). */
+    public View one(Long reportId, User user) {
+        MirrorReport report = reports.findById(reportId)
+                .filter(item -> MirrorReport.DONE.equals(item.getStatus()))
+                .orElseThrow(() -> new IllegalArgumentException("آینه پیدا نشد."));
+        ChatRoom room = rooms.findById(report.getChatRoomId())
+                .orElseThrow(() -> new IllegalArgumentException("گفتگو پیدا نشد."));
+        if (!participants.existsByChatRoomAndUser(room, user)) {
+            throw new IllegalArgumentException("شما عضو این گفتگو نیستید.");
+        }
+        return view(room, report);
+    }
+
+    /** This person opened this mirror: it is not shown as ready to them, and not emailed to them. */
+    public void opened(Long reportId, User user) {
+        one(reportId, user);
+        MirrorRead read = reads.findByReportIdAndUserId(reportId, user.getId()).orElseGet(() -> {
+            MirrorRead fresh = new MirrorRead();
+            fresh.setReportId(reportId);
+            fresh.setUserId(user.getId());
+            return fresh;
+        });
+        read.setSeenAt(Instant.now());
+        reads.save(read);
     }
 
     /** The mirrors of one conversation, newest first, for a member of it. */
