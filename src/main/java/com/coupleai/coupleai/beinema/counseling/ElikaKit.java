@@ -284,6 +284,16 @@ public final class ElikaKit {
         return current;
     }
 
+    /** The kit is read again on next use (an edit from the admin panel). */
+    static void reset() {
+        loaded = null;
+    }
+
+    /** Reads the kit without keeping it: throws when it is incomplete. */
+    static void readForCheck() {
+        read();
+    }
+
     @SuppressWarnings("unchecked")
     private static Loaded read() {
         ObjectMapper mapper = new ObjectMapper();
@@ -315,7 +325,8 @@ public final class ElikaKit {
         }
         Map<String, Lessons.Lesson> lessons = new LinkedHashMap<>();
         Map<String, Map<String, Object>> cards = new LinkedHashMap<>();
-        for (JsonNode node : root.path("lessons")) {
+        for (JsonNode file : root.path("lessons")) {
+            JsonNode node = LessonOverrides.apply(file);
             String id = node.path("id").asText();
             List<String> core = strings(node.path("core"));
             if (!id.startsWith(LESSON_PREFIX) || core.isEmpty() || node.path("visual").isMissingNode()) {

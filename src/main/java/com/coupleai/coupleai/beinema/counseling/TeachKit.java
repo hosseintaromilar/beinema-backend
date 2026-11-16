@@ -79,6 +79,11 @@ public final class TeachKit {
         return current;
     }
 
+    /** The library is read again on next use (an edit from the admin panel). */
+    static void reset() {
+        lessons = null;
+    }
+
     static Map<String, TeachLesson> read() {
         JsonNode root;
         try (InputStream stream = TeachKit.class.getClassLoader().getResourceAsStream(FILE)) {
@@ -90,7 +95,8 @@ public final class TeachKit {
             throw new IllegalStateException("Unreadable " + FILE, exception);
         }
         Map<String, Practice> practices = new LinkedHashMap<>();
-        for (JsonNode item : root.path("practices")) {
+        for (JsonNode file : root.path("practices")) {
+            JsonNode item = LessonOverrides.apply(file);
             List<Source> sources = new ArrayList<>();
             item.path("sources").forEach(source -> sources.add(
                     new Source(source.path("name").asText(""), source.path("url").asText(""))));
@@ -101,7 +107,8 @@ public final class TeachKit {
                     strings(item.path("steps")), sources));
         }
         Map<String, TeachLesson> parsed = new LinkedHashMap<>();
-        for (JsonNode item : root.path("beliefs")) {
+        for (JsonNode file : root.path("beliefs")) {
+            JsonNode item = LessonOverrides.apply(file);
             String id = item.path("id").asText().trim().toUpperCase(Locale.ROOT);
             JsonNode check = item.path("check");
             List<String> options = strings(check.path("options"));

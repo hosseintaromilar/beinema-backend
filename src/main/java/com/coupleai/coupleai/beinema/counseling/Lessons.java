@@ -60,6 +60,11 @@ public final class Lessons {
         return current;
     }
 
+    /** The library is read again on next use (an edit from the admin panel). */
+    static void reset() {
+        lessons = null;
+    }
+
     static Map<String, Lesson> read() {
         JsonNode root;
         try (InputStream stream = Lessons.class.getClassLoader().getResourceAsStream(FILE)) {
@@ -71,7 +76,8 @@ public final class Lessons {
             throw new IllegalStateException("Unreadable " + FILE, exception);
         }
         Map<String, Lesson> parsed = new LinkedHashMap<>();
-        for (JsonNode item : root) {
+        for (JsonNode file : root) {
+            JsonNode item = LessonOverrides.apply(file);
             Lesson lesson = new Lesson(
                     item.path("id").asText("").trim(),
                     item.path("title").asText("").trim(),
