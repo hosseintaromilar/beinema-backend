@@ -132,16 +132,32 @@ public final class DecisionValidator {
         return d;
     }
 
-    private static final Set<String> FINANCE_CARDS = Set.of("RISK", "PICTURE", "MARKET", "PLAN");
+    private static final Set<String> FINANCE_CARDS = Set.of("RISK", "PICTURE", "MARKET", "PLAN", "BUDGET");
 
     /** The financial companion's card and the figures it heard; unknown values are dropped. */
-    static void readFinance(JsonNode node, DirectorDecision d) {
+    public static void readFinance(JsonNode node, DirectorDecision d) {
         String card = node.path("card").asText("").trim().toUpperCase(Locale.ROOT);
         d.financeCard = FINANCE_CARDS.contains(card) ? card : null;
         node.path("hints").fields().forEachRemaining(entry -> {
             if (entry.getValue().isNumber() && entry.getValue().asDouble() >= 0
                     && FinanceKit.FIELDS.stream().anyMatch(field -> field.id().equals(entry.getKey()))) {
                 d.financeHints.put(entry.getKey(), entry.getValue().asDouble());
+            }
+        });
+        for (JsonNode line : node.path("budget")) {
+            String category = line.path("category").asText("").trim().toUpperCase(Locale.ROOT);
+            double millions = line.path("amount").asDouble(0);
+            if (com.coupleai.coupleai.beinema.budget.BudgetKit.category(category) != null && millions > 0 && d.financeBudget.size() < 12) {
+                String note = line.path("note").asText("").trim();
+                d.financeBudget.add(new com.coupleai.coupleai.beinema.budget.BudgetService.Heard(category, millions,
+                        line.path("days_ago").asInt(0), note.length() > 200 ? note.substring(0, 200) : note));
+            }
+        }
+        node.path("limits").fields().forEachRemaining(entry -> {
+            com.coupleai.coupleai.beinema.budget.BudgetKit.Category category = com.coupleai.coupleai.beinema.budget.BudgetKit.category(entry.getKey());
+            if (entry.getValue().isNumber() && entry.getValue().asDouble() >= 0 && category != null
+                    && com.coupleai.coupleai.beinema.budget.BudgetKit.EXPENSE.equals(category.kind())) {
+                d.financeLimits.put(entry.getKey(), entry.getValue().asDouble());
             }
         });
     }

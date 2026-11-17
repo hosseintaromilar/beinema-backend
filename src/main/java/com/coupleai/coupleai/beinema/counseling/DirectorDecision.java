@@ -85,6 +85,10 @@ public class DirectorDecision {
     public String financeCard;
     /** The financial companion: figures heard in the talk (field id to million tomans), offered in the picture's form. */
     public java.util.Map<String, Double> financeHints = new java.util.LinkedHashMap<>();
+    /** The financial companion: lines of income and spending heard in the talk, written in the household's book. */
+    public List<com.coupleai.coupleai.beinema.budget.BudgetService.Heard> financeBudget = new ArrayList<>();
+    /** The financial companion: monthly limits they agreed on, by category, in million tomans (0 removes one). */
+    public java.util.Map<String, Double> financeLimits = new java.util.LinkedHashMap<>();
 
     public QuestionSpec question;
     public List<QuestionUpdate> questionUpdates = new ArrayList<>();

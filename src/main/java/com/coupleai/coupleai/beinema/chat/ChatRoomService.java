@@ -76,6 +76,10 @@ public class ChatRoomService {
     /** The market reports made in a conversation go with it (optional, so tests need not wire it). */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.coupleai.coupleai.beinema.market.MarketReportService marketReportService;
+
+    /** A conversation's budget book goes with it (optional, so tests need not wire it). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.budget.BudgetService budgetService;
     private final com.coupleai.coupleai.beinema.Repository.SessionMemoryRepository sessionMemoryRepository;
     private final com.coupleai.coupleai.beinema.Repository.ServiceFeedbackRepository serviceFeedbackRepository;
     private final com.coupleai.coupleai.beinema.Repository.PersonMilestoneRepository personMilestoneRepository;
@@ -686,6 +690,9 @@ public class ChatRoomService {
         financeCardRepository.deleteAllByChatRoomId(chatRoomId);
         if (marketReportService != null) {
             marketReportService.deleteRoom(chatRoomId);
+        }
+        if (budgetService != null) {
+            budgetService.deleteRoom(chatRoomId);
         }
         sessionMemoryRepository.deleteAllByChatRoomId(chatRoomId);
         serviceFeedbackRepository.deleteAllByChatRoomId(chatRoomId);

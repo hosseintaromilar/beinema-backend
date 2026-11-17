@@ -53,6 +53,11 @@ public class FinanceService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.coupleai.coupleai.beinema.market.MarketReportService marketReports;
 
+    /** The household's budget book (optional, so tests need not wire it). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private com.coupleai.coupleai.beinema.budget.BudgetService budget;
+
     /** What a person did on a card: the message it put in the room, and whether everyone has answered now. */
     public record Done(Message message, boolean everyoneAnswered) {
     }
@@ -97,6 +102,13 @@ public class FinanceService {
                 }
                 return Optional.of(save(roomId, kind, data));
             }
+            case FinanceCard.BUDGET -> {
+                if (budget == null) {
+                    notes.add("finance: no budget book here");
+                    return Optional.empty();
+                }
+                return Optional.of(save(roomId, kind, Map.of()));
+            }
             case FinanceCard.PLAN -> {
                 List<FinanceKit.Risk> risks = new ArrayList<>(risks(roomId).values());
                 FinanceKit.Plan plan = FinanceKit.plan(risks, pictureValues(roomId));
@@ -114,6 +126,70 @@ public class FinanceService {
                 return Optional.empty();
             }
         }
+    }
+
+    /** Lines of income and spending the director heard: written in the household's book, as Pouria's. */
+    @Transactional
+    public int heard(Long roomId, List<com.coupleai.coupleai.beinema.budget.BudgetService.Heard> lines, Map<String, Double> limitsInMillions) {
+        if (budget == null) {
+            return 0;
+        }
+        if (limitsInMillions != null && !limitsInMillions.isEmpty()) {
+            Map<String, Long> amounts = new LinkedHashMap<>();
+            limitsInMillions.forEach((id, millions) -> amounts.put(id, Math.round(millions * 1_000_000)));
+            budget.setLimits(roomId, null, amounts);
+        }
+        return lines == null || lines.isEmpty() ? 0 : budget.heard(roomId, lines);
+    }
+
+    /**
+     * The household's financial profile, for one of them: each person's risk result (the other's only once
+     * everyone answered), the financial picture and what it says, the effective risk level and the plan chosen.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> profile(Long roomId, User user) {
+        ChatRoom room = member(roomId, user);
+        Map<Long, String> names = names(room);
+        Map<String, Object> out = new LinkedHashMap<>();
+        Map<String, Object> answers = cards.findFirstByChatRoomIdAndKindOrderByIdDesc(roomId, FinanceCard.RISK)
+                .map(card -> map(data(card).get("answers"))).orElse(Map.of());
+        boolean everyone = answers.size() >= present(room);
+        List<Map<String, Object>> people = new ArrayList<>();
+        answers.forEach((id, given) -> {
+            boolean me = id.equals(String.valueOf(user.getId()));
+            if (me || everyone) {
+                people.add(person(names.getOrDefault(Long.valueOf(id), "یکی از شما"), me, FinanceKit.risk(ints(given))));
+            }
+        });
+        out.put("people", people);
+        out.put("riskWaiting", !answers.isEmpty() && !everyone);
+        Map<String, Double> values = pictureValues(roomId);
+        List<Map<String, Object>> fields = new ArrayList<>();
+        FinanceKit.FIELDS.forEach(field -> fields.add(Map.of("id", field.id(), "label", field.label(), "group", field.group())));
+        out.put("fields", fields);
+        out.put("values", values);
+        FinanceKit.Picture picture = values.isEmpty() ? null : FinanceKit.picture(values);
+        out.put("summary", picture);
+        Map<Long, FinanceKit.Risk> risks = risks(roomId);
+        if (!risks.isEmpty()) {
+            String quiz = risks.values().stream().map(FinanceKit.Risk::profile)
+                    .min(java.util.Comparator.comparingInt(FinanceKit.LEVELS::indexOf)).orElse(FinanceKit.CAUTIOUS);
+            String effective = FinanceKit.lower(FinanceKit.lower(quiz, picture == null ? null : picture.capacityLevel()),
+                    FinanceKit.horizonCap(picture == null || picture.goal() == null ? null : picture.goal().months()));
+            out.put("effective", Map.of("level", effective, "title", FinanceKit.profileTitle(effective),
+                    "text", FinanceKit.profileText(effective), "lowerThanQuiz", !effective.equals(quiz)));
+        }
+        cards.findFirstByChatRoomIdAndKindOrderByIdDesc(roomId, FinanceCard.PLAN).ifPresent(card -> {
+            Map<String, Object> data = data(card);
+            Map<String, Object> plan = new LinkedHashMap<>();
+            plan.put("plan", data.get("plan"));
+            List<Map<String, Object>> chosen = new ArrayList<>();
+            map(data.get("choices")).forEach((id, index) -> chosen.add(Map.of("name", names.getOrDefault(Long.valueOf(id), "یکی از شما"),
+                    "me", id.equals(String.valueOf(user.getId())), "index", index)));
+            plan.put("choices", chosen);
+            out.put("plan", plan);
+        });
+        return out;
     }
 
     /** Figures the director heard in the conversation: offered in the picture's form, saved only by a person. */
@@ -229,6 +305,13 @@ public class FinanceService {
         switch (card.getKind()) {
             case FinanceCard.RISK -> riskView(view, room, data, names, user);
             case FinanceCard.PICTURE -> pictureView(view, data, names, card);
+            case FinanceCard.BUDGET -> {
+                // the book as it is now, not as it was when the card was sent
+                if (budget != null) {
+                    view.put("budget", budget.month(roomId, null, user, names));
+                }
+                view.put("roomId", roomId);
+            }
             case FinanceCard.MARKET -> {
                 view.put("quotes", data.get("quotes"));
                 view.put("updatedAt", data.get("updatedAt"));
@@ -377,6 +460,9 @@ public class FinanceService {
                 .map(card -> map(data(card).get("hints"))).orElse(Map.of());
         if (!hints.isEmpty()) {
             out.append("  figures you heard, waiting in the form for them to save: ").append(hints.keySet()).append('\n');
+        }
+        if (budget != null) {
+            out.append(budget.forDirector(m.roomId()));
         }
         out.append("market cards sent: ").append(given.stream().filter(card -> FinanceCard.MARKET.equals(card.getKind())).count()).append('\n');
         Optional<FinanceCard> plan = cards.findFirstByChatRoomIdAndKindOrderByIdDesc(m.roomId(), FinanceCard.PLAN);

@@ -719,6 +719,11 @@ public class TurnOrchestrator {
             financeService.hint(m.roomId(), d.financeHints);
             notes.add("finance: figures offered in the form " + d.financeHints.keySet());
         }
+        if (!d.financeBudget.isEmpty() || !d.financeLimits.isEmpty()) {
+            int written = financeService.heard(m.roomId(), d.financeBudget, d.financeLimits);
+            notes.add("finance: " + written + " line(s) written in the budget book"
+                    + (d.financeLimits.isEmpty() ? "" : ", limits " + d.financeLimits.keySet()));
+        }
         if (d.financeCard == null) {
             return;
         }
@@ -730,6 +735,7 @@ public class TurnOrchestrator {
             case "RISK" -> "آزمونک ریسک‌پذیری";
             case "PICTURE" -> "تصویر مالی شما";
             case "MARKET" -> "گزارش بازار";
+            case "BUDGET" -> "دفتر بودجهٔ شما";
             default -> "سناریوهای پیشنهادی";
         };
         financeService.open(m.roomId(), d.financeCard, notes).ifPresent(card ->

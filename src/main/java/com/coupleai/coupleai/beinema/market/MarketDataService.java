@@ -33,7 +33,7 @@ import java.util.Locale;
 public class MarketDataService {
 
     private static final Logger log = LoggerFactory.getLogger(MarketDataService.class);
-    static final ZoneId TEHRAN = ZoneId.of("Asia/Tehran");
+    public static final ZoneId TEHRAN = ZoneId.of("Asia/Tehran");
     /** Older than this, the figures are shown as stale. */
     static final Duration FRESH = Duration.ofHours(6);
     /** The year of daily closes is read again this often; today's price comes every hour. */

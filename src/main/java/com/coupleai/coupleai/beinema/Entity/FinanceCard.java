@@ -24,6 +24,7 @@ public class FinanceCard extends BaseEntity {
     public static final String PICTURE = "PICTURE";
     public static final String MARKET = "MARKET";
     public static final String PLAN = "PLAN";
+    public static final String BUDGET = "BUDGET";
 
     @Column(name = "public_id", length = 36, nullable = false, unique = true)
     private String publicId;

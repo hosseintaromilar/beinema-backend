@@ -22,18 +22,21 @@ public class MarketReportController {
     private final MarketReportService reports;
     private final FinanceReferenceService reference;
     private final CurrentUserService currentUserService;
+    private final com.coupleai.coupleai.beinema.budget.BudgetService budget;
 
     @GetMapping("/api/market-reports")
     public Map<String, Object> list() {
         User user = currentUserService.getCurrentUser();
-        boolean available = reports.available(user);
-        return Map.of("reports", available ? reports.list(user) : List.of(), "available", available);
+        boolean gotReport = reports.available(user);
+        boolean available = gotReport || budget.hadPouriaSession(user);
+        return Map.of("reports", available ? reports.list(user) : List.of(), "available", available, "canCreate", gotReport);
     }
 
-    /** Whether the tab «گزارش‌های مالی» is shown: Pouria gave this person a report in a session. */
+    /** Whether the finance tab is shown: this person held a session with Pouria (or got a report from him). */
     @GetMapping("/api/market-reports/available")
     public Map<String, Object> available() {
-        return Map.of("available", reports.available(currentUserService.getCurrentUser()));
+        User user = currentUserService.getCurrentUser();
+        return Map.of("available", budget.hadPouriaSession(user) || reports.available(user));
     }
 
     @GetMapping("/api/market-reports/{publicId}")
