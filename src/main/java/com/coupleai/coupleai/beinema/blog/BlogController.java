@@ -66,6 +66,13 @@ public class BlogController {
                 .filter(java.util.Objects::nonNull)
                 .distinct()
                 .forEach(slug -> xml.append("  <url><loc>").append(siteUrl).append("/agents/").append(slug).append("</loc></url>\n"));
+        // the blog's topics that have posts
+        List<BlogService.PublicPost> cards = blogService.publishedCards();
+        for (BlogTopics.Topic topic : BlogTopics.ALL) {
+            if (!BlogTopics.postsOf(topic, cards).isEmpty()) {
+                xml.append("  <url><loc>").append(siteUrl).append("/blog/topic/").append(topic.slug()).append("</loc></url>\n");
+            }
+        }
         for (BlogPost post : blogService.published()) {
             xml.append("  <url><loc>").append(siteUrl).append("/blog/").append(post.getSlug()).append("</loc>");
             String changed = lastChanged(post);

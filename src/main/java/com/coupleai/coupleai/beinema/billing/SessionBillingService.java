@@ -507,6 +507,20 @@ public class SessionBillingService {
 
     private java.util.function.BiConsumer<User, String> freeUsed;
 
+    private java.util.function.BiConsumer<User, Integer> bundleLeft;
+
+    /** Called when a bundle session was used and one session (1) or none (0) is left in all their bundles. */
+    public void onBundleLeft(java.util.function.BiConsumer<User, Integer> listener) {
+        this.bundleLeft = listener;
+    }
+
+    /** Sessions left in all the usable bundles of this person. */
+    @Transactional(readOnly = true)
+    public int sessionsLeftInBundles(Long userId) {
+        return userId == null ? 0 : packageRepository.findUsable(userId, Instant.now()).stream()
+                .mapToInt(SessionPackage::sessionsLeft).sum();
+    }
+
     /** Called when a free session is spent (its email never gets another). */
     public void onFreeUsed(java.util.function.BiConsumer<User, String> listener) {
         this.freeUsed = listener;
@@ -640,6 +654,16 @@ public class SessionBillingService {
             SessionPackage bundle = bundles.get(0);
             bundle.setSessionsUsed(bundle.getSessionsUsed() + 1);
             packageRepository.save(bundle);
+            if (bundleLeft != null) {
+                int left = sessionsLeftInBundles(owner.getId());
+                if (left <= 1) {
+                    try {
+                        bundleLeft.accept(owner, left);
+                    } catch (RuntimeException failure) {
+                        log.warn("Bundle notice to user {} failed: {}", owner.getId(), failure.getMessage());
+                    }
+                }
+            }
             return PACKAGE;
         }
         if (freeLeft(owner) > 0) {

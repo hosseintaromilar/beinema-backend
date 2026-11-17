@@ -123,6 +123,20 @@ class SessionBillingServiceTest {
     }
 
     @Test
+    void whenOneBundleSessionIsLeftAndWhenNoneIsTheyAreTold() {
+        SessionPackage pack = bundle(3, 1);
+        when(packages.findUsableForUpdate(eq(1L), any())).thenReturn(List.of(pack));
+        when(packages.findUsable(eq(1L), any())).thenAnswer(call -> pack.sessionsLeft() > 0 ? List.of(pack) : List.of());
+        List<Integer> told = new java.util.ArrayList<>();
+        billing.onBundleLeft((user, left) -> told.add(left));
+
+        billing.settle(room, 1);
+        billing.settle(room, 2);
+
+        assertEquals(List.of(1, 0), told);
+    }
+
+    @Test
     void afterTheFreeOnesABundleIsUsedBeforeTheWallet() {
         owner.setFreeSessionsUsed(2);
         wallet.setBalance(0L);
@@ -170,7 +184,9 @@ class SessionBillingServiceTest {
     void theCardsShowTheFourPlansOnSale_aBiggerOneCheaperPerSession() {
         List<SessionBillingService.PlanView> plans = billing.pricing(owner);
         assertEquals(List.of("SINGLE", "PACK4", "PACK10", "PACK20"), plans.stream().map(SessionBillingService.PlanView::planId).toList());
-        assertEquals(List.of(349_000L, 249_750L, 229_000L, 199_500L), plans.stream().map(SessionBillingService.PlanView::perSession).toList());
+        // the launch discount (half price for the first 100 buyers) is what a card shows first
+        assertEquals(List.of(349_000L, 124_750L, 114_500L, 99_750L), plans.stream().map(SessionBillingService.PlanView::perSession).toList());
+        assertEquals(List.of(349_000L, 999_000L, 2_290_000L, 3_990_000L), plans.stream().map(SessionBillingService.PlanView::regularPrice).toList());
         assertEquals(List.of(0, 1, 2, 5), plans.stream().map(SessionBillingService.PlanView::bonus).toList());
         assertEquals(List.of(1, 2, 3, 4), plans.stream().map(SessionBillingService.PlanView::dailyCap).toList());
         assertTrue(plans.stream().allMatch(SessionBillingService.PlanView::available));
@@ -203,7 +219,7 @@ class SessionBillingServiceTest {
     @Test
     void theCardsShowTheActiveStepAndTheRegularPrice() {
         List<SessionBillingService.PackageOffer> offers = billing.packageOffers();
-        assertEquals(List.of(349_000L, 999_000L, 2_290_000L, 3_990_000L),
+        assertEquals(List.of(349_000L, 499_000L, 1_145_000L, 1_995_000L),
                 offers.stream().map(SessionBillingService.PackageOffer::price).toList());
         assertEquals(List.of(349_000L, 999_000L, 2_290_000L, 3_990_000L),
                 offers.stream().map(SessionBillingService.PackageOffer::listPrice).toList());

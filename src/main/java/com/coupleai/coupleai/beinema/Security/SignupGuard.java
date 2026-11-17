@@ -24,14 +24,17 @@ public class SignupGuard {
 
     private final UserRepository users;
     private final int perDevice;
+    private final int perIp;
 
     public SignupGuard(UserRepository users,
-                       @Value("${beinema.signup.per-device-daily:2}") int perDevice) {
+                       @Value("${beinema.signup.per-device-daily:2}") int perDevice,
+                       @Value("${beinema.signup.per-ip-daily:3}") int perIp) {
         this.users = users;
         this.perDevice = perDevice;
+        this.perIp = perIp;
     }
 
-    /** Before making an account: refused when this device made too many in the last day. */
+    /** Before making an account: refused when this device, or this address, made too many in the last day. */
     public void requireRoom() {
         HttpServletRequest request = request();
         if (request == null) {
@@ -41,6 +44,11 @@ public class SignupGuard {
         String device = device(request);
         if (device != null && users.countByCreatedAtAfterAndSignupDevice(since, device) >= perDevice) {
             throw new IllegalArgumentException("امروز از این دستگاه چند حساب تازه ساخته شده؛ فردا دوباره امتحان کن، "
+                    + "یا اگر حساب داری، با همان وارد شو.");
+        }
+        String ip = AuthRateLimitFilter.clientAddress(request);
+        if (perIp > 0 && ip != null && users.countByCreatedAtAfterAndSignupIp(since, ip) >= perIp) {
+            throw new IllegalArgumentException("امروز از این اینترنت چند حساب تازه ساخته شده؛ فردا دوباره امتحان کن، "
                     + "یا اگر حساب داری، با همان وارد شو.");
         }
     }

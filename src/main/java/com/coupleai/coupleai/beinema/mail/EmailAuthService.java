@@ -69,7 +69,7 @@ public class EmailAuthService {
     static final Duration RESEND_GAP = Duration.ofSeconds(60);
     static final int PER_HOUR = 5;
     static final int PER_DAY = 10;
-    static final int SIGNUPS_PER_IP_PER_DAY = 5;
+    static final int SIGNUPS_PER_IP_PER_DAY = 3;
 
     public static final String NOT_READY = "ارسال ایمیل هنوز راه‌اندازی نشده؛ فعلاً با نام کاربری یا گوگل وارد شو.";
     private static final String SENT_IF_KNOWN = "اگر این ایمیل ثبت شده باشد، کد برایش فرستاده شد.";

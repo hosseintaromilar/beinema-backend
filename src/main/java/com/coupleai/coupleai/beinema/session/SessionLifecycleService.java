@@ -112,6 +112,11 @@ public class SessionLifecycleService {
             "جلسه‌ی %s تموم شد. حرف‌های امروزمون یادم می‌مونه تا جلسه‌ی بعد از همین‌جا ادامه بدیم. "
                     + "اثر جلسه‌ها وقتیه که بینشون فرصت فکر کردن و امتحان کردن باشه؛ برای همین با بسته‌ی فعلی در هر %s ساعت حداکثر %s جلسه داریم. جلسه‌ی بعد از %s می‌تونه شروع بشه.";
 
+    /** The session was the last one of their bundles: no daily limit to speak of, the way to buy instead. */
+    static final String CLOSING_RAN_OUT_TEXT =
+            "جلسه‌ی %s تموم شد. حرف‌های امروزمون یادم می‌مونه تا جلسه‌ی بعد از همین‌جا ادامه بدیم. "
+                    + "این آخرین جلسه‌ی بسته‌تون بود. برای جلسه‌ی بعد، از بخش «اعتبار حساب» یه بسته یا تک جلسه انتخاب کنین.";
+
     static final String EMPTY_TEXT =
             "جلسه‌ی %s بدون گفتگو تمام شد و جلسه حساب نمی‌شود. هر وقت آماده بودید «شروع» را بزنید.";
 
@@ -895,6 +900,9 @@ public class SessionLifecycleService {
     }
 
     private String closingText(Closing closing) {
+        if (ranOut(closing)) {
+            return String.format(CLOSING_RAN_OUT_TEXT, ordinal(closing.number()));
+        }
         if (closing.limitedUntil() != null) {
             int daily = chatRoomRepository.findById(closing.roomId()).map(this::dailyLimit).orElse(maxSessions);
             return String.format(CLOSING_LIMITED_TEXT, ordinal(closing.number()), persianDigits(windowHours),
@@ -905,6 +913,20 @@ public class SessionLifecycleService {
             return String.format(CLOSING_LATE_TEXT, ordinal(closing.number()));
         }
         return String.format(CLOSING_TEXT, ordinal(closing.number()), clockText(next));
+    }
+
+    /** This session was paid from a bundle and no bundle session is left now. */
+    private boolean ranOut(Closing closing) {
+        try {
+            boolean fromBundle = sessionRecordRepository.findTopByChatRoomIdOrderByIdDesc(closing.roomId())
+                    .filter(record -> Integer.valueOf(closing.number()).equals(record.getSessionNumber()))
+                    .map(record -> SessionBillingService.PACKAGE.equals(record.getBilling()))
+                    .orElse(false);
+            Long owner = chatRoomRepository.findById(closing.roomId()).map(ChatRoom::getCreatedBy).orElse(null);
+            return fromBundle && sessionBillingService.sessionsLeftInBundles(owner) == 0;
+        } catch (RuntimeException failure) {
+            return false;
+        }
     }
 
     String proposalText(ChatRoom room) {

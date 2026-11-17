@@ -33,6 +33,7 @@ public final class BlogPageHtml {
     public static String list(String shell, String siteUrl, List<BlogService.PublicPost> posts) {
         StringBuilder body = new StringBuilder("<main class=\"blog-page\"><header class=\"blog-hero\"><h1>بلاگ بین‌ما</h1>")
                 .append("<p>نوشته‌های کوتاه و کاربردی برای اینکه با هم بهتر حرف بزنید و همدیگر را بهتر بفهمید.</p></header>")
+                .append(topicLinks(posts, null))
                 .append("<div class=\"blog-grid\">");
         for (BlogService.PublicPost post : posts) {
             body.append("<a class=\"blog-card\" href=\"/blog/").append(escape(post.slug())).append("\">");
@@ -61,6 +62,14 @@ public final class BlogPageHtml {
             body.append("<img src=\"").append(escape(post.imagePath())).append("\" alt=\"\">");
         }
         body.append("<div class=\"blog-text\">").append(markdown(post.bodyMarkdown())).append("</div>");
+        body.append(companionBox(post));
+        List<BlogTopics.Topic> topics = BlogTopics.of(post);
+        if (!topics.isEmpty()) {
+            body.append("<nav class=\"blog-topics\" aria-label=\"موضوع‌های این نوشته\">");
+            topics.forEach(topic -> body.append("<a href=\"/blog/topic/").append(topic.slug()).append("\">")
+                    .append(escape(topic.title())).append("</a> "));
+            body.append("</nav>");
+        }
         // the admin's choice, in its order; without one, the first others
         List<String> chosen = post.related() == null ? List.of() : post.related();
         List<BlogService.PublicPost> related = chosen.isEmpty()
@@ -97,6 +106,58 @@ public final class BlogPageHtml {
         seed.put("post", post);
         return page(shell, post.title() + " | بلاگ بین‌ما", post.summary(), address, image, "article", structured,
                 body.toString(), seed);
+    }
+
+    /** /blog/topic/{slug}: what the topic is, its posts, and the companion who works on it. */
+    public static String topic(String shell, String siteUrl, BlogTopics.Topic topic, List<BlogService.PublicPost> posts) {
+        List<BlogService.PublicPost> mine = BlogTopics.postsOf(topic, posts);
+        StringBuilder body = new StringBuilder("<main class=\"blog-page\">")
+                .append("<a class=\"blog-back\" href=\"/blog\">→ همهٔ نوشته‌ها</a>")
+                .append("<header class=\"blog-hero\"><h1>").append(escape(topic.title())).append("</h1><p>")
+                .append(escape(topic.description())).append("</p></header>")
+                .append(topicLinks(posts, topic))
+                .append("<div class=\"blog-grid\">");
+        for (BlogService.PublicPost post : mine) {
+            body.append("<a class=\"blog-card\" href=\"/blog/").append(escape(post.slug())).append("\">");
+            if (post.imagePath() != null) {
+                body.append("<img src=\"").append(escape(post.imagePath())).append("\" alt=\"\" loading=\"lazy\">");
+            }
+            body.append("<div><h2>").append(escape(post.title())).append("</h2><p>")
+                    .append(escape(post.summary())).append("</p></div></a>");
+        }
+        body.append("</div>").append(companionLink(topic.companion(),
+                "اگر این موضوع در رابطهٔ شما هم هست، می‌توانید درباره‌اش با یک همراه گفتگو کنید.")).append("</main>");
+
+        Map<String, Object> seed = new LinkedHashMap<>();
+        seed.put("path", "/blog/topic/" + topic.slug());
+        seed.put("posts", posts);
+        return page(shell, topic.title() + " | بلاگ بین‌ما", topic.description(), siteUrl + "/blog/topic/" + topic.slug(),
+                null, "website", "", body.toString(), seed);
+    }
+
+    /** The topics that have posts, as links; the current one marked. */
+    static String topicLinks(List<BlogService.PublicPost> posts, BlogTopics.Topic current) {
+        StringBuilder out = new StringBuilder("<nav class=\"blog-topics\" aria-label=\"موضوع‌ها\">");
+        for (BlogTopics.Topic topic : BlogTopics.ALL) {
+            if (BlogTopics.postsOf(topic, posts).isEmpty()) {
+                continue;
+            }
+            out.append("<a href=\"/blog/topic/").append(topic.slug()).append("\"")
+                    .append(topic.equals(current) ? " aria-current=\"page\"" : "").append(">")
+                    .append(escape(topic.title())).append("</a> ");
+        }
+        return out.append("</nav>").toString();
+    }
+
+    /** At the end of a post: the companion who works on its topic. */
+    static String companionBox(BlogService.PublicPost post) {
+        return companionLink(BlogTopics.companionOf(post),
+                "اگر این نوشته حال رابطهٔ شما را توصیف می‌کند، می‌توانید درباره‌اش با یک همراه گفتگو کنید؛ جلسهٔ اول رایگان است.");
+    }
+
+    private static String companionLink(BlogTopics.Companion companion, String line) {
+        return "<aside class=\"blog-cta blog-companion\"><p>" + escape(line) + "</p><a href=\"/agents/" + companion.slug() + "\">"
+                + escape(companion.label()) + " ←</a></aside>";
     }
 
     public static String missing(String shell) {

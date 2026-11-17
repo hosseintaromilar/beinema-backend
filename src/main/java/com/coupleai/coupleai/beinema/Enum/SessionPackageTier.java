@@ -12,9 +12,13 @@ import java.util.List;
  */
 public enum SessionPackageTier {
     SINGLE("تک جلسه", 1, 0, 349_000, 365, 1, false, false, true, List.of()),
-    PACK4("بستهٔ ۴ جلسه‌ای", 4, 1, 999_000, 365, 2, true, false, true, List.of()),
-    PACK10("بستهٔ ۱۰ جلسه‌ای", 10, 2, 2_290_000, 365, 3, true, false, true, List.of()),
-    PACK20("بستهٔ ۲۰ جلسه‌ای", 20, 5, 3_990_000, 365, 4, true, false, true, List.of()),
+    // launch discount: 50% for the first 100 buyers of each bundle, 30% for the next 100
+    PACK4("بستهٔ ۴ جلسه‌ای", 4, 1, 999_000, 365, 2, true, false, true,
+            List.of(new Step(1, 50, 499_000, 100), new Step(2, 30, 699_000, 100))),
+    PACK10("بستهٔ ۱۰ جلسه‌ای", 10, 2, 2_290_000, 365, 3, true, false, true,
+            List.of(new Step(1, 50, 1_145_000, 100), new Step(2, 30, 1_603_000, 100))),
+    PACK20("بستهٔ ۲۰ جلسه‌ای", 20, 5, 3_990_000, 365, 4, true, false, true,
+            List.of(new Step(1, 50, 1_995_000, 100), new Step(2, 30, 2_793_000, 100))),
 
     TRIAL("بستهٔ آزمایشی", 2, 590_000, 30, 1, false, false,
             List.of(new Step(1, 50, 295_000, 100))),

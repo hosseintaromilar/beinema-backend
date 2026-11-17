@@ -47,6 +47,17 @@ public class BlogPageController {
         return ResponseEntity.ok(BlogPageHtml.list(shell, siteUrl, blogService.publishedCards()));
     }
 
+    @GetMapping("/topic/{slug}")
+    public ResponseEntity<String> topic(@PathVariable String slug) {
+        String shell = shell();
+        if (shell == null) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+        }
+        return BlogTopics.find(slug)
+                .map(topic -> ResponseEntity.ok(BlogPageHtml.topic(shell, siteUrl, topic, blogService.publishedCards())))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(BlogPageHtml.missing(shell)));
+    }
+
     @GetMapping("/{slug}")
     public ResponseEntity<String> post(@PathVariable String slug) {
         String shell = shell();
