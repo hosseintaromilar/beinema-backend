@@ -49,6 +49,10 @@ public class FinanceService {
     private final ParticipationPauseService participationPauseService;
     private final MarketDataService marketData;
 
+    /** The full market report a MARKET card opens (optional, so tests need not wire it). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.market.MarketReportService marketReports;
+
     /** What a person did on a card: the message it put in the room, and whether everyone has answered now. */
     public record Done(Message message, boolean everyoneAnswered) {
     }
@@ -83,6 +87,13 @@ public class FinanceService {
                 data.put("updatedAt", now.updatedAt().toEpochMilli());
                 if (now.inflation() != null) {
                     data.put("inflation", now.inflation());
+                }
+                // the whole report, kept: the card opens it, and «گزارش‌های مالی» lists it later
+                if (marketReports != null) {
+                    com.coupleai.coupleai.beinema.market.MarketReport report = marketReports.create(roomId, null);
+                    if (report != null) {
+                        data.put("reportId", report.getPublicId());
+                    }
                 }
                 return Optional.of(save(roomId, kind, data));
             }
@@ -223,6 +234,14 @@ public class FinanceService {
                 view.put("updatedAt", data.get("updatedAt"));
                 view.put("source", "tgju.org، tsetmc.com");
                 view.put("inflation", data.get("inflation"));
+                Object reportId = data.get("reportId");
+                if (reportId != null && marketReports != null) {
+                    try {
+                        view.put("report", marketReports.view(String.valueOf(reportId), user));
+                    } catch (IllegalArgumentException gone) {
+                        // the older lines above still show the prices
+                    }
+                }
             }
             default -> {
                 view.put("plan", data.get("plan"));

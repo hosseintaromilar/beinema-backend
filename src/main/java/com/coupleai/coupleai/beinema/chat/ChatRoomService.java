@@ -72,6 +72,10 @@ public class ChatRoomService {
     private final com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository directorDecisionRecordRepository;
     private final com.coupleai.coupleai.beinema.Repository.CoupleTestRepository coupleTestRepository;
     private final com.coupleai.coupleai.beinema.Repository.FinanceCardRepository financeCardRepository;
+
+    /** The market reports made in a conversation go with it (optional, so tests need not wire it). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.market.MarketReportService marketReportService;
     private final com.coupleai.coupleai.beinema.Repository.SessionMemoryRepository sessionMemoryRepository;
     private final com.coupleai.coupleai.beinema.Repository.ServiceFeedbackRepository serviceFeedbackRepository;
     private final com.coupleai.coupleai.beinema.Repository.PersonMilestoneRepository personMilestoneRepository;
@@ -680,6 +684,9 @@ public class ChatRoomService {
         directorDecisionRecordRepository.deleteAllByChatRoomId(chatRoomId);
         coupleTestRepository.deleteAllByChatRoomId(chatRoomId);
         financeCardRepository.deleteAllByChatRoomId(chatRoomId);
+        if (marketReportService != null) {
+            marketReportService.deleteRoom(chatRoomId);
+        }
         sessionMemoryRepository.deleteAllByChatRoomId(chatRoomId);
         serviceFeedbackRepository.deleteAllByChatRoomId(chatRoomId);
         personMilestoneRepository.deleteAllByChatRoomId(chatRoomId);

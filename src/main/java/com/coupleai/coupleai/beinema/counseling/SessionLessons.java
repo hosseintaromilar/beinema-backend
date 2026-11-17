@@ -15,10 +15,15 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * The lessons after a session (classpath:kb/session-lessons.json): a few for each companion, in the
- * order they are given. After every session each person gets one: fitted to them when a reading
- * about them was confirmed by them in that session, else the next of these not given to them yet.
- * A lesson may carry an exercise; a required one opens the next lesson only once it is done.
+ * The lessons after a session (classpath:kb/session-lessons.json), for each companion:
+ * <ul>
+ *   <li>GENERAL: given in their order, one after each session in which nothing about the person was
+ *   confirmed; also open to the writer when something was;</li>
+ *   <li>SPECIAL: for a particular situation, given only when a reading the person confirmed fits it,
+ *   and only once its prerequisites were passed (given, and their exercise or question answered).</li>
+ * </ul>
+ * A lesson may carry an exercise; a required one opens the next lesson only once it is written.
+ * Each lesson has a part for its reviewer (a psychologist), in Persian, never shown to people.
  */
 public final class SessionLessons {
 
@@ -30,9 +35,21 @@ public final class SessionLessons {
     public record Check(String question, List<String> options, int answer) {
     }
 
+    /** For the psychologist who reviews it: its goal, for whom, its scientific basis, its exercise's goal, cautions. */
+    public record Review(String goal, String forWhom, String basis, String exerciseGoal, String cautions) {
+    }
+
+    public static final String GENERAL = "GENERAL";
+    public static final String SPECIAL = "SPECIAL";
+
     /** fits and avoid are English (for the writer); the rest is Persian. */
-    public record Lesson(String id, AgentType companion, String faTitle, String fits, String intro, List<String> body,
-                         String example, String step, Exercise exercise, Check check, List<String> avoid) {
+    public record Lesson(String id, AgentType companion, String level, List<String> prerequisites, String faTitle,
+                         String fits, String intro, List<String> body, String example, String step, Exercise exercise,
+                         Check check, List<String> avoid, Review review) {
+
+        public boolean general() {
+            return GENERAL.equals(level);
+        }
     }
 
     private static volatile Map<String, Lesson> lessons;
@@ -107,7 +124,28 @@ public final class SessionLessons {
                 }
                 exercise = new Exercise(practice.path("required").asBoolean(false), task, prompt);
             }
-            Lesson lesson = new Lesson(id, companion,
+            String level = item.path("level").asText(GENERAL).trim().toUpperCase(Locale.ROOT);
+            if (!GENERAL.equals(level) && !SPECIAL.equals(level)) {
+                throw new IllegalStateException(FILE + ": lesson " + id + " is neither GENERAL nor SPECIAL");
+            }
+            List<String> prerequisites = strings(item.path("prerequisites")).stream()
+                    .map(text -> text.toUpperCase(Locale.ROOT)).toList();
+            for (String prerequisite : prerequisites) {
+                // a prerequisite comes earlier in the file, for the same companion: no circles
+                Lesson before = parsed.get(prerequisite);
+                if (before == null || before.companion() != companion) {
+                    throw new IllegalStateException(FILE + ": lesson " + id + " needs " + prerequisite
+                            + ", which is not an earlier lesson of the same companion");
+                }
+            }
+            JsonNode note = item.path("review");
+            Review review = new Review(note.path("goal").asText("").trim(), note.path("for_whom").asText("").trim(),
+                    note.path("basis").asText("").trim(), note.path("exercise_goal").asText("").trim(),
+                    note.path("cautions").asText("").trim());
+            if (review.goal().isEmpty() || review.forWhom().isEmpty() || review.basis().isEmpty()) {
+                throw new IllegalStateException(FILE + ": lesson " + id + " has no part for its reviewer (goal, for_whom, basis)");
+            }
+            Lesson lesson = new Lesson(id, companion, level, prerequisites,
                     item.path("fa_title").asText("").trim(),
                     item.path("fits").asText("").trim(),
                     item.path("intro").asText("").trim(),
@@ -116,7 +154,8 @@ public final class SessionLessons {
                     item.path("step").asText("").trim(),
                     exercise,
                     new Check(check.path("question").asText("").trim(), options, answer),
-                    strings(item.path("avoid")));
+                    strings(item.path("avoid")),
+                    review);
             if (!id.matches("S-[A-Z]+-[0-9]+") || lesson.faTitle().isEmpty() || lesson.body().size() < 2
                     || lesson.step().isEmpty()) {
                 throw new IllegalStateException("Incomplete lesson in " + FILE + ": " + id);

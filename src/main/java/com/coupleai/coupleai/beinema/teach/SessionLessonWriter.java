@@ -57,6 +57,8 @@ public class SessionLessonWriter {
                do until the next session; prompt: the question they answer after doing it). Empty strings when the
                lesson has no exercise.
             7. Respect the lesson's avoid list. When the person is hurt or ashamed, be gentle: the lesson is an offer.
+            8. When the lesson points to a doctor or a specialist, just point there; never say what this app or companion cannot
+               or should not do.
 
             OUTPUT
             Exactly one JSON object and nothing else:
@@ -130,6 +132,8 @@ public class SessionLessonWriter {
         for (SessionLessons.Lesson lesson : candidates) {
             out.append("id=").append(lesson.id()).append('\n')
                     .append("title: ").append(lesson.faTitle()).append('\n')
+                    .append("level: ").append(lesson.general() ? "general"
+                            : "specialized (pick it only when a confirmed reading clearly matches its fits)").append('\n')
                     .append("fits: ").append(lesson.fits()).append('\n')
                     .append("text: ").append(lesson.intro()).append(' ').append(String.join(" ", lesson.body())).append('\n')
                     .append("example: ").append(lesson.example()).append('\n')

@@ -123,6 +123,58 @@ class SessionLessonTest {
                 SessionLessons.of(AgentType.IN_LAWS), List.of()));
     }
 
+    @Test
+    void everyLessonHasItsReviewerPartAndEachCompanionItsSpecializedLessons() {
+        for (SessionLessons.Lesson lesson : SessionLessons.all()) {
+            assertFalse(lesson.review().goal().isBlank(), lesson.id());
+            assertFalse(lesson.review().basis().isBlank(), lesson.id());
+            if (!lesson.general()) {
+                assertFalse(lesson.prerequisites().isEmpty(), lesson.id() + " builds on a general lesson");
+            }
+        }
+        for (AgentType type : List.of(AgentType.RELATIONSHIP, AgentType.FINANCIAL, AgentType.PARENTING,
+                AgentType.PREMARITAL, AgentType.IN_LAWS, AgentType.SEXOLOGY)) {
+            assertTrue(SessionLessons.of(type).stream().anyMatch(lesson -> !lesson.general()), type + " has specialized lessons");
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aSpecializedLessonIsOfferedOnlyAfterItsPrerequisitesWerePassed() {
+        TeachCardRepository cards = mock(TeachCardRepository.class);
+        SessionLessonWriter writer = mock(SessionLessonWriter.class);
+        List<SessionLessons.Lesson> library = SessionLessons.of(AgentType.RELATIONSHIP);
+        org.mockito.ArgumentCaptor<List<SessionLessons.Lesson>> offered = org.mockito.ArgumentCaptor.forClass(List.class);
+
+        // S-NINA-02 given but neither its exercise nor its question answered: S-NINA-11 is not offered yet
+        TeachCard given = given(1, "S-NINA-02", false);
+        when(cards.findAllByUserIdAndKindOrderByIdAsc(7L, TeachCard.SESSION)).thenReturn(List.of(given));
+        service(cards, writer).lessonFor(user(), 5L, 3, AgentType.RELATIONSHIP, library, List.of("خوانش"));
+        verify(writer).write(anyString(), anyString(), anyList(), offered.capture());
+        assertTrue(offered.getValue().stream().noneMatch(lesson -> lesson.id().equals("S-NINA-11")));
+
+        given.setChosen(0);
+        org.mockito.Mockito.reset(writer);
+        service(cards, writer).lessonFor(user(), 5L, 3, AgentType.RELATIONSHIP, library, List.of("خوانش"));
+        verify(writer).write(anyString(), anyString(), anyList(), offered.capture());
+        assertTrue(offered.getValue().stream().anyMatch(lesson -> lesson.id().equals("S-NINA-11")));
+    }
+
+    @Test
+    void withoutAReadingASpecializedLessonNeverComes() {
+        TeachCardRepository cards = mock(TeachCardRepository.class);
+        List<TeachCard> all = new ArrayList<>();
+        SessionLessons.of(AgentType.PARENTING).stream().filter(SessionLessons.Lesson::general)
+                .forEach(lesson -> {
+                    TeachCard card = given(all.size() + 1, lesson.id(), false);
+                    card.setChosen(0);
+                    all.add(card);
+                });
+        when(cards.findAllByUserIdAndKindOrderByIdAsc(7L, TeachCard.SESSION)).thenReturn(all);
+        assertNull(service(cards, mock(SessionLessonWriter.class)).lessonFor(user(), 5L, 9, AgentType.PARENTING,
+                SessionLessons.of(AgentType.PARENTING), List.of()));
+    }
+
     private static ClientIntent intent(Long user, IntentStatus status, IntentEpistemic epistemic, Integer session, String text) {
         ClientIntent intent = new ClientIntent();
         intent.setParticipantUserId(user);

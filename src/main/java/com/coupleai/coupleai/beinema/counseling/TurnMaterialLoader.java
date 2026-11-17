@@ -55,6 +55,10 @@ public class TurnMaterialLoader {
     private final com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository chatRoomAgentRepository;
     private final com.coupleai.coupleai.beinema.market.MarketDataService marketData;
 
+    /** The analysis of the markets for Pouria (optional, so tests need not wire it). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.coupleai.coupleai.beinema.market.MarketReportService marketReports;
+
     /** The lesson cards of the teaching form; absent in the tests that do not need it. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.coupleai.coupleai.beinema.teach.TeachCardService teachCards;
@@ -237,7 +241,7 @@ public class TurnMaterialLoader {
                         .orElse(""),
                 namesByRole,
                 chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isMarketWorkflow)
-                        ? marketData.block() : "",
+                        ? marketData.block() + (marketReports == null ? "" : marketReports.analysisBlock()) : "",
                 teaching,
                 balance);
     }

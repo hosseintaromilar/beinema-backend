@@ -36,8 +36,11 @@ public class MarketDataService {
     static final ZoneId TEHRAN = ZoneId.of("Asia/Tehran");
     /** Older than this, the figures are shown as stale. */
     static final Duration FRESH = Duration.ofHours(6);
+    /** The year of daily closes is read again this often; today's price comes every hour. */
+    static final Duration HISTORY_EVERY = Duration.ofHours(6);
+    public static final String INDEX_LABEL = "شاخص کل بورس تهران";
     private static final String TGJU_NOW = "https://call.tgju.org/ajax.json";
-    private static final String TGJU_HISTORY = "https://api.tgju.org/v1/market/indicator/summary-table-data/%s?length=40";
+    private static final String TGJU_HISTORY = "https://api.tgju.org/v1/market/indicator/summary-table-data/%s?length=400";
     private static final String INDEX_NOW = "https://cdn.tsetmc.com/api/Index/GetIndexB1LastAll/SelectedIndexes/1";
     private static final String INDEX_HISTORY = "https://cdn.tsetmc.com/api/Index/GetIndexB2History/32097828799138957";
     private static final String INDEX_CODE = "32097828799138957";
@@ -48,27 +51,28 @@ public class MarketDataService {
 
     static final List<Item> ITEMS = List.of(
             new Item("price_dollar_rl", "دلار آزاد", "تومان", true, true),
-            new Item("price_eur", "یورو", "تومان", true, false),
+            new Item("price_eur", "یورو", "تومان", true, true),
             new Item("sekee", "سکهٔ امامی", "تومان", true, true),
-            new Item("nim", "نیم‌سکه", "تومان", true, false),
-            new Item("rob", "ربع‌سکه", "تومان", true, false),
+            new Item("nim", "نیم‌سکه", "تومان", true, true),
+            new Item("rob", "ربع‌سکه", "تومان", true, true),
             new Item("geram18", "طلای ۱۸ عیار، هر گرم", "تومان", true, true),
-            new Item("ons", "انس جهانی طلا", "دلار", false, false),
-            new Item("crypto-bitcoin", "بیت‌کوین", "دلار", false, false));
+            new Item("ons", "انس جهانی طلا", "دلار", false, true),
+            new Item("crypto-bitcoin", "بیت‌کوین", "دلار", false, true));
 
     /** One market's line: price and changes in percent (null when unknown). */
     public record Quote(String label, double price, String unit, Double day, Double week, Double month) {
     }
 
-    /** The prices as they are now, and when they were read (null: never). */
-    public record Snapshot(List<Quote> quotes, Instant updatedAt, OfficialInflation.Rates inflation) {
+    /** The prices as they are now, and when they were read (null: never); history: a year of daily closes by label. */
+    public record Snapshot(List<Quote> quotes, Instant updatedAt, OfficialInflation.Rates inflation,
+                           java.util.Map<String, List<double[]>> history) {
         public boolean stale(Instant now) {
             return updatedAt == null || Duration.between(updatedAt, now).compareTo(FRESH) > 0;
         }
     }
 
     public Snapshot snapshot() {
-        return new Snapshot(quotes, updatedAt, inflation);
+        return new Snapshot(quotes, updatedAt, inflation, history);
     }
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
@@ -78,6 +82,9 @@ public class MarketDataService {
     private boolean enabled;
 
     private volatile List<Quote> quotes = List.of();
+    /** A year of daily closes of each market, in the unit shown: [epoch day, price], oldest first. */
+    private volatile java.util.Map<String, List<double[]>> history = java.util.Map.of();
+    private volatile Instant historyReadAt;
     private volatile Instant updatedAt;
     /** The Statistical Center's rates; they change once a month, so they are read every six hours. */
     private volatile OfficialInflation.Rates inflation;
@@ -93,6 +100,8 @@ public class MarketDataService {
             List<Quote> fresh = new ArrayList<>();
             JsonNode now = get(TGJU_NOW).path("current");
             LocalDate today = LocalDate.now(TEHRAN);
+            boolean readHistory = historyReadAt == null || Duration.between(historyReadAt, Instant.now()).compareTo(HISTORY_EVERY) > 0;
+            java.util.Map<String, List<double[]>> years = new java.util.LinkedHashMap<>(history);
             for (Item item : ITEMS) {
                 JsonNode node = now.path(item.key());
                 double price = number(node.path("p").asText(""));
@@ -104,19 +113,27 @@ public class MarketDataService {
                 Double week = null;
                 Double month = null;
                 if (item.history()) {
-                    List<double[]> closes = tgjuHistory(item.key());
-                    week = change(price, closeOnOrBefore(closes, today.minusDays(7)));
-                    month = change(price, closeOnOrBefore(closes, today.minusDays(30)));
+                    List<double[]> closes = readHistory || !years.containsKey(item.label())
+                            ? shown(tgjuHistory(item.key()), item.rial()) : years.get(item.label());
+                    if (!closes.isEmpty()) {
+                        years.put(item.label(), closes);
+                    }
+                    week = change(shown, closeOnOrBefore(closes, today.minusDays(7)));
+                    month = change(shown, closeOnOrBefore(closes, today.minusDays(30)));
                 }
                 fresh.add(new Quote(item.label(), shown, item.unit(), day, week, month));
             }
-            Quote index = stockIndex(today);
+            Quote index = stockIndex(today, years, readHistory);
             if (index != null) {
                 fresh.add(index);
             }
             if (!fresh.isEmpty()) {
                 quotes = List.copyOf(fresh);
                 updatedAt = Instant.now();
+                history = java.util.Map.copyOf(years);
+                if (readHistory) {
+                    historyReadAt = Instant.now();
+                }
             }
         } catch (Exception failure) {
             log.warn("Market prices could not be read: {}", failure.getMessage());
@@ -185,11 +202,21 @@ public class MarketDataService {
                     .append(" | week ").append(percent(quote.week()))
                     .append(" | month ").append(percent(quote.month())).append('\n');
         }
-        out.append("not here: bank deposit rates and housing prices. Never give a figure for them from memory; say they need checking with an official source.\n");
+        out.append("bank deposit rates and housing prices: only as given below with their source and date; never from memory.\n");
         return out.toString();
     }
 
-    private Quote stockIndex(LocalDate today) {
+    /** Rial closes as tomans, when the market is shown in tomans. */
+    static List<double[]> shown(List<double[]> closes, boolean rial) {
+        if (!rial) {
+            return closes;
+        }
+        List<double[]> out = new ArrayList<>();
+        closes.forEach(close -> out.add(new double[]{close[0], close[1] / 10}));
+        return out;
+    }
+
+    private Quote stockIndex(LocalDate today, java.util.Map<String, List<double[]>> years, boolean readHistory) {
         try {
             JsonNode now = null;
             for (JsonNode node : get(INDEX_NOW).path("indexB1")) {
@@ -204,16 +231,24 @@ public class MarketDataService {
             if (value <= 0) {
                 return null;
             }
-            List<double[]> closes = new ArrayList<>();
-            for (JsonNode day : get(INDEX_HISTORY).path("indexB2")) {
-                String even = day.path("dEven").asText("");
-                if (even.length() == 8) {
-                    LocalDate date = LocalDate.of(Integer.parseInt(even.substring(0, 4)),
-                            Integer.parseInt(even.substring(4, 6)), Integer.parseInt(even.substring(6, 8)));
-                    closes.add(new double[]{date.toEpochDay(), day.path("xNivInuClMresIbs").asDouble(0)});
+            List<double[]> closes = years.getOrDefault(INDEX_LABEL, List.of());
+            if (readHistory || closes.isEmpty()) {
+                closes = new ArrayList<>();
+                long from = today.minusDays(400).toEpochDay();
+                for (JsonNode day : get(INDEX_HISTORY).path("indexB2")) {
+                    String even = day.path("dEven").asText("");
+                    if (even.length() == 8) {
+                        LocalDate date = LocalDate.of(Integer.parseInt(even.substring(0, 4)),
+                                Integer.parseInt(even.substring(4, 6)), Integer.parseInt(even.substring(6, 8)));
+                        if (date.toEpochDay() >= from) {
+                            closes.add(new double[]{date.toEpochDay(), day.path("xNivInuClMresIbs").asDouble(0)});
+                        }
+                    }
                 }
+                closes.sort((a, b) -> Double.compare(a[0], b[0]));
+                years.put(INDEX_LABEL, closes);
             }
-            return new Quote("شاخص کل بورس تهران", value, "واحد", now.path("xVarIdxJRfV").asDouble(0),
+            return new Quote(INDEX_LABEL, value, "واحد", now.path("xVarIdxJRfV").asDouble(0),
                     change(value, closeOnOrBefore(closes, today.minusDays(7))),
                     change(value, closeOnOrBefore(closes, today.minusDays(30))));
         } catch (Exception failure) {
@@ -233,6 +268,7 @@ public class MarketDataService {
                     closes.add(new double[]{day.toEpochDay(), number(row.path(3).asText(""))});
                 }
             }
+            closes.sort((a, b) -> Double.compare(a[0], b[0]));
         } catch (Exception failure) {
             log.warn("History of {} could not be read: {}", key, failure.getMessage());
         }

@@ -119,13 +119,20 @@ public class SessionLessonService {
     /** Their lesson for this session: personal when a confirmed reading meets a lesson, else the next general one. */
     TeachCard lessonFor(User user, Long roomId, int session, AgentType companion, List<SessionLessons.Lesson> library,
                         List<String> confirmed) {
-        Set<String> given = cards.findAllByUserIdAndKindOrderByIdAsc(user.getId(), TeachCard.SESSION).stream()
+        List<TeachCard> mine = cards.findAllByUserIdAndKindOrderByIdAsc(user.getId(), TeachCard.SESSION);
+        Set<String> given = mine.stream().map(TeachCard::getLessonId).collect(Collectors.toSet());
+        // passed: given, and its exercise written or its question answered
+        Set<String> passed = mine.stream()
+                .filter(card -> card.getExerciseDoneAt() != null || card.getChosen() != null)
                 .map(TeachCard::getLessonId).collect(Collectors.toSet());
         if (!confirmed.isEmpty()) {
-            List<SessionLessons.Lesson> fresh = library.stream().filter(lesson -> !given.contains(lesson.id())).toList();
+            // the general lessons, and the specialized ones whose prerequisites were passed
+            List<SessionLessons.Lesson> ready = library.stream()
+                    .filter(lesson -> lesson.general() || passed.containsAll(lesson.prerequisites())).toList();
+            List<SessionLessons.Lesson> fresh = ready.stream().filter(lesson -> !given.contains(lesson.id())).toList();
             // a new reading may bring back a lesson already given: it is then fitted to what is new
             SessionLessonWriter.Written written = writer.write(COMPANIONS.get(companion), firstName(user), confirmed,
-                    fresh.isEmpty() ? library : fresh);
+                    fresh.isEmpty() ? ready : fresh);
             if (written != null) {
                 SessionLessons.Lesson lesson = SessionLessons.find(written.lessonId()).orElse(null);
                 if (lesson != null) {
@@ -133,7 +140,8 @@ public class SessionLessonService {
                 }
             }
         }
-        return library.stream().filter(lesson -> !given.contains(lesson.id())).findFirst()
+        // nothing confirmed, or nothing fitted: the next general lesson; a specialized one never comes without a reading
+        return library.stream().filter(lesson -> lesson.general() && !given.contains(lesson.id())).findFirst()
                 .map(lesson -> card(user, roomId, session, lesson, companion, null))
                 .orElse(null);
     }

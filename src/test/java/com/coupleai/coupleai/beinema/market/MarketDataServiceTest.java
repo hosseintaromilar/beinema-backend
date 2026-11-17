@@ -46,7 +46,7 @@ class MarketDataServiceTest {
         assertTrue(fresh.contains("1405/08/16 16:30"));
         assertTrue(fresh.contains("- دلار آزاد: 266,900 تومان | today +0.5% | week +1.2% | month -3.4%"));
         assertFalse(fresh.contains("STALE"));
-        assertTrue(fresh.contains("not here: bank deposit rates"));
+        assertTrue(fresh.contains("bank deposit rates and housing prices: only as given below"));
 
         assertTrue(MarketDataService.block(quotes, at, at.plus(Duration.ofHours(7))).contains("STALE"));
         assertTrue(MarketDataService.block(List.of(), null, at).startsWith("unavailable"));
