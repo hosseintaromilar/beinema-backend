@@ -134,7 +134,7 @@ public final class DirectorPacketBuilder {
         }
         boolean kit = m.tags() != null && m.tags().contains(ElikaKit.TAG);
         if (!kit && m.tags() != null && m.tags().contains(OWN_METHOD)) {
-            return "none\n";
+            return "none\n" + afterSessions(m);
         }
         java.util.Map<String, Integer> taught = new java.util.LinkedHashMap<>();
         for (CounselingSnapshot.Taught item : m.snapshot().lessons) {
@@ -150,7 +150,13 @@ public final class DirectorPacketBuilder {
             out.append(" | when: ").append(lesson.when()).append('\n');
         }
         out.append(teachingNote(m, taught));
+        out.append(afterSessions(m));
         return out.toString();
+    }
+
+    /** The lessons each person got after the sessions (in the teaching form they come inside its cards block). */
+    static String afterSessions(TurnMaterial m) {
+        return m.teaching() == null || m.teaching().isBlank() ? "" : m.teaching();
     }
 
     /**

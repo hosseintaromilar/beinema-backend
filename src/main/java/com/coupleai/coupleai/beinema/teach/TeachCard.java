@@ -68,4 +68,38 @@ public class TeachCard extends BaseEntity {
     /** When its unanswered question was recalled once more, the night after; null: not yet. */
     @Column(name = "reminded_at")
     private java.time.Instant remindedAt;
+
+    /** SESSION: a lesson after a session (SessionLessonService); null: a card of the teaching form, inside the talk. */
+    @Column(length = 10)
+    private String kind;
+
+    /** SESSION: the session it came after. */
+    @Column(name = "session_number")
+    private Integer sessionNumber;
+
+    /** SESSION: its exercise must be done before the next lesson of this conversation opens. */
+    @Column(name = "exercise_required")
+    private Boolean exerciseRequired;
+
+    /** SESSION: what the person wrote about doing the exercise; only they see it. */
+    @Column(name = "exercise_note", columnDefinition = "TEXT")
+    private String exerciseNote;
+
+    @Column(name = "exercise_done_at")
+    private java.time.Instant exerciseDoneAt;
+
+    /** When its owner first opened it; null: still new (the conversation card on the dashboard says so). */
+    @Column(name = "seen_at")
+    private java.time.Instant seenAt;
+
+    public static final String SESSION = "SESSION";
+
+    public boolean afterSession() {
+        return SESSION.equals(kind);
+    }
+
+    /** A required exercise not written yet. */
+    public boolean exerciseOpen() {
+        return Boolean.TRUE.equals(exerciseRequired) && exerciseDoneAt == null;
+    }
 }

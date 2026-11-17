@@ -46,12 +46,23 @@ public class LessonDigest {
         Map<Long, List<Due>> byUser = new LinkedHashMap<>();
         for (TeachCard card : cards.findAllByEmailedAtIsNullAndCreatedAtGreaterThanAndCreatedAtLessThanEqual(
                 upTo.minus(FRESH), upTo)) {
+            if (locked(card)) {
+                continue;
+            }
             byUser.computeIfAbsent(card.getUserId(), id -> new ArrayList<>()).add(new Due(card, false));
         }
         for (TeachCard card : cards.findAllByEmailedAtLessThanEqualAndRemindedAtIsNullAndChosenIsNull(cutoff.minus(REMIND_AFTER))) {
+            if (locked(card)) {
+                continue;
+            }
             byUser.computeIfAbsent(card.getUserId(), id -> new ArrayList<>()).add(new Due(card, true));
         }
         return byUser;
+    }
+
+    private boolean locked(TeachCard card) {
+        return card.afterSession() && TeachCardService.locked(card,
+                cards.findAllByChatRoomIdAndKindOrderByIdAsc(card.getChatRoomId(), TeachCard.SESSION));
     }
 
     /** For the sample email: this person's newest card, as if it were given today. */
@@ -98,12 +109,13 @@ public class LessonDigest {
                     .append("padding:14px 16px;margin:0 0 12px;\">");
             if (item.reminder()) {
                 out.append("<div style=\"font-size:12px;color:#b86b4b;font-weight:bold;margin-bottom:4px;\">")
-                        .append("هنوز به سؤال این درس جواب ندادی</div>");
+                        .append(item.card().exerciseOpen() ? "تمرین این درس هنوز منتظر توست" : "هنوز به سؤال این درس جواب ندادی")
+                        .append("</div>");
             }
             out.append("<div style=\"font-size:15px;font-weight:bold;color:#2a2420;margin-bottom:8px;\">").append(esc(lesson.title())).append("</div>");
             if (notBlank(lesson.truer())) {
                 out.append("<div style=\"background:#e3f0e6;border-radius:10px;padding:10px 12px;margin:0 0 10px;\">")
-                        .append("<div style=\"font-size:11.5px;color:#2f6f47;font-weight:bold;\">یه نگاه درست‌تر</div>")
+                        .append("<div style=\"font-size:11.5px;color:#2f6f47;font-weight:bold;\">").append(esc(lesson.truerLabel())).append("</div>")
                         .append("<div style=\"font-size:14px;line-height:1.9;color:#1f4d31;font-weight:bold;\">").append(esc(lesson.truer())).append("</div></div>");
             }
             if (!item.reminder() && !lesson.steps().isEmpty()) {
@@ -120,6 +132,10 @@ public class LessonDigest {
                     }
                     out.append("</div>");
                 }
+            }
+            if (notBlank(lesson.exercise())) {
+                out.append("<div style=\"font-size:13.5px;color:#3a2f27;margin-top:10px;line-height:1.9;\">")
+                        .append("<b>تمرین تا جلسهٔ بعد:</b> ").append(esc(lesson.exercise())).append("</div>");
             }
             if (item.card().getChosen() == null && notBlank(lesson.question())) {
                 out.append("<div style=\"font-size:13.5px;color:#3a2f27;margin-top:10px;line-height:1.9;\">")
@@ -139,9 +155,14 @@ public class LessonDigest {
         StringBuilder out = new StringBuilder("\n\nدرس امروزت (فقط برای خودت)\n");
         for (Due item : due) {
             Lesson lesson = read(item.card());
-            out.append("\n").append(item.reminder() ? "هنوز به سؤال این درس جواب ندادی: " : "").append(lesson.title()).append("\n");
+            out.append("\n").append(!item.reminder() ? ""
+                    : item.card().exerciseOpen() ? "تمرین این درس هنوز منتظر توست: " : "هنوز به سؤال این درس جواب ندادی: ")
+                    .append(lesson.title()).append("\n");
             if (notBlank(lesson.truer())) {
-                out.append("یه نگاه درست‌تر: ").append(lesson.truer()).append("\n");
+                out.append(lesson.truerLabel()).append(": ").append(lesson.truer()).append("\n");
+            }
+            if (notBlank(lesson.exercise())) {
+                out.append("تمرین تا جلسهٔ بعد: ").append(lesson.exercise()).append("\n");
             }
             if (!item.reminder()) {
                 lesson.steps().forEach(step -> out.append("- ").append(step).append("\n"));
@@ -154,19 +175,29 @@ public class LessonDigest {
         return out.append("\n").append(lessonsUrl).append("\n").toString();
     }
 
-    private record Lesson(String title, String truer, List<String> steps, List<String[]> sources, String question) {
+    /** truer: the truer belief of a teaching card, or the small step of a lesson after a session, under its label. */
+    private record Lesson(String title, String truerLabel, String truer, List<String> steps, List<String[]> sources,
+                          String question, String exercise) {
     }
 
     private static Lesson read(TeachCard card) {
         List<String> steps = new ArrayList<>();
         List<String[]> sources = new ArrayList<>();
         String truer = "";
+        String label = "یه نگاه درست‌تر";
+        String exercise = "";
         String question = "";
         String title = card.getTitle();
         try {
             JsonNode content = JSON.readTree(card.getContentJson());
             title = content.path("title").asText(title);
-            truer = content.path("truerBelief").asText("");
+            if (SessionLessonService.SCHEMA.equals(content.path("schema").asText(""))) {
+                label = "یک قدم کوچک";
+                truer = content.path("step").asText("");
+                exercise = content.path("exercise").path("task").asText("");
+            } else {
+                truer = content.path("truerBelief").asText("");
+            }
             content.path("practice").path("steps").forEach(step -> steps.add(step.asText()));
             content.path("practice").path("sources").forEach(source -> {
                 String url = source.path("url").asText("");
@@ -178,7 +209,7 @@ public class LessonDigest {
         } catch (Exception unreadable) {
             // the title alone still tells them which lesson it is
         }
-        return new Lesson(title, truer, steps, sources, question);
+        return new Lesson(title, label, truer, steps, sources, question, exercise);
     }
 
     private static boolean notBlank(String text) {

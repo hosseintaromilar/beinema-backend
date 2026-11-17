@@ -202,12 +202,13 @@ public class TurnMaterialLoader {
             tags.add(FinanceKit.TAG);
         }
 
-        String teaching = "";
+        // the lessons each person got after the sessions, for every companion
+        String teaching = teachCards == null ? "" : teachCards.afterSessionBlock(roomId, roleByUserId);
         if (chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream().anyMatch(config::isTeachWorkflow)) {
             tags = new java.util.HashSet<>(tags);
             tags.add(TeachKit.TAG);
             if (teachCards != null) {
-                teaching = teachCards.teachingBlock(roomId, roleByUserId);
+                teaching = teachCards.teachingBlock(roomId, roleByUserId) + teaching;
             }
         }
 

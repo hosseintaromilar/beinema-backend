@@ -15,6 +15,15 @@ public interface TeachCardRepository extends JpaRepository<TeachCard, Long> {
 
     void deleteAllByChatRoomId(Long chatRoomId);
 
+    boolean existsByChatRoomIdAndUserIdAndKindAndSessionNumber(Long chatRoomId, Long userId, String kind, Integer sessionNumber);
+
+    List<TeachCard> findAllByUserIdAndKindOrderByIdAsc(Long userId, String kind);
+
+    List<TeachCard> findAllByChatRoomIdAndKindOrderByIdAsc(Long chatRoomId, String kind);
+
+    /** Lessons after a session not opened yet, for the dashboard. */
+    List<TeachCard> findAllByUserIdAndKindAndSeenAtIsNullAndCreatedAtAfter(Long userId, String kind, java.time.LocalDateTime after);
+
     /** Cards of the day not emailed yet. */
     List<TeachCard> findAllByEmailedAtIsNullAndCreatedAtGreaterThanAndCreatedAtLessThanEqual(
             java.time.LocalDateTime after, java.time.LocalDateTime upTo);

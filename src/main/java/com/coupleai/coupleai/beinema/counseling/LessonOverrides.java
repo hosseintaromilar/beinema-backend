@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Lessons edited in the admin panel (with a psychologist) take the place of the file's version, by id,
  * for every library: the general one (kb/lessons.json), Elika's (kb/elika-kit.json) and Raha's beliefs
- * and practices (kb/raha-lessons.json). The edits live in the database (LessonReview); this holds them
+ * and practices (kb/raha-lessons.json), and the lessons after a session (kb/session-lessons.json). The edits live in the database (LessonReview); this holds them
  * for the static loaders, which ask {@link #apply} for every item they read.
  */
 public final class LessonOverrides {
@@ -23,6 +23,7 @@ public final class LessonOverrides {
     public static final String ELIKA = "ELIKA";
     public static final String RAHA_BELIEF = "RAHA_BELIEF";
     public static final String RAHA_PRACTICE = "RAHA_PRACTICE";
+    public static final String SESSION = "SESSION";
 
     /** One item of a library as the file has it. */
     public record Original(String library, String id, JsonNode node) {
@@ -66,6 +67,7 @@ public final class LessonOverrides {
             Lessons.read();
             ElikaKit.readForCheck();
             TeachKit.read();
+            SessionLessons.read();
         } catch (RuntimeException broken) {
             if (before == null) {
                 EDITS.remove(key(id));
@@ -81,6 +83,7 @@ public final class LessonOverrides {
         Lessons.reset();
         ElikaKit.reset();
         TeachKit.reset();
+        SessionLessons.reset();
     }
 
     /** Every item of every library, as the files have them (without the edits). */
@@ -98,6 +101,9 @@ public final class LessonOverrides {
         }
         for (JsonNode item : raha.path("practices")) {
             out.add(new Original(RAHA_PRACTICE, item.path("id").asText(), item));
+        }
+        for (JsonNode item : file(SessionLessons.FILE)) {
+            out.add(new Original(SESSION, item.path("id").asText(), item));
         }
         return out;
     }

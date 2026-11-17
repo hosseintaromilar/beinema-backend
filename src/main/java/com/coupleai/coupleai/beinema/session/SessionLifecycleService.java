@@ -184,6 +184,11 @@ public class SessionLifecycleService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     @org.springframework.context.annotation.Lazy
     private com.coupleai.coupleai.beinema.mirror.MirrorReportService mirrorReportService;
+
+    /** One lesson for each person after the session (optional, so tests need not wire it). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private com.coupleai.coupleai.beinema.teach.SessionLessonService sessionLessonService;
     private final SessionBillingService sessionBillingService;
     private final com.coupleai.coupleai.beinema.ai.AiHealth aiHealth;
 
@@ -890,6 +895,10 @@ public class SessionLifecycleService {
         // the mirror of this session, from that path: ready on the dashboard, emailed a day later if unopened
         if (mirrorReportService != null) {
             mirrorReportService.afterSession(roomId, closing.endedAt());
+        }
+        // and for each person who took part, one lesson of their own: personal or the next general one
+        if (sessionLessonService != null) {
+            sessionLessonService.afterSession(roomId, number, start, closing.startedAt());
         }
 
         if (!forGood) {

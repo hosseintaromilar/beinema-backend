@@ -236,6 +236,10 @@ public class User extends BaseEntity {
     @Column(name = "email_opt_out")
     private Boolean emailOptOut;
 
+    /** Turned off the lesson made for them after each session (on when null). */
+    @Column(name = "session_lessons_off")
+    private Boolean sessionLessonsOff;
+
     /** Turned off the nightly email of the conversation mirror (the report stays in the app). */
     @Column(name = "mirror_email_off")
     private Boolean mirrorEmailOff;

@@ -23,6 +23,11 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             Long chatRoomId, MessageSenderType senderType, Long senderId, Long afterId
     );
 
+    /** Whether this person wrote in the room from one message number on: they took part in that session. */
+    boolean existsByChatRoomIdAndSenderTypeAndSenderIdAndDeletedFalseAndSequenceNumberGreaterThanEqual(
+            Long chatRoomId, MessageSenderType senderType, Long senderId, Integer fromSequence
+    );
+
     /** The room's messages from one message number on: a session, without the whole history. */
     List<Message> findByChatRoomIdAndDeletedFalseAndSequenceNumberGreaterThanEqualOrderBySequenceNumberAsc(
             Long chatRoomId, Integer fromSequence
