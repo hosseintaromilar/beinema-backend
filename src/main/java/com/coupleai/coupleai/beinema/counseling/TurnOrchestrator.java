@@ -365,7 +365,26 @@ public class TurnOrchestrator {
             inbox.processed(roomId, trigger, m.notes());
             return new Outcome(roomId, agentId, trigger, List.of(), false, false, null);
         }
+        if (trigger != null && loader.anyDeleted(m.fresh())) {
+            // they took back what this reply answers: it is never shown; what is left of their words gets a turn of its own
+            if (stored.questionId() != null) {
+                questionService.cancel(stored.questionId(), "what it answered was deleted");
+            }
+            persistence.finish(stored.decisionId(), voiceRaw, voiceMs, List.of("not delivered: what it answered was deleted"));
+            if (loader.allDeleted(m.fresh())) {
+                inbox.processed(roomId, trigger, m.notes());
+                return new Outcome(roomId, agentId, trigger, List.of(), false, false, null);
+            }
+            persistence.rewind(roomId, stored.previousProcessedMessageId());
+            return mayStartOver ? runTurn(roomId, false) : new Outcome(roomId, agentId, trigger, List.of(), false, false, null);
+        }
         List<Item> items = items(m, d, stored, out, notes);
+        if (trigger != null && modeOpen(m)) {
+            // alone or with the partner is not chosen yet: its two buttons come again under the reply
+            items.add(new CardItem(com.coupleai.coupleai.beinema.governance.KitMarkers.content(
+                    com.coupleai.coupleai.beinema.governance.KitMarkers.MODE, "mode-" + roomId, "")));
+            notes.add("session mode not chosen: its buttons again");
+        }
         if (trigger == null && m.notes().stream().anyMatch(note -> note.messageId() == null
                 && note.text().contains("PARTNER_CONSENTED"))) {
             // the thank-you after consent is one paragraph, never a run of short messages
@@ -711,6 +730,11 @@ public class TurnOrchestrator {
         }
         joined.addAll(rest);
         return joined;
+    }
+
+    /** The creator is alone in the room and has not chosen yet whether to go on alone or with the partner. */
+    static boolean modeOpen(TurnMaterial m) {
+        return m.room() != null && m.room().getSessionMode() == null && m.userIdOf("MEMBER") == null;
     }
 
     /** The financial companion: figures it heard go to the picture's form; a card comes after its words. */

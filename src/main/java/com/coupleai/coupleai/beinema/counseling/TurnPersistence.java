@@ -178,6 +178,15 @@ public class TurnPersistence {
         });
     }
 
+    /** Back to the last message processed before this turn, so the next turn reads what is left. */
+    @Transactional
+    public void rewind(Long roomId, Long previousProcessed) {
+        stateRepository.findByChatRoomId(roomId).ifPresent(state -> {
+            state.setLastProcessedMessageId(previousProcessed);
+            stateRepository.save(state);
+        });
+    }
+
     @Transactional
     public void finish(Long decisionId, String voiceRaw, long voiceMs, List<String> notes) {
         decisionRepository.findById(decisionId).ifPresent(record -> {

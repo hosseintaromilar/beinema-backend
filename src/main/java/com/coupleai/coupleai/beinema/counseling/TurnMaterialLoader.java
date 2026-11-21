@@ -247,6 +247,22 @@ public class TurnMaterialLoader {
     }
 
     /** Whether this person wrote again after the given message (their newer words make a reply to the old ones stale). */
+    /** Whether a person took back one of these messages while the counselor was answering them. */
+    public boolean anyDeleted(List<Message> messages) {
+        return deleted(messages) > 0;
+    }
+
+    /** Whether every one of these messages was taken back. */
+    public boolean allDeleted(List<Message> messages) {
+        return !messages.isEmpty() && deleted(messages) == messages.size();
+    }
+
+    private long deleted(List<Message> messages) {
+        List<Long> ids = messages.stream().map(Message::getId).filter(java.util.Objects::nonNull).toList();
+        return ids.isEmpty() ? 0 : messageRepository.findAllById(ids).stream()
+                .filter(message -> Boolean.TRUE.equals(message.getDeleted())).count();
+    }
+
     public boolean personWroteAfter(Long roomId, Long userId, Long messageId) {
         ChatRoom room = chatRoomRepository.findById(roomId).orElse(null);
         if (room == null || userId == null || messageId == null) {

@@ -213,8 +213,15 @@ public final class DirectorPacketBuilder {
     /** How the creator chose to work; once the partner is in, the participants say it. */
     private static String sessionMode(TurnMaterial m) {
         String mode = m.room() == null ? null : m.room().getSessionMode();
-        if (mode == null || m.userIdOf("MEMBER") != null) {
+        if (m.userIdOf("MEMBER") != null) {
             return "";
+        }
+        if (mode == null) {
+            // the welcome asked it on a card with two buttons; until one is pressed nothing else starts
+            return "session_mode: NOT_CHOSEN (the welcome asked OWNER, on a card with two buttons «فعلاً خودم» and «با پارتنرم», "
+                    + "whether to go on alone or with the partner; nothing is chosen yet: answer what they wrote briefly and ask them "
+                    + "to choose with the two buttons that come again under your reply; do not start the work, do not ask anything "
+                    + "else, never ask it in words and never say you will put buttons: they come by themselves)\n";
         }
         return "SOLO".equals(mode) ? "session_mode: SOLO\n" : "session_mode: COUPLE_WAITING\n";
     }
