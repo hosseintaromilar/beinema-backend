@@ -87,6 +87,9 @@ public final class BlogTopics {
 
     /** The companion a post leads to: of its strongest topic, else Nina. */
     public static Companion companionOf(BlogService.PublicPost post) {
+        if ("helping-spouses-family-financially".equals(post.slug())) {
+            return POURIA;
+        }
         List<Topic> topics = of(post);
         return topics.isEmpty() ? NINA : topics.get(0).companion();
     }

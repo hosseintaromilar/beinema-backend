@@ -222,6 +222,8 @@ public class SecurityConfig {
 
                                 "/api/blog-pages/*",
 
+                                "/api/blog-pages/topic/*",
+
                                 "/api/blog",
 
                                 "/api/blog/*",
@@ -260,6 +262,7 @@ public class SecurityConfig {
                                 org.springframework.http.HttpMethod.HEAD,
                                 "/api/blog-pages",
                                 "/api/blog-pages/*",
+                                "/api/blog-pages/topic/*",
                                 "/api/blog",
                                 "/api/blog/*",
                                 "/uploads/**"

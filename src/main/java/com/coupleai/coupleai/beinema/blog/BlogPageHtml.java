@@ -57,7 +57,7 @@ public final class BlogPageHtml {
         String image = post.imagePath() == null ? null : siteUrl + post.imagePath();
         StringBuilder body = new StringBuilder("<main class=\"blog-page\">")
                 .append("<a class=\"blog-back\" href=\"/blog\">→ همهٔ نوشته‌ها</a><article class=\"blog-article\"><h1>")
-                .append(escape(post.title())).append("</h1>");
+                .append(escape(post.title())).append("</h1><p class=\"blog-byline\">تحریریهٔ بین‌ما</p>");
         if (post.imagePath() != null) {
             body.append("<img src=\"").append(escape(post.imagePath())).append("\" alt=\"\">");
         }
