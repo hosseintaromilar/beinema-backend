@@ -110,6 +110,10 @@ public class ChatRoom extends BaseEntity {
     @Column(name = "session_started_at")
     private java.time.Instant sessionStartedAt;
 
+    private java.time.Instant sessionPausedAt;
+
+    private Long sessionPausedBy;
+
     /** Overrides beinema.session.duration-minutes for this room. */
     @Column(name = "session_duration_minutes")
     private Integer sessionDurationMinutes;

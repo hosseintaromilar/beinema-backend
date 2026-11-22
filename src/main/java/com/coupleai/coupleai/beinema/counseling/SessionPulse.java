@@ -65,7 +65,8 @@ public class SessionPulse {
             try {
                 // the clock runs without anyone on the page: a session past its time closes and is settled
                 ChatRoom current = sessionLifecycleService.refresh(room);
-                if (current.getSessionStartedAt() == null || Boolean.FALSE.equals(current.getSessionActive())) {
+                if (current.getSessionStartedAt() == null || current.getSessionPausedAt() != null
+                        || Boolean.FALSE.equals(current.getSessionActive())) {
                     continue;
                 }
                 pulse(current);

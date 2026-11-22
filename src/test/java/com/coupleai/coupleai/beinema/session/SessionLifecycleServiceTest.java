@@ -169,6 +169,30 @@ class SessionLifecycleServiceTest {
         });
     }
 
+    @Test
+    void pausePreservesTimeAndDoesNotSettleTheSession() {
+        consent(afsanehLink);
+        consent(hosseinLink);
+        service.refresh(room);
+        now = T0.plusSeconds(10 * MIN);
+        SessionInfo paused = service.setPaused(5L, 1, true);
+        assertEquals(now.toEpochMilli(), paused.getPausedAt());
+        assertThrows(SessionOnBreakException.class, () -> service.requireCanWrite(room, afsaneh));
+
+        now = now.plusSeconds(90 * MIN);
+        service.refresh(room);
+        assertTrue(service.isActive(room));
+        assertEquals(paused.getEndsAt(), service.describe(room).getEndsAt());
+        when(currentUser.getCurrentUser()).thenReturn(hossein);
+        assertNotNull(service.setPaused(5L, 1, false).getPausedAt());
+
+        when(currentUser.getCurrentUser()).thenReturn(afsaneh);
+        SessionInfo resumed = service.setPaused(5L, 1, false);
+        assertNull(resumed.getPausedAt());
+        assertEquals(paused.getEndsAt() + 90 * MIN * 1000, resumed.getEndsAt());
+        assertEquals(resumed.getEndsAt(), service.setPaused(5L, 1, false).getEndsAt());
+    }
+
     private static User user(long id, String name) {
         User user = new User();
         user.setId(id);

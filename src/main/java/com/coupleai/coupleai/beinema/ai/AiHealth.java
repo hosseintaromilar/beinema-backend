@@ -246,7 +246,12 @@ public class AiHealth {
                 || !number.equals(room.getSessionNumber() == null ? 1 : room.getSessionNumber())) {
             return false;
         }
-        room.setSessionStartedAt(room.getSessionStartedAt().plus(Duration.between(from, to)));
+        Instant pausedAt = room.getSessionPausedAt();
+        if (pausedAt != null && !pausedAt.isAfter(from)) {
+            return false;
+        }
+        Instant creditedUntil = pausedAt != null && pausedAt.isBefore(to) ? pausedAt : to;
+        room.setSessionStartedAt(room.getSessionStartedAt().plus(Duration.between(from, creditedUntil)));
         chatRoomRepository.save(room);
         AiSessionPause pause = new AiSessionPause();
         pause.setChatRoomId(roomId);

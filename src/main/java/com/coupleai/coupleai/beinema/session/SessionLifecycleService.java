@@ -248,6 +248,8 @@ public class SessionLifecycleService {
                 .active(active)
                 .durationSeconds(duration)
                 .startedAt(started == null ? null : started.toEpochMilli())
+                .pausedAt(room.getSessionPausedAt() == null ? null : room.getSessionPausedAt().toEpochMilli())
+                .pausedBy(room.getSessionPausedBy())
                 .endsAt(started == null ? null : started.plusSeconds(duration).toEpochMilli())
                 .overtimeEndsAt(started == null ? null : started.plusSeconds(duration + overtimeSeconds()).toEpochMilli())
                 .serverNow(now.toEpochMilli())
@@ -277,6 +279,9 @@ public class SessionLifecycleService {
     public void requireActive(ChatRoom room) {
         if (!isActive(room)) {
             throw new SessionOnBreakException(SessionOnBreakException.BREAK, BREAK_TEXT);
+        }
+        if (room.getSessionPausedAt() != null) {
+            throw new SessionOnBreakException("جلسه متوقف است. برای ادامه، تایمر را از سر بگیرید.");
         }
     }
 
@@ -340,7 +345,7 @@ public class SessionLifecycleService {
         ChatRoom fresh;
         synchronized (lock(room.getId())) {
             fresh = chatRoomRepository.findById(room.getId()).orElse(room);
-            if (!isActive(fresh)) {
+            if (!isActive(fresh) || fresh.getSessionPausedAt() != null) {
                 // between sessions nothing moves by itself: each partner enters with the start button
                 return fresh;
             }
@@ -390,6 +395,41 @@ public class SessionLifecycleService {
     public SessionInfo timeUp(Long roomId) {
         ChatRoom room = requireMemberRoom(roomId);
         return describe(refresh(room));
+    }
+
+    public SessionInfo setPaused(Long roomId, int expectedNumber, boolean pause) {
+        ChatRoom room = requireMemberRoom(roomId);
+        User user = currentUserService.getCurrentUser();
+        synchronized (lock(roomId)) {
+            room = chatRoomRepository.findById(roomId).orElseThrow();
+            requireOpen(room, user);
+            ChatRoomParticipant member = participantRepository.findByChatRoomAndUser(room, user)
+                    .orElseThrow(() -> new ChatRoomAccessDeniedException("Access denied"));
+            Instant started = room.getSessionStartedAt();
+            Instant pausedAt = room.getSessionPausedAt();
+            Instant now = clock.instant();
+            if (!isActive(room) || number(room) != expectedNumber || started == null
+                    || member.getSessionReadyAt() == null || Boolean.FALSE.equals(member.getSessionConsented())
+                    || pause == (pausedAt != null)) {
+                return describe(room);
+            }
+            if (pause) {
+                if (aiHealth.down() || !now.isBefore(started.plusSeconds(durationSeconds(room) + overtimeSeconds()))
+                        || Boolean.TRUE.equals(member.getBreakVote())) {
+                    return describe(room);
+                }
+                room.setSessionPausedAt(now);
+                room.setSessionPausedBy(user.getId());
+            } else {
+                if (!Objects.equals(room.getSessionPausedBy(), user.getId()) || aiHealth.down()) {
+                    return describe(room);
+                }
+                room.setSessionStartedAt(started.plus(Duration.between(pausedAt, now)));
+                room.setSessionPausedAt(null);
+                room.setSessionPausedBy(null);
+            }
+            return describe(chatRoomRepository.save(room));
+        }
     }
 
     /** Opening the room (it decides how long the first session waits for someone reading the rules). */
@@ -498,7 +538,8 @@ public class SessionLifecycleService {
         synchronized (lock(roomId)) {
             room = chatRoomRepository.findById(roomId).orElse(room);
             requireOpen(room, user);
-            if (!isActive(room) || room.getBreakProposedAt() == null || room.getSessionStartedAt() == null) {
+            if (!isActive(room) || room.getSessionPausedAt() != null
+                    || room.getBreakProposedAt() == null || room.getSessionStartedAt() == null) {
                 return describe(room);
             }
             ChatRoomParticipant mine = participantRepository.findByChatRoomAndUser(room, user)
@@ -773,6 +814,8 @@ public class SessionLifecycleService {
      * nobody is in it or resting any more, and its record says how it ended.
      */
     private Closing close(ChatRoom room, List<ChatRoomParticipant> people, Instant endedAt, SessionEndReason reason, User user) {
+        room.setSessionPausedAt(null);
+        room.setSessionPausedBy(null);
         int number = number(room);
         boolean empty = lastUserMessageAt(room).isEmpty();
         SessionRecord record = currentRecord(room, endedAt);
@@ -792,7 +835,7 @@ public class SessionLifecycleService {
 
         Closing closing = new Closing(room.getId(), number,
                 room.getSessionStartSequence() == null ? 0 : room.getSessionStartSequence(),
-                room.getSessionStartedAt(), endedAt, user, empty, null);
+                record.getStartedAt(), endedAt, user, empty, null);
         if (empty) {
             // nothing happened: the number is used again and there is nothing to rest from
             room.setSessionNumber(number - 1);

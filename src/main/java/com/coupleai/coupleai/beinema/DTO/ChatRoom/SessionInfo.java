@@ -29,6 +29,10 @@ public class SessionInfo {
     /** Null while the session waits for the other partner. */
     private Long startedAt;
 
+    private Long pausedAt;
+
+    private Long pausedBy;
+
     /** End of the 45 minutes. */
     private Long endsAt;
 

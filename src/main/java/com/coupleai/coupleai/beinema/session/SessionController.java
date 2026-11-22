@@ -26,6 +26,13 @@ public class SessionController {
         return sessionLifecycleService.timeUp(chatRoomId);
     }
 
+    public record PauseRequest(int number, boolean paused) {}
+
+    @PostMapping("/pause")
+    public SessionInfo pause(@PathVariable Long chatRoomId, @RequestBody PauseRequest request) {
+        return sessionLifecycleService.setPaused(chatRoomId, request.number(), request.paused());
+    }
+
     /** Body: {"agree": true | false}. True: take the break; false: go on for the extra minutes. */
     @PostMapping("/break-vote")
     public SessionInfo breakVote(
