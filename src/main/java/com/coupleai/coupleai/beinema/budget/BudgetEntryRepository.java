@@ -12,5 +12,7 @@ public interface BudgetEntryRepository extends JpaRepository<BudgetEntry, Long> 
 
     Optional<BudgetEntry> findByPublicId(String publicId);
 
+    Optional<BudgetEntry> findByChatRoomIdAndReceiptSha256(Long chatRoomId, String receiptSha256);
+
     void deleteAllByChatRoomId(Long chatRoomId);
 }

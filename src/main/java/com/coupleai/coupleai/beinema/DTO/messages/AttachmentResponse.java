@@ -16,6 +16,7 @@ public class AttachmentResponse {
     private Long sizeBytes;
     /** IMAGE, FILE or AUDIO (a recorded voice message). */
     private String kind;
+    private boolean receipt;
     /** Only right after a voice message is recorded: its words, for the person to check before sending. */
     private String transcript;
 
@@ -26,6 +27,7 @@ public class AttachmentResponse {
                 .contentType(attachment.getContentType())
                 .sizeBytes(attachment.getSizeBytes())
                 .kind(attachment.getKind())
+                .receipt(Boolean.TRUE.equals(attachment.getReceipt()))
                 .build();
     }
 }

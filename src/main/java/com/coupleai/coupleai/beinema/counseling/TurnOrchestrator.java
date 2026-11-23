@@ -394,7 +394,7 @@ public class TurnOrchestrator {
         if (kit || d.teachCardId != null) {
             addKitCards(m, d, items, notes);
         }
-        if (finance) {
+        if (finance && !m.receiptInTurn()) {
             addFinanceCards(m, d, items, notes);
         }
         persistence.finish(stored.decisionId(), voiceRaw, voiceMs, notes);

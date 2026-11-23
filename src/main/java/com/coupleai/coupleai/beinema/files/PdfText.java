@@ -11,7 +11,7 @@ import java.util.Optional;
  * pictures of pages) has no text; then it is empty and the file is read by the
  * model instead.
  */
-final class PdfText {
+public final class PdfText {
 
     private static final int MAX_PAGES = 30;
     /** Fewer letters than this: treat it as a scan. */
@@ -20,7 +20,7 @@ final class PdfText {
     private PdfText() {
     }
 
-    static Optional<String> extract(byte[] bytes) {
+    public static Optional<String> extract(byte[] bytes) {
         try (PDDocument document = PDDocument.load(bytes)) {
             if (document.isEncrypted()) {
                 return Optional.empty();

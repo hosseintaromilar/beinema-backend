@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -17,7 +18,9 @@ import java.time.LocalDate;
  * says who wrote it, or that Pouria wrote it from what they said.
  */
 @Entity
-@Table(name = "budget_entries", indexes = @Index(name = "idx_budget_room_day", columnList = "chat_room_id, day"))
+@Table(name = "budget_entries",
+        indexes = @Index(name = "idx_budget_room_day", columnList = "chat_room_id, day"),
+        uniqueConstraints = @UniqueConstraint(name = "uk_budget_room_receipt", columnNames = {"chat_room_id", "receipt_sha256"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -56,4 +59,7 @@ public class BudgetEntry extends BaseEntity {
     /** PERSON or POURIA. */
     @Column(length = 10, nullable = false)
     private String source;
+
+    @Column(name = "receipt_sha256", length = 64)
+    private String receiptSha256;
 }

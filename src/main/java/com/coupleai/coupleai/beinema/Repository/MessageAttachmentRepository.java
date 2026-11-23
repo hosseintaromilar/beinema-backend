@@ -22,6 +22,15 @@ public interface MessageAttachmentRepository extends JpaRepository<MessageAttach
 
     List<MessageAttachment> findAllByChatRoomId(Long chatRoomId);
 
+    @Modifying
+    @Query("update MessageAttachment a set a.messageId = :messageId where a.id = :id and a.messageId is null")
+    int linkUnclaimed(@Param("id") Long id, @Param("messageId") Long messageId);
+
+    @Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("update MessageAttachment a set a.summary = :summary, a.summaryStatus = :status where a.id = :id")
+    void updateSummary(@Param("id") Long id, @Param("summary") String summary, @Param("status") String status);
+
     @Query("select coalesce(sum(a.sizeBytes), 0) from MessageAttachment a where a.chatRoomId = :roomId")
     long totalBytesInRoom(@Param("roomId") Long roomId);
 

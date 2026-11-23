@@ -52,6 +52,10 @@ public final class BudgetKit {
         return CATEGORIES.stream().filter(category -> category.id().equals(id)).findFirst().orElse(null);
     }
 
+    static boolean isReceiptExpense(Category category) {
+        return category != null && EXPENSE.equals(category.kind()) && !SAVING.equals(category.id());
+    }
+
     public static Map<String, String> labels() {
         Map<String, String> out = new LinkedHashMap<>();
         CATEGORIES.forEach(category -> out.put(category.id(), category.label()));

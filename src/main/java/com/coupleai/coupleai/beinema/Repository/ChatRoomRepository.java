@@ -6,6 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ChatRoomRepository
         extends JpaRepository<ChatRoom, Long> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select r from ChatRoom r where r.id = :id")
+    java.util.Optional<ChatRoom> lockForReceipt(@org.springframework.data.repository.query.Param("id") Long id);
+
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("update ChatRoom r set r.agentDeliveredSeq = :seq where r.id = :id and (r.agentDeliveredSeq is null or r.agentDeliveredSeq < :seq)")
     void markCompanionDelivered(@org.springframework.data.repository.query.Param("id") Long id, @org.springframework.data.repository.query.Param("seq") int seq);

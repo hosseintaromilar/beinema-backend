@@ -30,9 +30,10 @@ public class ChatFileController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public AttachmentResponse upload(
             @PathVariable Long chatRoomId,
-            @RequestParam("file") MultipartFile file
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(name = "receipt", defaultValue = "false") boolean receipt
     ) {
-        return chatFileService.upload(chatRoomId, file);
+        return chatFileService.upload(chatRoomId, file, receipt);
     }
 
     /** A recorded voice message: stored and written down; the words come back for the person to check. */

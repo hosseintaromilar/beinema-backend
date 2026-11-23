@@ -5,6 +5,7 @@ import com.coupleai.coupleai.beinema.Entity.ClarifyingQuestion;
 import com.coupleai.coupleai.beinema.Entity.ClientIntent;
 import com.coupleai.coupleai.beinema.Entity.DirectorDecisionRecord;
 import com.coupleai.coupleai.beinema.Entity.Message;
+import com.coupleai.coupleai.beinema.Entity.MessageAttachment;
 import com.coupleai.coupleai.beinema.Enum.DecisionStatus;
 import com.coupleai.coupleai.beinema.Enum.IntentEpistemic;
 import com.coupleai.coupleai.beinema.Enum.IntentStatus;
@@ -13,6 +14,7 @@ import com.coupleai.coupleai.beinema.Exception.QuestionAnswerException;
 import com.coupleai.coupleai.beinema.governance.QuestionMarkers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * The whole v3 cycle with a scripted brain: a message, a decision with a
@@ -95,6 +104,42 @@ class CounselingCycleTest {
         f.orchestrator.deliverRemaining(outcome);
         assertFalse(outcome.failed());
         return f.openQuestion();
+    }
+
+    @Test
+    void dedicatedReceiptHidesFileDetailsAndPreventsCounselorBudgetWrites() {
+        for (boolean receipt : List.of(false, true)) {
+            setUp();
+            FinanceService finance = mock(FinanceService.class);
+            ReflectionTestUtils.setField(f.orchestrator, "financeService", finance);
+            f.config.setMarketWorkflowIds("wf");
+            when(f.agents.findActiveAgentBotIds(FakeRoom.ROOM)).thenReturn(List.of("wf"));
+            Message message = f.say(f.afsaneh, AFSANEH_SAYS);
+            MessageAttachment file = MessageAttachment.builder()
+                    .messageId(message.getId())
+                    .receipt(receipt)
+                    .kind("IMAGE")
+                    .originalName("sensitive-filename.jpg")
+                    .summary("sensitive-receipt-data")
+                    .build();
+            when(f.attachments.findAllByChatRoomIdAndMessageIdIsNotNull(FakeRoom.ROOM)).thenReturn(List.of(file));
+            f.brain.directorReplies.add(packet -> {
+                String decision = askToChoose(packet).stripTrailing();
+                return decision.substring(0, decision.length() - 1)
+                        + """
+                        ,"finance":{"budget":[{"category":"FOOD","amount":1}],"limits":{"FOOD":2}}}
+                        """;
+            });
+            f.brain.voiceReplies.add(CounselingCycleTest::voiceWithOptions);
+
+            assertFalse(f.orchestrator.runTurn(FakeRoom.ROOM).failed());
+            String packet = f.brain.directorPackets.get(0);
+            assertEquals(receipt, packet.contains("built-in receipt review"));
+            assertEquals(!receipt, packet.contains("sensitive-filename.jpg"));
+            assertEquals(!receipt, packet.contains("sensitive-receipt-data"));
+            verify(finance, receipt ? never() : org.mockito.Mockito.times(1))
+                    .heard(eq(FakeRoom.ROOM), anyList(), anyMap());
+        }
     }
 
     @Test

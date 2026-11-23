@@ -5,20 +5,25 @@ import com.coupleai.coupleai.beinema.metis.MetisService;
 import com.coupleai.coupleai.beinema.DTO.messages.AttachmentResponse;
 import com.coupleai.coupleai.beinema.DTO.metis.MetisAttachment;
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
+import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
+import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Entity.MessageAttachment;
 import com.coupleai.coupleai.beinema.Entity.User;
 import com.coupleai.coupleai.beinema.Enum.ChatRoomStatus;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageAttachmentRepository;
+import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.CurrentUserService;
+import com.coupleai.coupleai.beinema.budget.BudgetService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -51,6 +56,9 @@ public class ChatFileService {
     /** About five minutes of a browser recording. */
     static final long MAX_VOICE_BYTES = 6L * 1024 * 1024;
     public static final int MAX_FILES_PER_MESSAGE = 4;
+    public static final String RECEIPT_REVIEW_GUIDANCE =
+            "[ATTACHMENT | BUDGET RECEIPT] Ask the sender to use the built-in receipt review and confirmation in chat. "
+                    + "Do not infer or record its details or claim it has been recorded.";
     static final String DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private static final long ROOM_QUOTA_BYTES = 100L * 1024 * 1024;
     private static final long SUMMARY_WAIT_MILLIS = 30_000L;
@@ -66,12 +74,14 @@ public class ChatFileService {
             """;
 
     private final MessageAttachmentRepository attachmentRepository;
+    private final MessageRepository messageRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomParticipantRepository participantRepository;
     private final CurrentUserService currentUserService;
     private final UserRepository userRepository;
     private final MetisService metisService;
     private final SpeechToText speechToText;
+    private final BudgetService budgetService;
 
     private final Path uploadRoot;
     private final String readerBotId;
@@ -79,22 +89,26 @@ public class ChatFileService {
 
     public ChatFileService(
             MessageAttachmentRepository attachmentRepository,
+            MessageRepository messageRepository,
             ChatRoomRepository chatRoomRepository,
             ChatRoomParticipantRepository participantRepository,
             CurrentUserService currentUserService,
             UserRepository userRepository,
             MetisService metisService,
             SpeechToText speechToText,
+            BudgetService budgetService,
             @Value("${beinema.upload.dir:uploads}") String uploadDir,
             @Value("${metis.insight-bot-id}") String readerBotId
     ) {
         this.attachmentRepository = attachmentRepository;
+        this.messageRepository = messageRepository;
         this.chatRoomRepository = chatRoomRepository;
         this.participantRepository = participantRepository;
         this.currentUserService = currentUserService;
         this.userRepository = userRepository;
         this.metisService = metisService;
         this.speechToText = speechToText;
+        this.budgetService = budgetService;
         this.uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
         this.readerBotId = readerBotId;
     }
@@ -188,12 +202,18 @@ public class ChatFileService {
         return Optional.empty();
     }
 
-    public AttachmentResponse upload(Long chatRoomId, MultipartFile file) {
+    public AttachmentResponse upload(Long chatRoomId, MultipartFile file, boolean receipt) {
         User user = currentUserService.getCurrentUser();
         ChatRoom room = requireMemberRoom(chatRoomId, user);
 
         if (room.getStatus() != ChatRoomStatus.ACTIVE) {
             throw new IllegalArgumentException("این جلسه دیگر فعال نیست.");
+        }
+        if (receipt) {
+            budgetService.requireMember(chatRoomId, user);
+            if (participantRepository.findByChatRoomAndUser(room, user).filter(ChatRoomParticipant::isActiveMember).isEmpty()) {
+                throw new IllegalArgumentException("برای ارسال فاکتور باید عضو فعال این گفتگو باشی.");
+            }
         }
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("فایلی انتخاب نشده است.");
@@ -220,6 +240,9 @@ public class ChatFileService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "فقط عکس (JPG، PNG، WEBP)، PDF، فایل Word (docx) و فایل متنی پذیرفته می‌شود."
                 ));
+        if (receipt && !"IMAGE".equals(detected.kind()) && !"application/pdf".equals(detected.contentType())) {
+            throw new IllegalArgumentException("رسید باید عکس یا فایل PDF باشد.");
+        }
 
         String storedName = UUID.randomUUID() + detected.extension();
         Path directory = uploadRoot.resolve("rooms").resolve(String.valueOf(chatRoomId));
@@ -239,14 +262,16 @@ public class ChatFileService {
                         .contentType(detected.contentType())
                         .sizeBytes((long) bytes.length)
                         .kind(detected.kind())
+                        .receipt(receipt ? Boolean.TRUE : null)
                         .storagePath("rooms/" + chatRoomId + "/" + storedName)
                         .sha256(sha256(bytes))
+                        .summaryStatus(receipt ? MessageAttachment.READY : MessageAttachment.PENDING)
                         .build()
         );
 
-        Long attachmentId = saved.getId();
-        Long uploaderId = user.getId();
-        readers.submit(() -> summarize(attachmentId, uploaderId));
+        if (!receipt) {
+            readers.submit(() -> summarize(saved.getId(), user.getId()));
+        }
         return AttachmentResponse.from(saved);
     }
 
@@ -291,11 +316,14 @@ public class ChatFileService {
         return claimed;
     }
 
-    /** Links validated files to the message that was just saved. */
-    public void link(List<MessageAttachment> attachments, Long messageId) {
+    /** A counselor turn can only see the caption after all its files have been linked. */
+    @Transactional
+    public void saveMessageWithAttachments(Message message, List<MessageAttachment> attachments) {
+        messageRepository.saveAndFlush(message);
         for (MessageAttachment attachment : attachments) {
-            attachment.setMessageId(messageId);
-            attachmentRepository.save(attachment);
+            if (attachmentRepository.linkUnclaimed(attachment.getId(), message.getId()) != 1) {
+                throw new IllegalArgumentException("یکی از فایل‌ها دیگر قابل استفاده نیست.");
+            }
         }
     }
 
@@ -319,6 +347,10 @@ public class ChatFileService {
         StringBuilder block = new StringBuilder();
         for (MessageAttachment attachment : attachments) {
             MessageAttachment fresh = attachmentRepository.findById(attachment.getId()).orElse(attachment);
+            if (Boolean.TRUE.equals(fresh.getReceipt())) {
+                block.append('\n').append(RECEIPT_REVIEW_GUIDANCE);
+                continue;
+            }
             if ("AUDIO".equals(fresh.getKind())) {
                 // the message text is the transcript the person checked; without text, the words heard
                 String heard = fresh.getSummary() == null || fresh.getSummary().isBlank()
@@ -423,7 +455,7 @@ public class ChatFileService {
             log.warn("Could not read attachment {}", attachmentId, exception);
             attachment.setSummaryStatus(MessageAttachment.FAILED);
         }
-        attachmentRepository.save(attachment);
+        attachmentRepository.updateSummary(attachment.getId(), attachment.getSummary(), attachment.getSummaryStatus());
     }
 
     private void awaitSummaries(List<MessageAttachment> attachments) {

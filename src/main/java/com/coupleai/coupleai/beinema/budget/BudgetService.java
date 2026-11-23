@@ -111,6 +111,26 @@ public class BudgetService {
         return Map.of("id", entry.getPublicId());
     }
 
+    public record ReceiptResult(String entryId, String amount, String category, LocalDate date, String note,
+                                boolean alreadyRecorded) {
+        static ReceiptResult from(BudgetEntry entry, boolean alreadyRecorded) {
+            return new ReceiptResult(entry.getPublicId(), Long.toString(entry.getAmount()), entry.getCategory(),
+                    entry.getDay(), entry.getNote(), alreadyRecorded);
+        }
+    }
+
+    /** Called while holding the room's database write lock. */
+    ReceiptResult recordReceipt(Long roomId, User user, String fingerprint,
+                                BudgetKit.Category category, long amount, LocalDate day, String note) {
+        BudgetEntry existing = entries.findByChatRoomIdAndReceiptSha256(roomId, fingerprint).orElse(null);
+        if (existing != null) {
+            return ReceiptResult.from(existing, true);
+        }
+        BudgetEntry receipt = entry(roomId, category, amount, day, note, user.getId(), BudgetEntry.POURIA);
+        receipt.setReceiptSha256(fingerprint);
+        return ReceiptResult.from(entries.save(receipt), false);
+    }
+
     /** What Pouria heard in the talk, written in the book as his; the lines that were not whole are left out. */
     @Transactional
     public int heard(Long roomId, List<Heard> lines) {

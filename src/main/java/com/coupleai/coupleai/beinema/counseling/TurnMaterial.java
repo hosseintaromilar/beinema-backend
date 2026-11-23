@@ -41,6 +41,7 @@ public record TurnMaterial(
         Map<String, List<String>> looseTextsByRole,
         Map<Long, Message> messagesById,
         Map<Long, List<String>> fileLinesByMessageId,
+        boolean receiptInTurn,
         List<com.coupleai.coupleai.beinema.Entity.PersonMilestone> milestones,
         /** The agent's name from the admin panel ("نادر"), or empty. */
         String counselorName,

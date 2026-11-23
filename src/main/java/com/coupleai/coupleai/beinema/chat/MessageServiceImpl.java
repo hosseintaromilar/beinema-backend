@@ -382,8 +382,7 @@ public class MessageServiceImpl implements MessageService {
                 .status(MessageStatus.SENT)
                 .sequenceNumber(nextSequence)
                 .build();
-        messageRepository.saveAndFlush(userMessage);
-        chatFileService.link(files, userMessage.getId());
+        chatFileService.saveMessageWithAttachments(userMessage, files);
         chatRealtimeService.publish(chatRoom.getId(), userMessage);
         // safety never waits for the model
         safetyCardService.check(chatRoom, user, captionText);

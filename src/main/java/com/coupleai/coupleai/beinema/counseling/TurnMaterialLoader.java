@@ -18,6 +18,7 @@ import com.coupleai.coupleai.beinema.Repository.ClientIntentRepository;
 import com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageAttachmentRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
+import com.coupleai.coupleai.beinema.files.ChatFileService;
 import com.coupleai.coupleai.beinema.governance.QuestionMarkers;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -125,10 +126,19 @@ public class TurnMaterialLoader {
         // files of the visible messages
         Map<Long, List<String>> files = new HashMap<>();
         Set<Long> visibleIds = new java.util.HashSet<>();
+        Set<Long> freshIds = new java.util.HashSet<>();
         recent.forEach(message -> visibleIds.add(message.getId()));
-        fresh.forEach(message -> visibleIds.add(message.getId()));
+        fresh.forEach(message -> freshIds.add(message.getId()));
+        visibleIds.addAll(freshIds);
+        boolean receiptInTurn = false;
         for (MessageAttachment attachment : attachmentRepository.findAllByChatRoomIdAndMessageIdIsNotNull(roomId)) {
             if (visibleIds.contains(attachment.getMessageId())) {
+                if (Boolean.TRUE.equals(attachment.getReceipt())) {
+                    files.computeIfAbsent(attachment.getMessageId(), key -> new ArrayList<>())
+                            .add(ChatFileService.RECEIPT_REVIEW_GUIDANCE);
+                    receiptInTurn |= freshIds.contains(attachment.getMessageId());
+                    continue;
+                }
                 String summary = attachment.getSummary() == null ? "" : " - " + PersianText.clip(attachment.getSummary(), 200);
                 // a voice message: the text of the message is already its transcript
                 String line = "AUDIO".equals(attachment.getKind()) ? "a voice message; the text is what they said aloud"
@@ -154,8 +164,6 @@ public class TurnMaterialLoader {
                 roomId, DecisionKind.TURN, PageRequest.of(0, 6));
 
         // notes waiting for these messages
-        Set<Long> freshIds = new java.util.HashSet<>();
-        fresh.forEach(message -> freshIds.add(message.getId()));
         List<TurnInbox.Note> notes = inbox.peek(roomId).stream()
                 .filter(note -> note.messageId() == null || freshIds.contains(note.messageId()))
                 .toList();
@@ -234,7 +242,7 @@ public class TurnMaterialLoader {
 
         return new TurnMaterial(room, sessionNumber, minutes, planned, partners, recent, fresh, notes, state, snapshot,
                 intents, open, answered, asked, lastTurns, screen, tags, cards, roleByUserId, roleByMessageId, looseTexts,
-                byId, files, milestoneRepository.findAllByChatRoomIdOrderByIdAsc(roomId),
+                byId, files, receiptInTurn, milestoneRepository.findAllByChatRoomIdOrderByIdAsc(roomId),
                 chatRoomAgentRepository.findActiveAgentNames(roomId).stream()
                         .filter(name -> name != null && !name.isBlank())
                         .findFirst()

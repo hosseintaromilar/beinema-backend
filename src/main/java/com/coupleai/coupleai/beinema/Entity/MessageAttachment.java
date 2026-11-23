@@ -57,6 +57,9 @@ public class MessageAttachment extends BaseEntity {
     @Column(nullable = false, length = 16)
     private String kind;
 
+    /** True for receipts sent through the budget receipt picker. Older files have no flag. */
+    private Boolean receipt;
+
     @Column(name = "storage_path", nullable = false, length = 500)
     private String storagePath;
 
