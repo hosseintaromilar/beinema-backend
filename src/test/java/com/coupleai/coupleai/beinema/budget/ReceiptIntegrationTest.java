@@ -54,8 +54,8 @@ class ReceiptIntegrationTest {
         entityManager.persist(ChatRoomAgent.builder().chatRoom(room).agent(agent).addedBy(user.getId()).build());
 
         String fingerprint = "a".repeat(64);
-        Long firstAttachment = sentReceipt(room, user, fingerprint, 1);
-        Long secondAttachment = sentReceipt(room, user, fingerprint, 2);
+        Long firstAttachment = budgetReceipt(room, user, fingerprint, 1);
+        Long secondAttachment = budgetReceipt(room, user, fingerprint, 2);
         assertNotEquals(firstAttachment, secondAttachment);
         entityManager.clear();
 
@@ -83,19 +83,20 @@ class ReceiptIntegrationTest {
         assertEquals(first.entryId(), line.get("id"));
         assertEquals(123_457L, line.get("amount"));
         assertEquals("FOOD", line.get("category"));
+        assertFalse(budget.forDirector(room.getId()).contains("recent confirmed budget entries"));
+        assertTrue(budget.forDirector(room.getId(), true).contains("FOOD 123457"));
         verifyNoInteractions(metis);
     }
 
-    private Long sentReceipt(ChatRoom room, User user, String fingerprint, int sequence) {
+    private Long budgetReceipt(ChatRoom room, User user, String fingerprint, int sequence) {
         MessageAttachment attachment = MessageAttachment.builder()
                 .chatRoomId(room.getId()).uploaderId(user.getId()).originalName("receipt.png")
-                .contentType("image/png").sizeBytes(1L).kind("IMAGE").receipt(true)
+                .contentType("image/png").sizeBytes(1L).kind("IMAGE").receipt(true).budgetReceipt(true)
                 .storagePath("integration-test-unused-" + sequence).sha256(fingerprint)
                 .summaryStatus(MessageAttachment.READY).build();
         entityManager.persist(attachment);
-        Message message = Message.builder().chatRoom(room).senderType(MessageSenderType.USER)
-                .senderId(user.getId()).sequenceNumber(sequence).content("فاکتور").build();
-        files.saveMessageWithAttachments(message, files.prepare(room.getId(), user.getId(), List.of(attachment.getId())));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> files.prepare(room.getId(), user.getId(), List.of(attachment.getId())));
         return attachment.getId();
     }
 }

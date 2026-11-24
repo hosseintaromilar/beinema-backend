@@ -33,7 +33,10 @@ public class ChatFileController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(name = "receipt", defaultValue = "false") boolean receipt
     ) {
-        return chatFileService.upload(chatRoomId, file, receipt);
+        if (receipt) {
+            throw new IllegalArgumentException("برای ثبت فاکتور به بخش دخل‌وخرج برو.");
+        }
+        return chatFileService.upload(chatRoomId, file);
     }
 
     /** A recorded voice message: stored and written down; the words come back for the person to check. */

@@ -318,6 +318,12 @@ public class BudgetService {
     /** The BUDGET lines of [FINANCE]: this month against the limits, the averages, and how to write in the book. */
     @Transactional(readOnly = true)
     public String forDirector(Long roomId) {
+        return forDirector(roomId, false);
+    }
+
+    /** Give recent line details to Pouria only for a fresh request to analyze the budget. */
+    @Transactional(readOnly = true)
+    public String forDirector(Long roomId, boolean includeEntries) {
         Map<String, Object> now = month(roomId, null, null, null);
         StringBuilder out = new StringBuilder("budget book (tomans, ").append(now.get("monthName")).append(", the household's, both see it): ");
         List<?> lines = (List<?>) now.get("entries");
@@ -341,6 +347,14 @@ public class BudgetService {
         }
         out.append(String.format(Locale.ROOT, "  categories: %s%n", String.join(", ",
                 BudgetKit.CATEGORIES.stream().map(category -> category.id() + "(" + category.kind().charAt(0) + ")").toList())));
+        if (includeEntries) {
+            out.append("  recent confirmed budget entries (date, category, amount in tomans):\n");
+            lines.stream().limit(20).map(item -> (Map<?, ?>) item).forEach(line ->
+                    out.append("  ").append(line.get("day")).append(' ')
+                            .append(line.get("category")).append(' ')
+                            .append(line.get("amount")).append('\n'));
+            out.append("  Analyze these recorded figures only. Ask before changing any budget limit.\n");
+        }
         return out.toString();
     }
 

@@ -462,7 +462,12 @@ public class FinanceService {
             out.append("  figures you heard, waiting in the form for them to save: ").append(hints.keySet()).append('\n');
         }
         if (budget != null) {
-            out.append(budget.forDirector(m.roomId()));
+            boolean requestedBudgetAnalysis = m.fresh().stream()
+                    .filter(message -> message.getSenderType() == MessageSenderType.USER)
+                    .map(message -> PersianText.loose(message.getContent()))
+                    .anyMatch(text -> PersianText.containsAny(text, "دفتر بودجه", "بودجه", "مخارج", "هزینه ها", "هزینه‌ها")
+                            && PersianText.containsAny(text, "تحلیل", "بررسی", "مدیریت", "گزارش", "پیشنهاد"));
+            out.append(budget.forDirector(m.roomId(), requestedBudgetAnalysis));
         }
         out.append("market cards sent: ").append(given.stream().filter(card -> FinanceCard.MARKET.equals(card.getKind())).count()).append('\n');
         Optional<FinanceCard> plan = cards.findFirstByChatRoomIdAndKindOrderByIdDesc(m.roomId(), FinanceCard.PLAN);

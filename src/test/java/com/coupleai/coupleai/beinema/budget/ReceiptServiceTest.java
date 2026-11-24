@@ -66,7 +66,7 @@ class ReceiptServiceTest {
     @Test
     void previewDoesNotWriteAndConfirmRecordsExactTomans() {
         var loaded = new ChatFileService.LoadedFile(new ByteArrayResource(new byte[]{1}), file);
-        when(files.load(5L, 1L)).thenReturn(loaded);
+        when(files.loadReceipt(file)).thenReturn(loaded);
         when(extractor.extract(loaded)).thenReturn(new ReceiptExtractor.Draft(
                 "125000", "FOOD", now.toString(), "خرید خانه", "IRR", null));
 

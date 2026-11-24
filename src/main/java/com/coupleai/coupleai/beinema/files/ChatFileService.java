@@ -5,7 +5,6 @@ import com.coupleai.coupleai.beinema.metis.MetisService;
 import com.coupleai.coupleai.beinema.DTO.messages.AttachmentResponse;
 import com.coupleai.coupleai.beinema.DTO.metis.MetisAttachment;
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
-import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Entity.MessageAttachment;
 import com.coupleai.coupleai.beinema.Entity.User;
@@ -16,7 +15,6 @@ import com.coupleai.coupleai.beinema.Repository.MessageAttachmentRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
 import com.coupleai.coupleai.beinema.Repository.UserRepository;
 import com.coupleai.coupleai.beinema.Security.CurrentUserService;
-import com.coupleai.coupleai.beinema.budget.BudgetService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,7 +55,7 @@ public class ChatFileService {
     static final long MAX_VOICE_BYTES = 6L * 1024 * 1024;
     public static final int MAX_FILES_PER_MESSAGE = 4;
     public static final String RECEIPT_REVIEW_GUIDANCE =
-            "[ATTACHMENT | BUDGET RECEIPT] Ask the sender to use the built-in receipt review and confirmation in chat. "
+            "[ATTACHMENT | BUDGET RECEIPT] Ask the sender to use the built-in receipt review and confirmation in the budget. "
                     + "Do not infer or record its details or claim it has been recorded.";
     static final String DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private static final long ROOM_QUOTA_BYTES = 100L * 1024 * 1024;
@@ -81,7 +79,6 @@ public class ChatFileService {
     private final UserRepository userRepository;
     private final MetisService metisService;
     private final SpeechToText speechToText;
-    private final BudgetService budgetService;
 
     private final Path uploadRoot;
     private final String readerBotId;
@@ -96,7 +93,6 @@ public class ChatFileService {
             UserRepository userRepository,
             MetisService metisService,
             SpeechToText speechToText,
-            BudgetService budgetService,
             @Value("${beinema.upload.dir:uploads}") String uploadDir,
             @Value("${metis.insight-bot-id}") String readerBotId
     ) {
@@ -108,7 +104,6 @@ public class ChatFileService {
         this.userRepository = userRepository;
         this.metisService = metisService;
         this.speechToText = speechToText;
-        this.budgetService = budgetService;
         this.uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
         this.readerBotId = readerBotId;
     }
@@ -202,19 +197,22 @@ public class ChatFileService {
         return Optional.empty();
     }
 
-    public AttachmentResponse upload(Long chatRoomId, MultipartFile file, boolean receipt) {
+    public AttachmentResponse upload(Long chatRoomId, MultipartFile file) {
         User user = currentUserService.getCurrentUser();
         ChatRoom room = requireMemberRoom(chatRoomId, user);
 
         if (room.getStatus() != ChatRoomStatus.ACTIVE) {
             throw new IllegalArgumentException("این جلسه دیگر فعال نیست.");
         }
-        if (receipt) {
-            budgetService.requireMember(chatRoomId, user);
-            if (participantRepository.findByChatRoomAndUser(room, user).filter(ChatRoomParticipant::isActiveMember).isEmpty()) {
-                throw new IllegalArgumentException("برای ارسال فاکتور باید عضو فعال این گفتگو باشی.");
-            }
-        }
+        return store(chatRoomId, user, file, false);
+    }
+
+    /** Stores a private budget receipt after the budget service checks room access. */
+    public AttachmentResponse uploadBudgetReceipt(Long roomId, User user, MultipartFile file) {
+        return store(roomId, user, file, true);
+    }
+
+    private AttachmentResponse store(Long chatRoomId, User user, MultipartFile file, boolean budgetReceipt) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("فایلی انتخاب نشده است.");
         }
@@ -240,7 +238,7 @@ public class ChatFileService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "فقط عکس (JPG، PNG، WEBP)، PDF، فایل Word (docx) و فایل متنی پذیرفته می‌شود."
                 ));
-        if (receipt && !"IMAGE".equals(detected.kind()) && !"application/pdf".equals(detected.contentType())) {
+        if (budgetReceipt && !"IMAGE".equals(detected.kind()) && !"application/pdf".equals(detected.contentType())) {
             throw new IllegalArgumentException("رسید باید عکس یا فایل PDF باشد.");
         }
 
@@ -262,14 +260,15 @@ public class ChatFileService {
                         .contentType(detected.contentType())
                         .sizeBytes((long) bytes.length)
                         .kind(detected.kind())
-                        .receipt(receipt ? Boolean.TRUE : null)
+                        .receipt(budgetReceipt ? Boolean.TRUE : null)
+                        .budgetReceipt(budgetReceipt ? Boolean.TRUE : null)
                         .storagePath("rooms/" + chatRoomId + "/" + storedName)
                         .sha256(sha256(bytes))
-                        .summaryStatus(receipt ? MessageAttachment.READY : MessageAttachment.PENDING)
+                        .summaryStatus(budgetReceipt ? MessageAttachment.READY : MessageAttachment.PENDING)
                         .build()
         );
 
-        if (!receipt) {
+        if (!budgetReceipt) {
             readers.submit(() -> summarize(saved.getId(), user.getId()));
         }
         return AttachmentResponse.from(saved);
@@ -281,7 +280,18 @@ public class ChatFileService {
         User user = currentUserService.getCurrentUser();
         requireMemberRoom(chatRoomId, user);
         MessageAttachment attachment = attachmentRepository.findByIdAndChatRoomId(attachmentId, chatRoomId)
+                .filter(file -> !Boolean.TRUE.equals(file.getBudgetReceipt())
+                        && (!Boolean.TRUE.equals(file.getReceipt()) || file.getMessageId() != null))
                 .orElseThrow(() -> new IllegalArgumentException("فایل پیدا نشد."));
+        return loadStoredFile(attachment);
+    }
+
+    /** Reads the receipt selected and authorized by the budget service. */
+    public LoadedFile loadReceipt(MessageAttachment attachment) {
+        return loadStoredFile(attachment);
+    }
+
+    private LoadedFile loadStoredFile(MessageAttachment attachment) {
         Path path = resolve(attachment.getStoragePath());
         if (path == null || !Files.isRegularFile(path)) {
             throw new IllegalArgumentException("فایل پیدا نشد.");
@@ -307,7 +317,9 @@ public class ChatFileService {
         for (MessageAttachment attachment : found) {
             boolean usable = chatRoomId.equals(attachment.getChatRoomId())
                     && userId.equals(attachment.getUploaderId())
-                    && attachment.getMessageId() == null;
+                    && attachment.getMessageId() == null
+                    && !Boolean.TRUE.equals(attachment.getReceipt())
+                    && !Boolean.TRUE.equals(attachment.getBudgetReceipt());
             if (!usable) {
                 throw new IllegalArgumentException("یکی از فایل‌ها قابل استفاده نیست.");
             }

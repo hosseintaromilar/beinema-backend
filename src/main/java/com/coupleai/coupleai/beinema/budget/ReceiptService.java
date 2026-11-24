@@ -1,5 +1,6 @@
 package com.coupleai.coupleai.beinema.budget;
 
+import com.coupleai.coupleai.beinema.DTO.messages.AttachmentResponse;
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
 import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.MessageAttachment;
@@ -12,12 +13,13 @@ import com.coupleai.coupleai.beinema.market.MarketDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
-/** Reads a sent receipt for review and writes its confirmed total to the room's budget. */
+/** Stores and reads private receipts and writes their confirmed totals to the room's budget. */
 @Service
 @RequiredArgsConstructor
 public class ReceiptService {
@@ -44,6 +46,25 @@ public class ReceiptService {
             .map(item -> new CategoryOption(item.id(), item.label()))
             .toList();
 
+    public AttachmentResponse upload(Long roomId, MultipartFile file, User user) {
+        ChatRoom room = rooms.findById(roomId).orElseThrow(() -> new IllegalArgumentException(MISSING));
+        requireActiveMember(room, user);
+        return files.uploadBudgetReceipt(roomId, user, file);
+    }
+
+    /** Previously sent chat receipts stay available in the budget until their owner confirms them. */
+    public List<AttachmentResponse> pending(Long roomId, User user) {
+        ChatRoom room = rooms.findById(roomId).orElseThrow(() -> new IllegalArgumentException(MISSING));
+        requireActiveMember(room, user);
+        return attachments.findAllByChatRoomIdAndMessageIdIsNotNull(roomId).stream()
+                .filter(file -> Boolean.TRUE.equals(file.getReceipt())
+                        && !Boolean.TRUE.equals(file.getBudgetReceipt())
+                        && user.getId().equals(file.getUploaderId()) && file.getSha256() != null
+                        && entries.findByChatRoomIdAndReceiptSha256(roomId, file.getSha256()).isEmpty())
+                .map(AttachmentResponse::from)
+                .toList();
+    }
+
     public Preview preview(Long roomId, Long attachmentId, User user) {
         ChatRoom room = rooms.findById(roomId).orElseThrow(() -> new IllegalArgumentException(MISSING));
         MessageAttachment attachment = requireReceipt(room, attachmentId, user);
@@ -52,7 +73,7 @@ public class ReceiptService {
             return new Preview(Long.toString(saved.getAmount()), saved.getCategory(), saved.getDay().toString(),
                     saved.getNote(), null, null, true, EXPENSE_OPTIONS);
         }
-        ReceiptExtractor.Draft draft = extractor.extract(files.load(roomId, attachmentId));
+        ReceiptExtractor.Draft draft = extractor.extract(files.loadReceipt(attachment));
         String date = draft.date();
         String warning = draft.warning();
         if (date != null && !validDay(parseDay(date))) {
@@ -83,14 +104,20 @@ public class ReceiptService {
     }
 
     private MessageAttachment requireReceipt(ChatRoom room, Long attachmentId, User user) {
+        requireActiveMember(room, user);
+        return attachments.findByIdAndChatRoomId(attachmentId, room.getId())
+                .filter(file -> Boolean.TRUE.equals(file.getReceipt()) && user.getId().equals(file.getUploaderId())
+                        && file.getSha256() != null)
+                // Budget uploads have no chat message. Retain access to previously sent receipts.
+                .filter(file -> Boolean.TRUE.equals(file.getBudgetReceipt()) == (file.getMessageId() == null))
+                .orElseThrow(() -> new IllegalArgumentException(MISSING));
+    }
+
+    private void requireActiveMember(ChatRoom room, User user) {
         budget.requireMember(room.getId(), user);
         if (participants.findByChatRoomAndUser(room, user).filter(ChatRoomParticipant::isActiveMember).isEmpty()) {
             throw new IllegalArgumentException(MISSING);
         }
-        return attachments.findByIdAndChatRoomId(attachmentId, room.getId())
-                .filter(file -> Boolean.TRUE.equals(file.getReceipt()) && user.getId().equals(file.getUploaderId())
-                        && file.getMessageId() != null && file.getSha256() != null)
-                .orElseThrow(() -> new IllegalArgumentException(MISSING));
     }
 
     static long parseAmount(String amount) {
