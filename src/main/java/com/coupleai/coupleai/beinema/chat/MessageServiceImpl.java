@@ -19,6 +19,7 @@ import com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomParticipantRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.MessageRepository;
+import com.coupleai.coupleai.beinema.agents.AgentPacks;
 import com.coupleai.coupleai.beinema.Security.CurrentUserService;
 import com.coupleai.coupleai.beinema.counseling.CounselingConfig;
 import com.coupleai.coupleai.beinema.counseling.TurnInbox;
@@ -95,6 +96,7 @@ public class MessageServiceImpl implements MessageService {
     /** How long the counselor is seen typing before the first-entry welcome appears. */
     private static final long WELCOME_TYPING_MILLIS = 2500L;
     private static final long TURN_GATHER_MILLIS = 2000;
+    private static final long NINA_TURN_GATHER_MILLIS = 900;
 
     /** The room creator's roles: their welcome explains how to invite the partner. */
     private static final java.util.Set<ParticipantRole> ROOM_CREATOR_ROLES =
@@ -124,9 +126,15 @@ public class MessageServiceImpl implements MessageService {
                 getAuthorizedChatRoom(chatRoomId);
 
         Long viewerId = currentUserService.getCurrentUser().getId();
+        Integer visibleFrom = participantRepository.findAllByChatRoom(chatRoom).stream()
+                .filter(person -> person.getUser().getId().equals(viewerId))
+                .findFirst().map(ChatRoomParticipant::getVisibleFromSequence).orElse(null);
         return chatRealtimeService.toResponses(
                 chatRoom,
                 messageRepository.findAllByChatRoomOrderBySequenceNumberAsc(chatRoom).stream()
+                        .filter(message -> visibleFrom == null
+                                || (message.getSequenceNumber() != null
+                                && message.getSequenceNumber() >= visibleFrom))
                         .filter(message -> message.getVisibleToUserId() == null
                                 || message.getVisibleToUserId().equals(viewerId))
                         .toList()
@@ -390,6 +398,10 @@ public class MessageServiceImpl implements MessageService {
         sessionLifecycleService.refresh(chatRoom);
 
         final Long roomId = chatRoom.getId();
+        final long gatherMillis = chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream()
+                .anyMatch(botId -> AgentPacks.byWorkflow(botId)
+                        .map(pack -> "nina".equals(pack.slug())).orElse(false))
+                ? NINA_TURN_GATHER_MILLIS : TURN_GATHER_MILLIS;
         if (resumeHint != null && resumeHint.handshake()) {
             String role = participantRepository.findByChatRoomAndUser(chatRoom, user)
                     .map(participant -> toStableRole(participant.getRole()))
@@ -411,7 +423,7 @@ public class MessageServiceImpl implements MessageService {
         new Thread(() -> {
             SecurityContextHolder.setContext(securityContext);
             // messages sent one after another go into the same turn
-            sleepQuietly(TURN_GATHER_MILLIS);
+            sleepQuietly(gatherMillis);
             String key = CounselingConfig.lockKey(roomId);
             roomTurnLock.lock(key);
             try {

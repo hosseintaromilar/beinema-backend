@@ -104,6 +104,10 @@ public class ChatRoomParticipant extends BaseEntity {
     @Column(name = "entered_at")
     private java.time.Instant enteredAt;
 
+    /** First visible sequence for an invitation without earlier history; null means full history. */
+    @Column(name = "visible_from_sequence")
+    private Integer visibleFromSequence;
+
     /**
      * LEFT: a non-owner ended the conversation for themselves. They still read
      * the history but do not write and are not counted in sessions or turns;

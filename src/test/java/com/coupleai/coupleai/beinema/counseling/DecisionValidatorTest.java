@@ -260,6 +260,18 @@ class DecisionValidatorTest {
     }
 
     @Test
+    void directAnswerAndSpecificReflectionCanStayInUnderstandPhase() throws Exception {
+        for (String action : List.of("RESPOND", "REFLECT")) {
+            DirectorDecision turn = DecisionValidator.validate(json(
+                    "{\"action\":\"" + action + "\",\"phase\":\"UNDERSTAND\",\"addressee\":\"OWNER\"}", ""), ctx());
+            assertEquals(action, turn.action);
+            assertEquals("UNDERSTAND", turn.phase);
+            assertEquals("say it", turn.briefDo);
+            assertNull(turn.question);
+        }
+    }
+
+    @Test
     void adviceOnceTheyConfirmedAReading() throws Exception {
         intents.put(31L, new DecisionValidator.IntentView(31L, "OWNER", "CONFIRMED"));
         DirectorDecision advice = DecisionValidator.validate(json(

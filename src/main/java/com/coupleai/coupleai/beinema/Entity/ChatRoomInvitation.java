@@ -39,6 +39,10 @@ public class ChatRoomInvitation extends BaseEntity {
 
     private LocalDateTime acceptedAt;
 
+    /** Whether the invitee may read messages from before joining. Legacy invitations retain access. */
+    @Column(name = "share_history")
+    private Boolean shareHistory;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "accepted_by_user_id")
     private User acceptedBy;

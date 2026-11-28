@@ -772,6 +772,29 @@ public class ChatRoomService {
         participantRepository.deleteByChatRoomAndUser(chatRoom, user);
     }
 
+    /** The creator can remove the other human member without deleting conversation history. */
+    public void removePartner(Long chatRoomId, Long partnerId, String email) {
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("کاربر پیدا نشد."));
+        ChatRoom room = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new IllegalArgumentException("گفتگو پیدا نشد."));
+        if (!Objects.equals(room.getCreatedBy(), owner.getId())) {
+            throw new IllegalArgumentException("فقط سازندهٔ گفتگو می‌تواند عضو را حذف کند.");
+        }
+        if (room.getStatus() != ChatRoomStatus.ACTIVE || Objects.equals(partnerId, owner.getId())) {
+            throw new IllegalArgumentException("حذف این عضو ممکن نیست.");
+        }
+        ChatRoomParticipant partner = participantRepository.findAllByChatRoom(room).stream()
+                .filter(person -> Objects.equals(person.getUser().getId(), partnerId))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("عضو پیدا نشد."));
+        participantRepository.delete(partner);
+        participantRepository.flush();
+        chatRoomEventHub.publishNamedToUser(chatRoomId, partnerId,
+                "room_access_revoked", Map.of("chatRoomId", chatRoomId));
+        chatRoomEventHub.revoke(chatRoomId, partnerId);
+        announceLeave(room, partner.getUser());
+    }
+
     private void announceLeave(ChatRoom chatRoom, User user) {
         int nextSequence = messageRepository
                 .findMaxSequenceNumberByChatRoom(chatRoom)

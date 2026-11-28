@@ -104,4 +104,11 @@ public class ChatRoomController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/{id}/participants/{partnerId}")
+    public ResponseEntity<Void> removePartner(@PathVariable Long id, @PathVariable Long partnerId,
+            Authentication authentication) {
+        chatRoomService.removePartner(id, partnerId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
 }

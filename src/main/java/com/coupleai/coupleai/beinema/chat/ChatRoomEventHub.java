@@ -89,6 +89,21 @@ public class ChatRoomEventHub {
         publish(chatRoomId, eventName, payload, null);
     }
 
+    public void publishNamedToUser(Long chatRoomId, Long userId, String eventName, Object payload) {
+        publish(chatRoomId, eventName, payload, userId);
+    }
+
+    public void revoke(Long chatRoomId, Long userId) {
+        List<SseEmitter> roomEmitters = emitters.get(chatRoomId);
+        if (roomEmitters == null) return;
+        for (SseEmitter emitter : roomEmitters) {
+            if (userId.equals(owners.get(emitter))) {
+                remove(chatRoomId, emitter);
+                emitter.complete();
+            }
+        }
+    }
+
     private void publish(Long chatRoomId, String eventName, Object payload, Long onlyUserId) {
         List<SseEmitter> roomEmitters = emitters.get(chatRoomId);
         if (roomEmitters == null || roomEmitters.isEmpty() || payload == null) {

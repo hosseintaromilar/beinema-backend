@@ -87,6 +87,11 @@ public class InvitationService {
      */
     @Transactional
     public InviteLink inviteLink(Long chatRoomId) {
+        return inviteLink(chatRoomId, true);
+    }
+
+    @Transactional
+    public InviteLink inviteLink(Long chatRoomId, boolean shareHistory) {
         User inviter = currentUserService.getCurrentUser();
         ChatRoom chatRoom = getAuthorizedChatRoom(chatRoomId, inviter);
         if (chatRoom.getStatus() != ChatRoomStatus.ACTIVE) {
@@ -100,13 +105,14 @@ public class InvitationService {
 
         ChatRoomInvitation invitation = invitationRepository
                 .findFirstByChatRoomAndPhoneNumberIsNullAndStatusOrderByIdDesc(chatRoom, InvitationStatus.PENDING)
-                .filter(item -> !isExpired(item))
+                .filter(item -> !isExpired(item) && shareHistory != Boolean.FALSE.equals(item.getShareHistory()))
                 .orElseGet(() -> invitationRepository.save(
                         ChatRoomInvitation.builder()
                                 .chatRoom(chatRoom)
                                 .invitedBy(inviter)
                                 .token(newToken())
                                 .status(InvitationStatus.PENDING)
+                                .shareHistory(shareHistory)
                                 .expiresAt(LocalDateTime.now().plusHours(invitationExpiryHours))
                                 .build()
                 ));
@@ -308,7 +314,10 @@ public class InvitationService {
 
         // the link itself is the invitation: whoever the owner shared it with may join
 
-        addMember(chatRoom, user, java.time.Instant.now());
+        addMember(chatRoom, user, java.time.Instant.now(),
+                Boolean.FALSE.equals(invitation.getShareHistory())
+                        ? messageRepository.findMaxSequenceNumberByChatRoom(chatRoom).orElse(0) + 1
+                        : null);
         markAccepted(invitation, user);
         announceJoin(chatRoom, user);
         participationPauseService.startConsentGate(chatRoom, user);
@@ -321,11 +330,15 @@ public class InvitationService {
     }
 
     private void addMember(ChatRoom chatRoom, User user) {
-        addMember(chatRoom, user, null);
+        addMember(chatRoom, user, null, null);
     }
 
     /** rulesAcceptedAt: set when the rules were accepted before joining (then the first entry is the consent). */
     private void addMember(ChatRoom chatRoom, User user, java.time.Instant rulesAcceptedAt) {
+        addMember(chatRoom, user, rulesAcceptedAt, null);
+    }
+
+    private void addMember(ChatRoom chatRoom, User user, java.time.Instant rulesAcceptedAt, Integer visibleFromSequence) {
         if (participantRepository.existsByChatRoomAndUser(chatRoom, user)) {
             return;
         }
@@ -338,6 +351,7 @@ public class InvitationService {
                         .sessionConsented(false)
                         .consentOffered(false)
                         .rulesAcceptedAt(rulesAcceptedAt)
+                        .visibleFromSequence(visibleFromSequence)
                         .build()
         );
     }
@@ -401,7 +415,8 @@ public class InvitationService {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new IllegalArgumentException("گفتگو پیدا نشد."));
 
-        if (!participantRepository.existsByChatRoomAndUser(chatRoom, user)) {
+        if (!java.util.Objects.equals(chatRoom.getCreatedBy(), user.getId())
+                || !participantRepository.existsByChatRoomAndUser(chatRoom, user)) {
             throw new IllegalArgumentException("دسترسی به این گفتگو ندارید.");
         }
 

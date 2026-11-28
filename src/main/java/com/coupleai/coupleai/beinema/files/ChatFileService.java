@@ -5,6 +5,7 @@ import com.coupleai.coupleai.beinema.metis.MetisService;
 import com.coupleai.coupleai.beinema.DTO.messages.AttachmentResponse;
 import com.coupleai.coupleai.beinema.DTO.metis.MetisAttachment;
 import com.coupleai.coupleai.beinema.Entity.ChatRoom;
+import com.coupleai.coupleai.beinema.Entity.ChatRoomParticipant;
 import com.coupleai.coupleai.beinema.Entity.Message;
 import com.coupleai.coupleai.beinema.Entity.MessageAttachment;
 import com.coupleai.coupleai.beinema.Entity.User;
@@ -278,11 +279,26 @@ public class ChatFileService {
 
     public LoadedFile load(Long chatRoomId, Long attachmentId) {
         User user = currentUserService.getCurrentUser();
-        requireMemberRoom(chatRoomId, user);
+        ChatRoom room = requireMemberRoom(chatRoomId, user);
         MessageAttachment attachment = attachmentRepository.findByIdAndChatRoomId(attachmentId, chatRoomId)
                 .filter(file -> !Boolean.TRUE.equals(file.getBudgetReceipt())
                         && (!Boolean.TRUE.equals(file.getReceipt()) || file.getMessageId() != null))
                 .orElseThrow(() -> new IllegalArgumentException("فایل پیدا نشد."));
+        Integer visibleFrom = participantRepository.findByChatRoomAndUser(room, user)
+                .map(ChatRoomParticipant::getVisibleFromSequence).orElse(null);
+        if (attachment.getMessageId() == null && !user.getId().equals(attachment.getUploaderId())) {
+            throw new IllegalArgumentException("فایل پیدا نشد.");
+        }
+        if (attachment.getMessageId() != null) {
+            Message message = messageRepository.findById(attachment.getMessageId())
+                    .orElseThrow(() -> new IllegalArgumentException("فایل پیدا نشد."));
+            if ((visibleFrom != null && (message.getSequenceNumber() == null
+                    || message.getSequenceNumber() < visibleFrom))
+                    || (message.getVisibleToUserId() != null
+                    && !message.getVisibleToUserId().equals(user.getId()))) {
+                throw new IllegalArgumentException("فایل پیدا نشد.");
+            }
+        }
         return loadStoredFile(attachment);
     }
 

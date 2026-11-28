@@ -18,13 +18,19 @@ public final class VoicePacketBuilder {
      * In every brief except a structured question (whose CONFIRM sentence checks
      * a reading on purpose): a reply reflects meaning, never the person's words.
      */
-    static final String NO_ECHO = "do not restate or paraphrase what they wrote, and do not state guesses about them";
+    static final String NO_ECHO = "do not echo their words or assert a guess about their feelings; one brief, specific acknowledgement of the moment is welcome before the next move";
+    static final String NINA_NO_ECHO = "do not echo or summarize their message; one brief, concrete acknowledgement of the moment is welcome when it helps, without asserting an unconfirmed feeling or need";
 
     private VoicePacketBuilder() {
     }
 
     /** readings: intent id to its English interpretation, in the order the options should follow. */
     public static String forDecision(TurnMaterial m, DirectorDecision d, Map<Long, String> readings, int window) {
+        return forDecision(m, d, readings, window, false);
+    }
+
+    public static String forDecision(TurnMaterial m, DirectorDecision d, Map<Long, String> readings, int window,
+                                     boolean nina) {
         StringBuilder out = new StringBuilder(MODE).append('\n');
         participants(out, m);
         out.append("[BRIEF]\n")
@@ -33,9 +39,10 @@ public final class VoicePacketBuilder {
                 .append("addressee=").append(addressee(m, d.addressee)).append('\n')
                 .append("purpose=").append(d.purpose).append('\n')
                 .append("do=").append(d.briefDo).append('\n');
+        out.append("tone=warm, kind and empathic in natural spoken Persian; when someone shares a painful moment, acknowledge that moment before moving on; never use stock sympathy or invent their feelings\n");
         List<String> mustNot = new java.util.ArrayList<>(d.briefMustNot);
         if (!"ASK_CLARIFYING".equals(d.action)) {
-            mustNot.add(NO_ECHO);
+            mustNot.add(nina ? NINA_NO_ECHO : NO_ECHO);
         }
         if (!"ADVISE".equals(d.phase)) {
             // until they confirmed what the real problem is, the voice gets to know them or puts a guess to them
@@ -73,6 +80,7 @@ public final class VoicePacketBuilder {
         StringBuilder out = new StringBuilder(MODE).append('\n');
         participants(out, m);
         out.append("[EVENT]\n").append(cue == null ? "" : cue.trim()).append('\n');
+        out.append("[TONE]\nwarm, kind and empathic in natural spoken Persian; welcome people without a scripted formula\n");
         CounselingSnapshot s = m.snapshot();
         if (!s.isEmpty()) {
             out.append("[CONTEXT]\n");

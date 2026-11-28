@@ -11,6 +11,7 @@ import com.coupleai.coupleai.beinema.Enum.MessageSenderType;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomAgentRepository;
 import com.coupleai.coupleai.beinema.Repository.ChatRoomRepository;
 import com.coupleai.coupleai.beinema.Repository.DirectorDecisionRecordRepository;
+import com.coupleai.coupleai.beinema.agents.AgentPacks;
 import com.coupleai.coupleai.beinema.chat.ChatRealtimeService;
 import com.coupleai.coupleai.beinema.chat.ChatRoomEventHub;
 import com.coupleai.coupleai.beinema.chat.MessageServiceImpl;
@@ -182,7 +183,9 @@ public class TurnOrchestrator {
                 : null;
 
         // 0. the session manager plans the session at its start and again every so often
+        long plannerStarted = System.currentTimeMillis();
         SessionPlanner.refresh(m, brain);
+        long plannerMs = System.currentTimeMillis() - plannerStarted;
 
         // 1-2. decide
         boolean kit = m.tags() != null && m.tags().contains(ElikaKit.TAG);
@@ -268,7 +271,10 @@ public class TurnOrchestrator {
 
         // 6. the voice (still writing: keep the typing sign up for both partners)
         chatRealtimeService.publishAgentTyping(roomId, 9000, writingPhase(d));
-        String voicePacket = VoicePacketBuilder.forDecision(m, d, stored.readings(), config.getVoiceRecentMessages());
+        boolean nina = chatRoomAgentRepository.findActiveAgentBotIds(roomId).stream()
+                .anyMatch(botId -> AgentPacks.byWorkflow(botId)
+                        .map(pack -> "nina".equals(pack.slug())).orElse(false));
+        String voicePacket = VoicePacketBuilder.forDecision(m, d, stored.readings(), config.getVoiceRecentMessages(), nina);
         String voiceRaw = "";
         long voiceMs = 0;
         VoiceOutputParser.Result out = null;
@@ -331,8 +337,8 @@ public class TurnOrchestrator {
         }
         long checkMs = System.currentTimeMillis() - checkStarted;
         // where the time of a turn went, to see what makes people wait
-        log.info("Turn timing room {} ({}): load {} ms, director {} ms, lesson {} ms, voice {} ms, checks {} ms, total {} ms",
-                roomId, d.action, loadMs, directorMs, lessonMs, voiceWallMs, checkMs, System.currentTimeMillis() - startedAt);
+        log.info("Turn timing room {} ({}): load {} ms, planner {} ms, director {} ms, lesson {} ms, voice {} ms, checks {} ms, total {} ms",
+                roomId, d.action, loadMs, plannerMs, directorMs, lessonMs, voiceWallMs, checkMs, System.currentTimeMillis() - startedAt);
         if (out == null || out.failed()) {
             if (stored.questionId() != null) {
                 questionService.cancel(stored.questionId(), "the voice could not write it");

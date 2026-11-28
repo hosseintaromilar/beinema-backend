@@ -17,8 +17,10 @@ public class InvitationController {
 
     /** The invitation link to share with the partner through any app (no SMS for now). */
     @PostMapping("/api/chat-rooms/{chatRoomId}/invitations/link")
-    public InvitationService.InviteLink inviteLink(@PathVariable Long chatRoomId) {
-        return invitationService.inviteLink(chatRoomId);
+    public InvitationService.InviteLink inviteLink(@PathVariable Long chatRoomId,
+            @RequestBody(required = false) java.util.Map<String, Object> body) {
+        boolean shareHistory = body == null || !Boolean.FALSE.equals(body.get("shareHistory"));
+        return invitationService.inviteLink(chatRoomId, shareHistory);
     }
 
     @PostMapping("/api/chat-rooms/{chatRoomId}/invitations")
